@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const { company } = usePasskey()
@@ -21,18 +22,37 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const { passkey } = useParams()
 
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!company) return
     setLoading(true)
-    const { error } = await signIn(email, password)
+
+    let loginEmail = identifier.trim()
+
+    // Se não for um e-mail, busca o e-mail pelo username e company_id
+    if (!loginEmail.includes('@')) {
+      const { data, error } = await supabase.rpc('get_email_for_login', {
+        p_username: loginEmail,
+        p_company_id: company.id,
+      })
+
+      if (error || !data) {
+        setLoading(false)
+        toast.error('Usuário ou senha inválidos')
+        return
+      }
+      loginEmail = data as string
+    }
+
+    const { error } = await signIn(loginEmail, password)
     setLoading(false)
 
     if (error) {
-      toast.error('Acesso negado', { description: 'Credenciais inválidas.' })
+      toast.error('Usuário ou senha inválidos')
     } else {
       navigate(`/${passkey}/dashboard`)
     }
@@ -59,13 +79,13 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail ou Usuário</Label>
+              <Label htmlFor="identifier">E-mail ou Usuário</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="admin@beautyos.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="identifier"
+                type="text"
+                placeholder="admin@beautyos.com ou admin"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
               />
             </div>

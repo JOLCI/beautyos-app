@@ -3,6 +3,7 @@ import { useParams, Navigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { applyTheme } from '@/lib/colorUtils'
 import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Company {
   id: string
@@ -24,24 +25,31 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
   const { passkey } = useParams()
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     if (!passkey) {
       setLoading(false)
+      setError(true)
       return
     }
 
     const fetchCompany = async () => {
       setLoading(true)
-      const { data, error } = await supabase
+      const { data, error: err } = await supabase
         .from('companies')
         .select('*')
         .ilike('passkey', passkey)
         .single()
 
-      if (data) {
+      if (data && !err) {
         setCompany(data)
         if (data.primary_color) applyTheme(data.primary_color)
+      } else {
+        toast.error('Empresa não encontrada', {
+          description: 'A chave de acesso informada não existe.',
+        })
+        setError(true)
       }
       setLoading(false)
     }
@@ -57,8 +65,8 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
     )
   }
 
-  if (!company) {
-    return <Navigate to="/empresa-nao-encontrada" replace />
+  if (error || !company) {
+    return <Navigate to="/" replace />
   }
 
   return <PasskeyContext.Provider value={{ company, loading }}>{children}</PasskeyContext.Provider>
