@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -6,6 +6,22 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { applyTheme } from '@/lib/colorUtils'
 import { supabase } from '@/lib/supabase/client'
@@ -19,31 +35,32 @@ import {
   Building2,
   Clock,
   MessageSquare,
-  Link as LinkIcon,
   FileText,
-  Percent,
+  QrCode,
+  Loader2,
+  Trash2,
 } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 export default function ConfiguracoesPage() {
   const { company } = usePasskey()
-  const { data: services } = useQuery<any>('services', { match: { is_active: true } })
-  const { data: professionals } = useQuery<any>('profiles', { match: { is_active: true } })
+  const { data: pixGateways, refetch: refetchPix } = useQuery<any>('pix_gateways')
+  const { data: waTemplates, refetch: refetchWa } = useQuery<any>('whatsapp_templates')
 
-  // States
   const [primaryColor, setPrimaryColor] = useState(company?.primary_color || '#e11d48')
   const [name, setName] = useState(company?.name || '')
   const [settings, setSettings] = useState<any>(company?.settings || {})
 
-  const [commProf, setCommProf] = useState('')
-  const [commSrv, setCommSrv] = useState('')
-  const [commPct, setCommPct] = useState('')
+  const [waStatus, setWaStatus] = useState<'disconnected' | 'waiting' | 'connected'>('disconnected')
+  const [waQrCode, setWaQrCode] = useState('')
+
+  const [pixForm, setPixForm] = useState({
+    name: '',
+    provider: 'mercadopago',
+    pix_key: '',
+    pix_key_type: 'cpf',
+    is_active: false,
+  })
+  const [tplForm, setTplForm] = useState({ template_key: '', body: '' })
 
   const updateSetting = (key: string, value: any) => setSettings({ ...settings, [key]: value })
 
@@ -52,27 +69,57 @@ export default function ConfiguracoesPage() {
     applyTheme(primaryColor)
     await supabase
       .from('companies')
-      .update({
-        name,
-        primary_color: primaryColor,
-        settings,
-      })
+      .update({ name, primary_color: primaryColor, settings })
       .eq('id', company.id)
     toast.success('Configurações salvas')
   }
 
-  const addCommissionRule = async () => {
-    if (!commProf || !commSrv || !commPct) return
-    await supabase.from('commission_rules').insert([
-      {
-        company_id: company?.id,
-        professional_id: commProf,
-        service_id: commSrv,
-        percentage: Number(commPct),
-      },
-    ])
-    toast.success('Regra adicionada')
-    setCommPct('')
+  // Business Hours setup
+  const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+  const [hours, setHours] = useState<any>(
+    settings.business_hours ||
+      days.reduce((acc, d) => ({ ...acc, [d]: { open: true, start: '08:00', end: '19:00' } }), {}),
+  )
+
+  const saveHours = () => {
+    updateSetting('business_hours', hours)
+    saveSettings()
+  }
+
+  const connectWhatsApp = async () => {
+    setWaStatus('waiting')
+    const { data } = await supabase.functions.invoke('whatsapp-generate-qr')
+    if (data?.success) setWaQrCode(data.qr)
+
+    // Poll for connection
+    const interval = setInterval(async () => {
+      const { data: st } = await supabase.functions.invoke('whatsapp-check-status')
+      if (st?.status === 'connected') {
+        setWaStatus('connected')
+        clearInterval(interval)
+        toast.success('WhatsApp Conectado via Evolution API')
+      }
+    }, 5000)
+    setTimeout(() => clearInterval(interval), 180000)
+  }
+
+  const savePixGateway = async () => {
+    await supabase.from('pix_gateways').insert([{ ...pixForm, company_id: company?.id }])
+    toast.success('Gateway adicionado')
+    refetchPix()
+  }
+
+  const saveTemplate = async () => {
+    const existing = waTemplates.find((t: any) => t.template_key === tplForm.template_key)
+    if (existing) {
+      await supabase.from('whatsapp_templates').update({ body: tplForm.body }).eq('id', existing.id)
+    } else {
+      await supabase
+        .from('whatsapp_templates')
+        .insert([{ ...tplForm, name: tplForm.template_key, company_id: company?.id }])
+    }
+    toast.success('Template salvo')
+    refetchWa()
   }
 
   return (
@@ -87,11 +134,9 @@ export default function ConfiguracoesPage() {
           {[
             { id: 'empresa', label: 'Empresa', icon: Building2 },
             { id: 'horarios', label: 'Horários', icon: Clock },
-            { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-            { id: 'pix', label: 'PIX & Pagamentos', icon: Smartphone },
-            { id: 'google', label: 'Google Agenda', icon: Calendar },
-            { id: 'templates', label: 'Templates', icon: FileText },
-            { id: 'comissoes', label: 'Comissões', icon: Percent },
+            { id: 'whatsapp', label: 'WhatsApp Evolution', icon: MessageSquare },
+            { id: 'pix', label: 'Gateways PIX', icon: Smartphone },
+            { id: 'templates', label: 'Templates WA', icon: FileText },
             { id: 'aparencia', label: 'Aparência', icon: Palette },
           ].map((tab) => (
             <TabsTrigger
@@ -132,29 +177,50 @@ export default function ConfiguracoesPage() {
           <TabsContent value="horarios" className="mt-0">
             <Card>
               <CardHeader>
-                <CardTitle>Horários</CardTitle>
+                <CardTitle>Horário de Funcionamento</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between max-w-sm">
-                  <Label>Abertura</Label>
-                  <Input
-                    type="time"
-                    className="w-32"
-                    value={settings.openTime || '08:00'}
-                    onChange={(e) => updateSetting('openTime', e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center justify-between max-w-sm">
-                  <Label>Fechamento</Label>
-                  <Input
-                    type="time"
-                    className="w-32"
-                    value={settings.closeTime || '19:00'}
-                    onChange={(e) => updateSetting('closeTime', e.target.value)}
-                  />
-                </div>
-                <Button onClick={saveSettings}>
-                  <Save className="w-4 h-4 mr-2" /> Salvar
+                {days.map((d) => (
+                  <div
+                    key={d}
+                    className="flex items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border"
+                  >
+                    <div className="flex items-center gap-3 w-32">
+                      <Switch
+                        checked={hours[d]?.open}
+                        onCheckedChange={(v) =>
+                          setHours({ ...hours, [d]: { ...hours[d], open: v } })
+                        }
+                      />
+                      <Label>{d}</Label>
+                    </div>
+                    {hours[d]?.open ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={hours[d]?.start}
+                          onChange={(e) =>
+                            setHours({ ...hours, [d]: { ...hours[d], start: e.target.value } })
+                          }
+                          className="w-28"
+                        />
+                        <span>até</span>
+                        <Input
+                          type="time"
+                          value={hours[d]?.end}
+                          onChange={(e) =>
+                            setHours({ ...hours, [d]: { ...hours[d], end: e.target.value } })
+                          }
+                          className="w-28"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-1 text-muted-foreground text-sm">Fechado</div>
+                    )}
+                  </div>
+                ))}
+                <Button onClick={saveHours}>
+                  <Save className="w-4 h-4 mr-2" /> Salvar Horários
                 </Button>
               </CardContent>
             </Card>
@@ -163,43 +229,44 @@ export default function ConfiguracoesPage() {
           <TabsContent value="whatsapp" className="mt-0">
             <Card>
               <CardHeader>
-                <CardTitle>Integração WhatsApp API</CardTitle>
+                <CardTitle>Integração WhatsApp API (Evolution)</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between bg-muted/30 p-4 border rounded-xl">
-                  <div className="space-y-1">
-                    <Label>Ativar Lembretes (24h)</Label>
-                    <p className="text-xs text-muted-foreground">Dispara via Edge Function</p>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 border rounded-xl">
+                  <div>
+                    <Label className="text-lg">Status da Conexão</Label>
+                    <p className="text-sm text-muted-foreground">Conecte via QR Code</p>
                   </div>
-                  <Switch
-                    checked={settings.wa_reminders}
-                    onCheckedChange={(v) => updateSetting('wa_reminders', v)}
-                  />
-                </div>
-                <div className="flex items-center justify-between bg-muted/30 p-4 border rounded-xl">
-                  <div className="space-y-1">
-                    <Label>Ativar Cobranças Automáticas</Label>
-                  </div>
-                  <Switch
-                    checked={settings.wa_billing}
-                    onCheckedChange={(v) => updateSetting('wa_billing', v)}
-                  />
-                </div>
-                <div className="pt-2 flex gap-2">
-                  <Button onClick={saveSettings}>
-                    <Save className="w-4 h-4 mr-2" /> Salvar
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      supabase.functions
-                        .invoke('test-whatsapp')
-                        .then(() => toast.success('Conexão testada'))
-                    }
+                  <Badge
+                    variant={waStatus === 'connected' ? 'default' : 'secondary'}
+                    className={waStatus === 'connected' ? 'bg-green-500' : ''}
                   >
-                    <LinkIcon className="w-4 h-4 mr-2" /> Testar API
-                  </Button>
+                    {waStatus === 'connected'
+                      ? 'Conectado'
+                      : waStatus === 'waiting'
+                        ? 'Aguardando Leitura'
+                        : 'Desconectado'}
+                  </Badge>
                 </div>
+                {waStatus === 'disconnected' && (
+                  <Button onClick={connectWhatsApp} className="w-full h-12">
+                    <QrCode className="w-4 h-4 mr-2" /> Gerar QR Code
+                  </Button>
+                )}
+                {waStatus === 'waiting' && (
+                  <div className="flex flex-col items-center p-8 border rounded-xl bg-muted/30 space-y-4">
+                    <div className="w-48 h-48 bg-white border p-2 rounded-lg flex items-center justify-center">
+                      {waQrCode ? (
+                        <QrCode className="w-32 h-32" />
+                      ) : (
+                        <Loader2 className="w-8 h-8 animate-spin" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Escaneie o QR Code com seu WhatsApp.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -207,43 +274,99 @@ export default function ConfiguracoesPage() {
           <TabsContent value="pix" className="mt-0">
             <Card>
               <CardHeader>
-                <CardTitle>Gateway de PIX</CardTitle>
+                <CardTitle>Gateways PIX e Pagamentos</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Provedor</Label>
-                  <Input
-                    value={settings.pix_provider || 'Mercado Pago'}
-                    onChange={(e) => updateSetting('pix_provider', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Token de Acesso</Label>
-                  <Input
-                    type="password"
-                    value={settings.pix_token || ''}
-                    onChange={(e) => updateSetting('pix_token', e.target.value)}
-                  />
-                </div>
-                <Button onClick={saveSettings}>
-                  <Save className="w-4 h-4 mr-2" /> Salvar
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              <CardContent className="space-y-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Provedor</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pixGateways.map((g: any) => (
+                      <TableRow key={g.id}>
+                        <TableCell>{g.name}</TableCell>
+                        <TableCell className="capitalize">{g.provider}</TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={g.is_active}
+                            onCheckedChange={async (v) => {
+                              await supabase
+                                .from('pix_gateways')
+                                .update({ is_active: v })
+                                .eq('id', g.id)
+                              refetchPix()
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" className="text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
 
-          <TabsContent value="google" className="mt-0">
-            <Card>
-              <CardHeader>
-                <CardTitle>Google Calendar</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Sincronize a agenda do BeautyOS com seu Google Agenda.
-                </p>
-                <Button variant="outline">
-                  <Calendar className="w-4 h-4 mr-2" /> Autorizar Google Calendar
-                </Button>
+                <div className="space-y-4 border p-4 rounded-xl">
+                  <h4 className="font-semibold">Novo Gateway</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Identificação</Label>
+                      <Input
+                        value={pixForm.name}
+                        onChange={(e) => setPixForm({ ...pixForm, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Provedor</Label>
+                      <Select
+                        value={pixForm.provider}
+                        onValueChange={(v) => setPixForm({ ...pixForm, provider: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mercadopago">Mercado Pago</SelectItem>
+                          <SelectItem value="infinitypay">Infinity Pay</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Chave PIX</Label>
+                      <Input
+                        value={pixForm.pix_key}
+                        onChange={(e) => setPixForm({ ...pixForm, pix_key: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de Chave</Label>
+                      <Select
+                        value={pixForm.pix_key_type}
+                        onValueChange={(v) => setPixForm({ ...pixForm, pix_key_type: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cpf">CPF/CNPJ</SelectItem>
+                          <SelectItem value="email">E-mail</SelectItem>
+                          <SelectItem value="phone">Telefone</SelectItem>
+                          <SelectItem value="random">Aleatória</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button onClick={savePixGateway}>
+                    <Save className="w-4 h-4 mr-2" /> Adicionar Gateway
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -251,83 +374,48 @@ export default function ConfiguracoesPage() {
           <TabsContent value="templates" className="mt-0">
             <Card>
               <CardHeader>
-                <CardTitle>Templates de Mensagem</CardTitle>
-                <CardDescription>Use [NOME_CLIENTE], [DATA_HORA] etc.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Lembrete 24h</Label>
-                  <Textarea
-                    value={
-                      settings.tpl_reminder ||
-                      'Olá [NOME_CLIENTE], lembramos do seu agendamento dia [DATA_HORA].'
-                    }
-                    onChange={(e) => updateSetting('tpl_reminder', e.target.value)}
-                  />
-                </div>
-                <Button onClick={saveSettings}>
-                  <Save className="w-4 h-4 mr-2" /> Salvar
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="comissoes" className="mt-0">
-            <Card>
-              <CardHeader>
-                <CardTitle>Regras de Comissão</CardTitle>
+                <CardTitle>Templates Automáticos de WhatsApp</CardTitle>
                 <CardDescription>
-                  Defina o percentual de comissão por profissional e serviço.
+                  Variáveis: [NOME_CLIENTE], [DATA_HORA], [VALOR], [LINK_PIX]
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <CardContent className="space-y-6">
+                <div className="space-y-4 border p-4 rounded-xl">
                   <div className="space-y-2">
-                    <Label>Profissional</Label>
-                    <Select value={commProf} onValueChange={setCommProf}>
+                    <Label>Selecione o Gatilho</Label>
+                    <Select
+                      value={tplForm.template_key}
+                      onValueChange={(v) => {
+                        const ex = waTemplates.find((t: any) => t.template_key === v)
+                        setTplForm({ template_key: v, body: ex ? ex.body : '' })
+                      }}
+                    >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Escolha um template..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {professionals.map((p: any) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="lembrete_24h">Lembrete de Agenda (24h antes)</SelectItem>
+                        <SelectItem value="lembrete_1h">Lembrete de Agenda (1h antes)</SelectItem>
+                        <SelectItem value="cobranca_pix_agendado">
+                          Cobrança: PIX Agendado no Vencimento
+                        </SelectItem>
+                        <SelectItem value="pos_atendimento">Pós-Atendimento (Feedback)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Serviço</Label>
-                    <Select value={commSrv} onValueChange={setCommSrv}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services
-                          .filter((s: any) => s.type === 'service')
-                          .map((s: any) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Percentual (%)</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        value={commPct}
-                        onChange={(e) => setCommPct(e.target.value)}
+                  {tplForm.template_key && (
+                    <div className="space-y-2">
+                      <Label>Mensagem</Label>
+                      <Textarea
+                        value={tplForm.body}
+                        onChange={(e) => setTplForm({ ...tplForm, body: e.target.value })}
+                        className="h-32"
                       />
-                      <Button onClick={addCommissionRule}>Adicionar</Button>
+                      <Button onClick={saveTemplate}>
+                        <Save className="w-4 h-4 mr-2" /> Salvar Template
+                      </Button>
                     </div>
-                  </div>
-                </div>
-                <div className="text-sm text-muted-foreground pt-4 border-t">
-                  Regras cadastradas aplicam-se automaticamente na finalização de comandas.
+                  )}
                 </div>
               </CardContent>
             </Card>

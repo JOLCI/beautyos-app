@@ -9,22 +9,49 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Wallet, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Wallet, Loader2, Undo2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase/client'
+import { usePasskey } from '@/contexts/PasskeyContext'
+import { toast } from 'sonner'
 
 export default function CaixaPage() {
-  const { data: txs, loading } = useQuery<any>('transactions', {
-    order: { column: 'created_at', ascending: false },
-  })
+  const { company } = usePasskey()
+  const {
+    data: txs,
+    loading,
+    refetch,
+  } = useQuery<any>('transactions', { order: { column: 'created_at', ascending: false } })
 
   const saldo = txs.reduce(
-    (acc, t) =>
+    (acc: number, t: any) =>
       t.status === 'completed' ? (t.type === 'entrada' ? acc + t.amount : acc - t.amount) : acc,
     0,
   )
 
+  const handleEstorno = async (t: any) => {
+    if (!confirm('Confirmar estorno desta transação?')) return
+
+    await supabase.from('transactions').insert([
+      {
+        company_id: company?.id,
+        type: t.type === 'entrada' ? 'saida' : 'entrada',
+        amount: t.amount,
+        description: `Estorno: ${t.description}`,
+        payment_method: t.payment_method,
+        status: 'completed',
+      },
+    ])
+
+    await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', t.id)
+
+    toast.success('Estorno realizado e auditado')
+    refetch()
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Caixa Diário</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Caixa Diário & Auditoria</h1>
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-6">
@@ -43,9 +70,9 @@ export default function CaixaPage() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Lançamentos</CardTitle>
+            <CardTitle>Lançamentos do Caixa</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -54,11 +81,15 @@ export default function CaixaPage() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {txs.map((t) => (
-                  <TableRow key={t.id}>
+                {txs.map((t: any) => (
+                  <TableRow
+                    key={t.id}
+                    className={t.status === 'cancelled' ? 'opacity-50 line-through' : ''}
+                  >
                     <TableCell className="text-muted-foreground">
                       {new Date(t.created_at).toLocaleString()}
                     </TableCell>
@@ -75,6 +106,13 @@ export default function CaixaPage() {
                       <Badge variant="secondary">{t.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-bold">R$ {t.amount.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      {t.status === 'completed' && !t.description.startsWith('Estorno') && (
+                        <Button variant="ghost" size="sm" onClick={() => handleEstorno(t)}>
+                          <Undo2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

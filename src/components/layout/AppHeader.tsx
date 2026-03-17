@@ -1,37 +1,57 @@
-import { SidebarTrigger } from '@/components/ui/sidebar'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { useAuth } from '@/contexts/AuthContext'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Flower } from 'lucide-react'
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { Button } from '@/components/ui/button'
+import { LogOut, User as UserIcon } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { useNavigate, useParams } from 'react-router-dom'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export function AppHeader() {
-  const { user } = useAuth()
+  const { isMobile } = useSidebar()
+  const { signOut, profile } = useAuth()
+  const navigate = useNavigate()
+  const { passkey } = useParams()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate(`/${passkey}/login`)
+  }
 
   return (
-    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md flex items-center px-4 justify-between sticky top-0 z-30 shadow-subtle">
+    <header className="h-16 flex items-center justify-between px-4 border-b bg-background sticky top-0 z-10 shadow-sm">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="md:hidden" />
-        <div className="font-semibold text-xl flex items-center gap-2 text-primary">
-          <Flower className="h-6 w-6" />
-          <span className="hidden sm:inline tracking-tight">BeautyOS</span>
-        </div>
+        {isMobile && <SidebarTrigger />}
+        <h2 className="font-semibold text-lg hidden sm:block">Painel de Controle</h2>
       </div>
-      <div className="flex items-center gap-4">
-        <ThemeToggle />
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end hidden md:flex">
-            <span className="text-sm font-medium leading-none">{user?.name}</span>
-            <span className="text-xs text-muted-foreground uppercase tracking-wider">
-              {user?.role}
-            </span>
-          </div>
-          <Avatar className="h-9 w-9 border border-border shadow-sm">
-            <AvatarFallback className="bg-primary/10 text-primary">
-              {user?.name?.charAt(0).toUpperCase()}
-            </AvatarFallback>
-            <AvatarImage src={`https://img.usecurling.com/ppl/thumbnail?seed=${user?.username}`} />
-          </Avatar>
-        </div>
+
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative h-9 rounded-full pl-3 pr-2 flex items-center gap-2 border bg-muted/30"
+            >
+              <span className="text-sm font-medium hidden sm:inline-block max-w-[120px] truncate">
+                {profile?.name}
+              </span>
+              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                <UserIcon className="w-3 h-3" />
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem
+              onClick={handleSignOut}
+              className="text-destructive font-medium cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 mr-2" /> Sair do Sistema
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

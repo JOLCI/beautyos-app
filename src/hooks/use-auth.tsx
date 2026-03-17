@@ -76,7 +76,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) =>
     await supabase.auth.signInWithPassword({ email, password })
-  const signOut = async () => await supabase.auth.signOut()
+  const signOut = async () => {
+    // Clear profile optimistically
+    setProfile(null)
+    setUser(null)
+    return await supabase.auth.signOut()
+  }
 
   return (
     <AuthContext.Provider value={{ user, profile, session, signIn, signOut, loading }}>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Sheet,
   SheetContent,
@@ -21,8 +21,9 @@ import { useQuery } from '@/hooks/use-query'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
-export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
+export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointment }: any) {
   const { company } = usePasskey()
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
   const { data: services } = useQuery<any>('services', { match: { is_active: true } })
@@ -33,6 +34,23 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
   const [profId, setProfId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [startTime, setStartTime] = useState('09:00')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (appointment) {
+      setClientId(appointment.client_id)
+      setServiceId(appointment.service_id)
+      setProfId(appointment.professional_id)
+      setDate(appointment.date)
+      setStartTime(appointment.start_time.slice(0, 5))
+    } else {
+      setClientId('')
+      setServiceId('')
+      setProfId('')
+      setDate(new Date().toISOString().split('T')[0])
+      setStartTime('09:00')
+    }
+  }, [appointment, open])
 
   const endTime = useMemo(() => {
     if (!startTime || !serviceId) return ''
@@ -44,49 +62,61 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
   }, [startTime, serviceId, services])
 
   const handleSave = async () => {
-    const { error } = await supabase.from('appointments').insert([
-      {
-        company_id: company?.id,
-        client_id: clientId,
-        service_id: serviceId,
-        professional_id: profId,
-        date,
-        start_time: startTime + ':00',
-        end_time: endTime,
-        status: 'agendado',
-      },
-    ])
-
-    if (error) {
-      toast.error('Erro ao agendar')
-    } else {
-      toast.success('Agendamento confirmado')
-
-      const client = clients.find((c: any) => c.id === clientId)
-      if (client?.phone) {
-        supabase.functions.invoke('send-whatsapp', {
-          body: { template: 'confirmacao', to: client.phone },
-        })
-      }
-
-      if (onSuccess) onSuccess()
-      onOpenChange(false)
+    setSaving(true)
+    const payload = {
+      company_id: company?.id,
+      client_id: clientId,
+      service_id: serviceId,
+      professional_id: profId,
+      date,
+      start_time: startTime + ':00',
+      end_time: endTime,
     }
+
+    let err = null
+    if (appointment) {
+      const { error } = await supabase.from('appointments').update(payload).eq('id', appointment.id)
+      err = error
+    } else {
+      const { error } = await supabase
+        .from('appointments')
+        .insert([{ ...payload, status: 'agendado' }])
+      err = error
+    }
+
+    setSaving(false)
+    if (err) return toast.error('Erro ao salvar')
+
+    toast.success(appointment ? 'Atualizado' : 'Agendado')
+    supabase.functions.invoke('google-calendar-sync') // async trigger
+
+    if (onSuccess) onSuccess()
+    onOpenChange(false)
+  }
+
+  const handleCancel = async () => {
+    if (!appointment) return
+    if (!confirm('Cancelar este agendamento?')) return
+    await supabase.from('appointments').update({ status: 'cancelado' }).eq('id', appointment.id)
+    toast.success('Cancelado')
+    supabase.functions.invoke('google-calendar-sync')
+    if (onSuccess) onSuccess()
+    onOpenChange(false)
   }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md overflow-y-auto max-h-screen">
+      <SheetContent side="right" className="sm:max-w-md overflow-y-auto max-h-screen">
         <SheetHeader className="mb-6">
-          <SheetTitle>Novo Agendamento</SheetTitle>
-          <SheetDescription>Reserve um horário na agenda.</SheetDescription>
+          <SheetTitle>{appointment ? 'Editar Agendamento' : 'Novo Agendamento'}</SheetTitle>
+          <SheetDescription>Reserve ou edite um horário na agenda.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Cliente</Label>
             <Select value={clientId} onValueChange={setClientId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {clients.map((c: any) => (
@@ -101,14 +131,14 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
             <Label>Serviço</Label>
             <Select value={serviceId} onValueChange={setServiceId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {services
                   .filter((s: any) => s.type === 'service')
                   .map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.name} ({s.duration}min)
+                      {s.name}
                     </SelectItem>
                   ))}
               </SelectContent>
@@ -118,7 +148,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
             <Label>Profissional</Label>
             <Select value={profId} onValueChange={setProfId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {professionals.map((p: any) => (
@@ -141,17 +171,22 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
           </div>
           <div className="space-y-2">
             <Label>Término Estimado</Label>
-            <Input type="time" value={endTime.slice(0, 5)} readOnly disabled className="bg-muted" />
+            <Input type="time" value={endTime.slice(0, 5)} disabled className="bg-muted" />
           </div>
         </div>
-        <SheetFooter className="mt-8">
+        <SheetFooter className="mt-8 flex flex-col gap-2 sm:flex-col">
           <Button
             onClick={handleSave}
-            className="w-full rounded-full"
-            disabled={!clientId || !serviceId || !profId}
+            disabled={!clientId || !serviceId || !profId || saving}
+            className="w-full"
           >
-            Confirmar Agendamento
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Salvar
           </Button>
+          {appointment && appointment.status !== 'cancelado' && (
+            <Button variant="destructive" onClick={handleCancel} className="w-full">
+              Cancelar Agendamento
+            </Button>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>

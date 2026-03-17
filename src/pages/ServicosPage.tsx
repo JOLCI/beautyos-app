@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Loader2, Trash2, Edit2 } from 'lucide-react'
+import { Plus, Loader2, Trash2, Edit2, Layers } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -45,7 +45,11 @@ export default function ServicosPage() {
     duration: '60',
     cost_price: '',
     is_composite: false,
+    unit_of_measure: 'UN',
+    composite_items: [] as any[],
   })
+
+  const [compSearch, setCompSearch] = useState('')
 
   const openSheet = (s: any = null) => {
     if (s) {
@@ -57,6 +61,8 @@ export default function ServicosPage() {
         duration: s.duration.toString(),
         cost_price: s.cost_price?.toString() || '',
         is_composite: s.is_composite,
+        unit_of_measure: s.unit_of_measure || 'UN',
+        composite_items: s.composite_items || [],
       })
     } else {
       setEditing(null)
@@ -67,43 +73,60 @@ export default function ServicosPage() {
         duration: '60',
         cost_price: '',
         is_composite: false,
+        unit_of_measure: 'UN',
+        composite_items: [],
       })
     }
     setSheetOpen(true)
   }
 
+  const addCompositeItem = (id: string) => {
+    const it = services.find((x: any) => x.id === id)
+    if (it)
+      setForm({
+        ...form,
+        composite_items: [
+          ...form.composite_items,
+          { id: it.id, name: it.name, quantity: 1, cost: it.cost_price || 0 },
+        ],
+      })
+  }
+
+  const removeCompositeItem = (idx: number) => {
+    const newItems = [...form.composite_items]
+    newItems.splice(idx, 1)
+    setForm({ ...form, composite_items: newItems })
+  }
+
   const handleSave = async () => {
-    if (!form.name || !form.price) return toast.error('Nome e preço são obrigatórios')
+    if (!form.name || !form.price) return toast.error('Nome e preço obrigatórios')
+
+    const calculatedCost = form.is_composite
+      ? form.composite_items.reduce((acc, i) => acc + i.cost * i.quantity, 0)
+      : form.cost_price
+        ? Number(form.cost_price)
+        : null
 
     const payload = {
       name: form.name,
       price: Number(form.price),
       type: form.type,
       duration: Number(form.duration),
-      cost_price: form.cost_price ? Number(form.cost_price) : null,
+      cost_price: calculatedCost,
       is_composite: form.is_composite,
+      unit_of_measure: form.unit_of_measure,
+      composite_items: form.composite_items,
     }
 
     if (editing) {
-      const { error } = await supabase.from('services').update(payload).eq('id', editing.id)
-      if (error) return toast.error(error.message)
+      await supabase.from('services').update(payload).eq('id', editing.id)
       toast.success('Atualizado')
     } else {
       const code = `${form.type === 'product' ? 'PRD' : 'SRV'}-${Date.now().toString().slice(-4)}`
-      const { error } = await supabase
-        .from('services')
-        .insert([{ ...payload, code, company_id: company?.id }])
-      if (error) return toast.error(error.message)
+      await supabase.from('services').insert([{ ...payload, code, company_id: company?.id }])
       toast.success('Adicionado')
     }
     setSheetOpen(false)
-    refetch()
-  }
-
-  const removeService = async (id: string) => {
-    if (!confirm('Deseja realmente remover?')) return
-    await supabase.from('services').update({ is_active: false }).eq('id', id)
-    toast.success('Removido')
     refetch()
   }
 
@@ -112,7 +135,7 @@ export default function ServicosPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Serviços & Produtos</h1>
-          <p className="text-muted-foreground">Catálogo para agendamentos e vendas.</p>
+          <p className="text-muted-foreground">Catálogo e estrutura de composição (BOM).</p>
         </div>
         <Button onClick={() => openSheet()} className="rounded-full shadow-md">
           <Plus className="w-4 h-4 mr-2" /> Novo
@@ -131,46 +154,43 @@ export default function ServicosPage() {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Duração</TableHead>
-                  <TableHead>Valor</TableHead>
+                  <TableHead>Tipo / UND</TableHead>
+                  <TableHead>Valor Venda</TableHead>
+                  <TableHead>Custo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {services.map((s) => (
+                {services.map((s: any) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {s.code}
                     </TableCell>
-                    <TableCell className="font-medium">{s.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {s.name}
+                      {s.is_composite && (
+                        <Badge variant="secondary" className="ml-2 text-[10px]">
+                          <Layers className="w-3 h-3 mr-1" /> Composto
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {s.type === 'product' ? 'Produto' : 'Serviço'}
                       </Badge>
-                      {s.is_composite && (
-                        <Badge variant="secondary" className="ml-2 text-[10px]">
-                          Composto
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {s.type === 'service' ? `${s.duration} min` : '-'}
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {s.unit_of_measure}
+                      </span>
                     </TableCell>
                     <TableCell className="font-semibold text-primary">
                       R$ {s.price.toFixed(2)}
                     </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      R$ {s.cost_price?.toFixed(2) || '0.00'}
+                    </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => openSheet(s)}>
                         <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeService(s.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -182,7 +202,7 @@ export default function ServicosPage() {
       )}
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="overflow-y-auto max-h-screen">
+        <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
           <SheetHeader className="mb-6">
             <SheetTitle>{editing ? 'Editar Item' : 'Novo Item'}</SheetTitle>
           </SheetHeader>
@@ -194,6 +214,38 @@ export default function ServicosPage() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="service">Serviço</SelectItem>
+                    <SelectItem value="product">Produto / Insumo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Unidade de Medida</Label>
+                <Select
+                  value={form.unit_of_measure}
+                  onValueChange={(v) => setForm({ ...form, unit_of_measure: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UN">Unidade (UN)</SelectItem>
+                    <SelectItem value="ML">Mililitro (ML)</SelectItem>
+                    <SelectItem value="GR">Grama (GR)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Preço Venda (R$)</Label>
@@ -203,29 +255,20 @@ export default function ServicosPage() {
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Custo (Opcional)</Label>
-                <Input
-                  type="number"
-                  value={form.cost_price}
-                  onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
-                />
-              </div>
+              {!form.is_composite && (
+                <div className="space-y-2">
+                  <Label>Custo (R$)</Label>
+                  <Input
+                    type="number"
+                    value={form.cost_price}
+                    onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="service">Serviço</SelectItem>
-                  <SelectItem value="product">Produto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
             {form.type === 'service' && (
-              <>
+              <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Duração Estimada (min)</Label>
                   <Input
@@ -234,19 +277,63 @@ export default function ServicosPage() {
                     onChange={(e) => setForm({ ...form, duration: e.target.value })}
                   />
                 </div>
+
                 <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg border">
                   <div>
-                    <Label className="text-sm font-semibold">Serviço Composto</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Ex: Pacote Noiva (Múltiplas etapas)
-                    </p>
+                    <Label className="text-sm font-semibold">Serviço Composto (BOM)</Label>
+                    <p className="text-xs text-muted-foreground">Consome insumos ao finalizar.</p>
                   </div>
                   <Switch
                     checked={form.is_composite}
                     onCheckedChange={(v) => setForm({ ...form, is_composite: v })}
                   />
                 </div>
-              </>
+
+                {form.is_composite && (
+                  <div className="border p-3 rounded-lg space-y-3 bg-card">
+                    <Label>Insumos Utilizados</Label>
+                    <Select value="" onValueChange={addCompositeItem}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Adicionar produto/insumo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {services
+                          .filter((x: any) => x.type === 'product')
+                          .map((p: any) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="space-y-2">
+                      {form.composite_items.map((ci: any, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm">
+                          <span className="flex-1 truncate">{ci.name}</span>
+                          <Input
+                            type="number"
+                            className="w-16 h-8"
+                            value={ci.quantity}
+                            onChange={(e) => {
+                              const newI = [...form.composite_items]
+                              newI[idx].quantity = Number(e.target.value)
+                              setForm({ ...form, composite_items: newI })
+                            }}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => removeCompositeItem(idx)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <SheetFooter className="mt-8">

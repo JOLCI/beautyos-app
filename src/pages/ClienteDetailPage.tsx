@@ -19,14 +19,19 @@ export default function ClienteDetailPage() {
   const { data: services } = useQuery<any>('services', { match: { type: 'service' } })
 
   const client = clients?.[0]
+  const [form, setForm] = useState({ phone: '', email: '', birthday: '', notes: '' })
   const [anamnesis, setAnamnesis] = useState('')
-  const [phone, setPhone] = useState('')
   const [customPrices, setCustomPrices] = useState<Record<string, number>>({})
 
   useEffect(() => {
     if (client) {
+      setForm({
+        phone: client.phone || '',
+        email: client.email || '',
+        birthday: client.birthday || '',
+        notes: client.notes || '',
+      })
       setAnamnesis(client.anamnesis?.notes || '')
-      setPhone(client.phone || '')
       setCustomPrices(client.special_prices || {})
     }
   }, [client])
@@ -39,32 +44,25 @@ export default function ClienteDetailPage() {
     )
   if (!client) return <div className="p-8 text-center">Cliente não encontrado.</div>
 
-  const saveAnamnesis = async () => {
-    const { error } = await supabase
-      .from('clients')
-      .update({ anamnesis: { notes: anamnesis } })
-      .eq('id', id)
-    if (!error) toast.success('Anamnese atualizada')
-  }
-
   const saveDados = async () => {
-    const { error } = await supabase.from('clients').update({ phone }).eq('id', id)
+    const { error } = await supabase.from('clients').update(form).eq('id', id)
     if (!error) {
       toast.success('Dados salvos')
       refetch()
     }
   }
 
-  const updatePrice = (srvId: string, price: string) => {
-    setCustomPrices((prev) => ({ ...prev, [srvId]: Number(price) }))
+  const saveAnamnesis = async () => {
+    await supabase
+      .from('clients')
+      .update({ anamnesis: { notes: anamnesis } })
+      .eq('id', id)
+    toast.success('Anamnese atualizada')
   }
 
   const savePrices = async () => {
-    const { error } = await supabase
-      .from('clients')
-      .update({ special_prices: customPrices })
-      .eq('id', id)
-    if (!error) toast.success('Preços especiais atualizados')
+    await supabase.from('clients').update({ special_prices: customPrices }).eq('id', id)
+    toast.success('Preços especiais atualizados')
   }
 
   return (
@@ -73,10 +71,10 @@ export default function ClienteDetailPage() {
         <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
       </Button>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-6 rounded-2xl border shadow-sm">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{client.name}</h1>
-          <p className="text-muted-foreground mt-1">{client.email || 'Sem e-mail cadastrado'}</p>
+          <p className="text-muted-foreground mt-1">{client.email || 'Sem e-mail'}</p>
         </div>
         <Button className="rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white">
           <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
@@ -99,8 +97,35 @@ export default function ClienteDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4 max-w-md">
                 <div className="space-y-1">
-                  <Label>Telefone / WhatsApp</Label>
-                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <Label>Telefone</Label>
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>E-mail</Label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Data de Nascimento</Label>
+                  <Input
+                    type="date"
+                    value={form.birthday}
+                    onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Observações Gerais</Label>
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="h-24"
+                  />
                 </div>
                 <Button onClick={saveDados}>
                   <Save className="w-4 h-4 mr-2" /> Salvar
@@ -112,7 +137,7 @@ export default function ClienteDetailPage() {
           <TabsContent value="historico">
             <Card>
               <CardHeader>
-                <CardTitle>Últimos Agendamentos</CardTitle>
+                <CardTitle>Agendamentos</CardTitle>
               </CardHeader>
               <CardContent>
                 {appointments?.length > 0 ? (
@@ -123,9 +148,7 @@ export default function ClienteDetailPage() {
                         className="p-3 border rounded-lg flex justify-between items-center"
                       >
                         <div>
-                          <p className="font-medium">
-                            {new Date(a.date).toLocaleDateString('pt-BR')}
-                          </p>
+                          <p className="font-medium">{new Date(a.date).toLocaleDateString()}</p>
                           <p className="text-sm text-muted-foreground">
                             {a.start_time.slice(0, 5)} - {a.end_time.slice(0, 5)}
                           </p>
@@ -146,13 +169,11 @@ export default function ClienteDetailPage() {
           <TabsContent value="anamnese">
             <Card>
               <CardHeader>
-                <CardTitle>Ficha de Anamnese</CardTitle>
-                <CardDescription>Alergias e observações importantes.</CardDescription>
+                <CardTitle>Anamnese</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea
                   className="min-h-[150px]"
-                  placeholder="Ex: Alergia a amônia..."
                   value={anamnesis}
                   onChange={(e) => setAnamnesis(e.target.value)}
                 />
@@ -167,9 +188,7 @@ export default function ClienteDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Preços Customizados</CardTitle>
-                <CardDescription>
-                  Defina valores diferenciados de serviços para este cliente.
-                </CardDescription>
+                <CardDescription>Defina valores diferenciados para este cliente.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3 max-w-md">
@@ -186,7 +205,9 @@ export default function ClienteDetailPage() {
                         className="w-24 text-right"
                         value={customPrices[s.id] || ''}
                         placeholder={String(s.price)}
-                        onChange={(e) => updatePrice(s.id, e.target.value)}
+                        onChange={(e) =>
+                          setCustomPrices({ ...customPrices, [s.id]: Number(e.target.value) })
+                        }
                       />
                     </div>
                   ))}

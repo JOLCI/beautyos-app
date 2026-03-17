@@ -22,6 +22,8 @@ import CaixaPage from './pages/CaixaPage'
 import ContasPagarPage from './pages/ContasPagarPage'
 import ContasReceberPage from './pages/ContasReceberPage'
 import EstoquePage from './pages/EstoquePage'
+import ComprasPage from './pages/ComprasPage'
+import FornecedoresPage from './pages/FornecedoresPage'
 import RelatoriosPage from './pages/RelatoriosPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
@@ -37,7 +39,6 @@ const App = () => (
           <Sonner position="bottom-right" richColors duration={4000} />
           <Routes>
             <Route path="/" element={<LandingPage />} />
-
             <Route
               path="/:passkey"
               element={
@@ -47,7 +48,6 @@ const App = () => (
               }
             >
               <Route path="login" element={<LoginPage />} />
-
               <Route
                 element={
                   <ProtectedRoute>
@@ -97,6 +97,22 @@ const App = () => (
                   }
                 />
                 <Route
+                  path="compras"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
+                      <ComprasPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="fornecedores"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
+                      <FornecedoresPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="usuarios"
                   element={
                     <ProtectedRoute allowedRoles={['admin', 'root']}>
@@ -123,14 +139,13 @@ const App = () => (
                 <Route
                   path="empresas"
                   element={
-                    <ProtectedRoute allowedRoles={['admin', 'root']}>
+                    <ProtectedRoute allowedRoles={['root']}>
                       <RootCompaniesPage />
                     </ProtectedRoute>
                   }
                 />
               </Route>
             </Route>
-
             <Route path="*" element={<NotFound />} />
           </Routes>
         </TooltipProvider>

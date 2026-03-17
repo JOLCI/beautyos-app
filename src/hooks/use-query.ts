@@ -14,7 +14,8 @@ export function useQuery<T>(
     if (options?.match) q = q.match(options.match)
     if (options?.order) q = q.order(options.order.column, { ascending: options.order.ascending })
 
-    const { data: result } = await q
+    const { data: result, error } = await q
+    if (error) console.error(`Error fetching ${table}:`, error)
     setData((result as T[]) || [])
     setLoading(false)
   }, [table, JSON.stringify(options)])

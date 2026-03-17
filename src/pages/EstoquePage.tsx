@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@/hooks/use-query'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -22,7 +22,7 @@ export default function EstoquePage() {
   const { company } = usePasskey()
   const { profile } = useAuth()
   const { data: inventory, refetch: refetchInv } = useQuery<any>('inventory')
-  const { data: movements, refetch: refetchMov } = useQuery<any>('inventory_movements', {
+  const { data: movements } = useQuery<any>('inventory_movements', {
     order: { column: 'created_at', ascending: false },
   })
   const { data: products } = useQuery<any>('services', {
@@ -34,7 +34,7 @@ export default function EstoquePage() {
       prompt(`Quantidade para dar ${type === 'in' ? 'entrada' : 'baixa'}:`) || '0',
     )
     if (!qty || qty <= 0) return
-    const reason = prompt('Motivo:')
+    const reason = prompt('Motivo:') || 'Ajuste Manual'
 
     const newQty = type === 'in' ? currentQty + qty : currentQty - qty
     await supabase.from('inventory').update({ quantity: newQty }).eq('id', invId)
@@ -51,21 +51,20 @@ export default function EstoquePage() {
 
     toast.success('Estoque atualizado')
     refetchInv()
-    refetchMov()
   }
 
   const createInitialStock = async (productId: string) => {
     await supabase
       .from('inventory')
-      .insert([{ company_id: company?.id, service_id: productId, quantity: 0 }])
+      .insert([{ company_id: company?.id, service_id: productId, quantity: 0, min_quantity: 5 }])
     refetchInv()
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Estoque</h1>
-        <p className="text-muted-foreground">Controle de inventário de produtos.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Controle de Estoque</h1>
+        <p className="text-muted-foreground">Posição e movimentações de produtos e insumos.</p>
       </div>
 
       <Tabs defaultValue="posicao">
@@ -80,18 +79,20 @@ export default function EstoquePage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Produto</TableHead>
+                    <TableHead>Unidade</TableHead>
                     <TableHead>Qtd Atual</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((p) => {
-                    const inv = inventory.find((i) => i.service_id === p.id)
+                  {products.map((p: any) => {
+                    const inv = inventory.find((i: any) => i.service_id === p.id)
                     if (!inv)
                       return (
                         <TableRow key={p.id}>
                           <TableCell>{p.name}</TableCell>
+                          <TableCell>{p.unit_of_measure}</TableCell>
                           <TableCell colSpan={2} className="text-muted-foreground text-sm">
                             Não inicializado
                           </TableCell>
@@ -101,19 +102,24 @@ export default function EstoquePage() {
                               variant="outline"
                               onClick={() => createInitialStock(p.id)}
                             >
-                              Iniciar Estoque
+                              Iniciar
                             </Button>
                           </TableCell>
                         </TableRow>
                       )
-                    const isLow = inv.quantity <= inv.min_quantity
+                    const isZero = inv.quantity <= 0
+                    const isLow = inv.quantity > 0 && inv.quantity <= inv.min_quantity
+
                     return (
                       <TableRow key={inv.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.unit_of_measure}</TableCell>
                         <TableCell className="font-bold text-lg">{inv.quantity}</TableCell>
                         <TableCell>
-                          {isLow ? (
-                            <Badge variant="destructive" className="flex w-fit items-center gap-1">
+                          {isZero ? (
+                            <Badge variant="destructive">Zerado</Badge>
+                          ) : isLow ? (
+                            <Badge className="bg-amber-500 text-white flex w-fit items-center gap-1">
                               <AlertTriangle className="w-3 h-3" /> Baixo
                             </Badge>
                           ) : (
@@ -160,9 +166,9 @@ export default function EstoquePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {movements.map((m) => {
-                    const inv = inventory.find((i) => i.id === m.inventory_id)
-                    const prod = products.find((p) => p.id === inv?.service_id)
+                  {movements.slice(0, 50).map((m: any) => {
+                    const inv = inventory.find((i: any) => i.id === m.inventory_id)
+                    const prod = products.find((p: any) => p.id === inv?.service_id)
                     return (
                       <TableRow key={m.id}>
                         <TableCell className="text-xs">

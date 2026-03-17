@@ -312,6 +312,50 @@ export type Database = {
           },
         ]
       }
+      financial_audit_logs: {
+        Row: {
+          action: string
+          company_id: string | null
+          created_at: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          record_id: string
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id: string
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'financial_audit_logs_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       inventory: {
         Row: {
           company_id: string | null
@@ -749,6 +793,16 @@ export const Constants = {
 //   status: text (not null, default: 'pending'::text)
 //   transaction_id: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
+// Table: financial_audit_logs
+//   id: uuid (not null, default: gen_random_uuid())
+//   company_id: uuid (nullable)
+//   user_id: uuid (nullable)
+//   action: text (not null)
+//   table_name: text (not null)
+//   record_id: uuid (not null)
+//   old_values: jsonb (nullable)
+//   new_values: jsonb (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: inventory
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -823,6 +877,10 @@ export const Constants = {
 //   FOREIGN KEY financial_accounts_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY financial_accounts_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY financial_accounts_transaction_id_fkey: FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
+// Table: financial_audit_logs
+//   FOREIGN KEY financial_audit_logs_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   PRIMARY KEY financial_audit_logs_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY financial_audit_logs_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: inventory
 //   FOREIGN KEY inventory_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY inventory_pkey: PRIMARY KEY (id)
@@ -860,12 +918,15 @@ export const Constants = {
 // Table: companies
 //   Policy "anon_select_companies" (SELECT, PERMISSIVE) roles={anon}
 //     USING: true
+//   Policy "auth_all_companies" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: ((( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = ANY (ARRAY['admin'::text, 'root'::text])) OR (id = ( SELECT profiles.company_id    FROM profiles   WHERE (profiles.id = auth.uid()))))
 //   Policy "auth_select_companies" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
-//   Policy "auth_update_companies" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: ((id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text))
 // Table: financial_accounts
 //   Policy "company_financials" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (company_id = auth_company_id())
+// Table: financial_audit_logs
+//   Policy "company_financial_audit_logs" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
 // Table: inventory
 //   Policy "company_inventory" (ALL, PERMISSIVE) roles={authenticated}
@@ -936,6 +997,38 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION log_financial_changes()
+//   CREATE OR REPLACE FUNCTION public.log_financial_changes()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   DECLARE
+//       v_user_id UUID;
+//       v_company_id UUID;
+//   BEGIN
+//       v_user_id := auth.uid();
+//
+//       IF TG_OP = 'INSERT' THEN
+//           v_company_id := NEW.company_id;
+//           INSERT INTO public.financial_audit_logs (company_id, user_id, action, table_name, record_id, new_values)
+//           VALUES (v_company_id, v_user_id, TG_OP, TG_TABLE_NAME, NEW.id, to_jsonb(NEW));
+//           RETURN NEW;
+//       ELSIF TG_OP = 'UPDATE' THEN
+//           v_company_id := NEW.company_id;
+//           INSERT INTO public.financial_audit_logs (company_id, user_id, action, table_name, record_id, old_values, new_values)
+//           VALUES (v_company_id, v_user_id, TG_OP, TG_TABLE_NAME, NEW.id, to_jsonb(OLD), to_jsonb(NEW));
+//           RETURN NEW;
+//       ELSIF TG_OP = 'DELETE' THEN
+//           v_company_id := OLD.company_id;
+//           INSERT INTO public.financial_audit_logs (company_id, user_id, action, table_name, record_id, old_values)
+//           VALUES (v_company_id, v_user_id, TG_OP, TG_TABLE_NAME, OLD.id, to_jsonb(OLD));
+//           RETURN OLD;
+//       END IF;
+//       RETURN NULL;
+//   END;
+//   $function$
+//
 // FUNCTION rls_auto_enable()
 //   CREATE OR REPLACE FUNCTION public.rls_auto_enable()
 //    RETURNS event_trigger
@@ -967,6 +1060,12 @@ export const Constants = {
 //   END;
 //   $function$
 //
+
+// --- TRIGGERS ---
+// Table: financial_accounts
+//   audit_financial_accounts_changes: CREATE TRIGGER audit_financial_accounts_changes AFTER INSERT OR DELETE OR UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
+// Table: transactions
+//   audit_transactions_changes: CREATE TRIGGER audit_transactions_changes AFTER INSERT OR DELETE OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
 
 // --- INDEXES ---
 // Table: companies

@@ -1,6 +1,7 @@
 import React from 'react'
-import { Navigate, useParams, useNavigate } from 'react-router-dom'
+import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { usePasskey } from '@/contexts/PasskeyContext'
 import { Button } from '@/components/ui/button'
 import { ShieldAlert, Loader2 } from 'lucide-react'
 
@@ -12,8 +13,10 @@ export function ProtectedRoute({
   allowedRoles?: string[]
 }) {
   const { user, profile, loading } = useAuth()
+  const { company } = usePasskey()
   const { passkey } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
 
   if (loading)
     return (
@@ -22,7 +25,15 @@ export function ProtectedRoute({
       </div>
     )
 
-  if (!user || !profile) return <Navigate to={`/${passkey}/login`} replace />
+  if (!user || !profile) {
+    // Save intended location to return after login if needed, though simple replace is ok
+    return <Navigate to={`/${passkey}/login`} replace state={{ from: location }} />
+  }
+
+  // Cross-tenant protection (unless root)
+  if (profile.role !== 'root' && profile.company_id !== company?.id) {
+    return <Navigate to={`/${passkey}/login`} replace />
+  }
 
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
     return (

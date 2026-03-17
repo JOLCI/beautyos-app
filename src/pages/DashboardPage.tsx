@@ -1,7 +1,15 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { DollarSign, TrendingDown, TrendingUp, Calendar, AlertTriangle, Clock } from 'lucide-react'
+import {
+  DollarSign,
+  TrendingDown,
+  TrendingUp,
+  Calendar,
+  AlertTriangle,
+  Clock,
+  Package,
+} from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -23,23 +31,25 @@ export default function DashboardPage() {
   })
   const { data: appointments } = useQuery<any>('appointments')
   const { data: clients } = useQuery<any>('clients')
+  const { data: inventory } = useQuery<any>('inventory')
+  const { data: products } = useQuery<any>('services', { match: { type: 'product' } })
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]
     const entradasHoje = transactions
-      .filter((t) => t.type === 'entrada' && t.created_at.startsWith(today))
-      .reduce((a, b) => a + b.amount, 0)
+      .filter((t: any) => t.type === 'entrada' && t.created_at.startsWith(today))
+      .reduce((a: any, b: any) => a + b.amount, 0)
     const saldo = transactions.reduce(
-      (a, b) => (b.type === 'entrada' ? a + b.amount : a - b.amount),
+      (a: any, b: any) => (b.type === 'entrada' ? a + b.amount : a - b.amount),
       0,
     )
-    const overdue = payables.filter((p) => new Date(p.due_date) < new Date())
-    const appsHoje = appointments.filter((a) => a.date === today)
-    return { entradasHoje, saldo, overdue, appsHoje }
-  }, [transactions, payables, appointments])
+    const overdue = payables.filter((p: any) => new Date(p.due_date) < new Date())
+    const appsHoje = appointments.filter((a: any) => a.date === today)
+    const lowStock = inventory.filter((i: any) => i.quantity <= i.min_quantity)
+    return { entradasHoje, saldo, overdue, appsHoje, lowStock }
+  }, [transactions, payables, appointments, inventory])
 
   const chartData = useMemo(() => {
-    // simplified mock transformation for charts to render nicely without complex grouping
     return [
       { name: 'Seg', total: 400 },
       { name: 'Ter', total: 300 },
@@ -49,27 +59,38 @@ export default function DashboardPage() {
       { name: 'Sáb', total: 1200 },
       { name: 'Dom', total: 0 },
     ]
-  }, [transactions])
+  }, [])
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Executivo</h1>
-        <p className="text-muted-foreground">Visão geral do desempenho e saúde financeira.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Visão Geral</h1>
+        <p className="text-muted-foreground">Indicadores e alertas do seu negócio.</p>
       </div>
 
-      {stats.overdue.length > 0 && (
-        <Alert
-          variant="destructive"
-          className="bg-destructive/10 text-destructive border-destructive/20"
-        >
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Aleta Financeiro</AlertTitle>
-          <AlertDescription>
-            Existem {stats.overdue.length} contas a pagar vencidas.
-          </AlertDescription>
-        </Alert>
-      )}
+      <div className="flex flex-col gap-3">
+        {stats.overdue.length > 0 && (
+          <Alert
+            variant="destructive"
+            className="bg-destructive/10 text-destructive border-destructive/20"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Alerta Financeiro</AlertTitle>
+            <AlertDescription>
+              Existem {stats.overdue.length} contas a pagar vencidas.
+            </AlertDescription>
+          </Alert>
+        )}
+        {stats.lowStock.length > 0 && (
+          <Alert className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+            <Package className="h-4 w-4" />
+            <AlertTitle>Alerta de Estoque</AlertTitle>
+            <AlertDescription>
+              {stats.lowStock.length} produtos estão com estoque baixo ou zerado.
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm">
@@ -110,8 +131,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Receita Semanal</CardTitle>
           </CardHeader>
@@ -148,42 +169,40 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Timeline de Hoje</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <Card className="md:col-span-1 overflow-hidden flex flex-col">
+          <CardHeader>
+            <CardTitle>Agenda de Hoje</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-y-auto space-y-4">
             {stats.appsHoje.length === 0 ? (
-              <p className="text-muted-foreground">Nenhum agendamento hoje.</p>
+              <p className="text-muted-foreground text-sm text-center mt-8">
+                Nenhum agendamento hoje.
+              </p>
             ) : (
               stats.appsHoje.map((app: any) => {
                 const cli = clients.find((c: any) => c.id === app.client_id)
                 return (
                   <div
                     key={app.id}
-                    className="flex items-center gap-4 p-3 rounded-lg border bg-card"
+                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
                   >
-                    <div className="flex flex-col items-center justify-center w-16 h-16 rounded-md bg-muted text-primary font-bold">
-                      <span>{app.start_time.substring(0, 5)}</span>
+                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-background shadow-sm text-primary font-bold text-xs border">
+                      {app.start_time.substring(0, 5)}
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold">{cli?.name || 'Cliente Removido'}</h4>
-                      <div className="flex items-center text-sm text-muted-foreground mt-1 gap-2">
-                        <Clock className="w-3 h-3" /> {app.start_time.substring(0, 5)} -{' '}
-                        {app.end_time.substring(0, 5)}
-                      </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
+                      <Badge variant="outline" className="text-[10px] uppercase mt-1">
+                        {app.status}
+                      </Badge>
                     </div>
-                    <Badge variant="outline">{app.status}</Badge>
                   </div>
                 )
               })
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

@@ -1,267 +1,121 @@
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { useAuth } from '@/hooks/use-auth'
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
+  SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter,
-  SidebarSeparator,
-  useSidebar,
+  SidebarMenuItem,
+  SidebarHeader,
 } from '@/components/ui/sidebar'
 import {
   LayoutDashboard,
-  Calendar,
+  CalendarDays,
   Users,
   Scissors,
-  PlayCircle,
-  History,
-  DollarSign,
+  Wallet,
   Settings,
-  LogOut,
   Package,
   FileText,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  UserCog,
   Building2,
+  Truck,
+  ShoppingCart,
 } from 'lucide-react'
+import { usePasskey } from '@/contexts/PasskeyContext'
+import { useAuth } from '@/hooks/use-auth'
+import { cn } from '@/lib/utils'
 
 export function AppSidebar() {
-  const { profile, signOut } = useAuth()
   const { passkey } = useParams()
   const location = useLocation()
-  const { setOpenMobile, isMobile } = useSidebar()
+  const { company } = usePasskey()
+  const { profile } = useAuth()
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'root'
+  const isRoot = profile?.role === 'root'
 
-  const handleLinkClick = () => {
-    if (isMobile) setOpenMobile(false)
+  const navigation = [
+    { name: 'Dashboard', href: `/${passkey}/dashboard`, icon: LayoutDashboard },
+    { name: 'Agenda', href: `/${passkey}/agenda`, icon: CalendarDays },
+    { name: 'Caixa (PDV)', href: `/${passkey}/atendimento/novo`, icon: Wallet },
+    { name: 'Clientes', href: `/${passkey}/clientes`, icon: Users },
+    { name: 'Serviços/Produtos', href: `/${passkey}/servicos`, icon: Scissors },
+    { name: 'Estoque', href: `/${passkey}/estoque`, icon: Package },
+    { name: 'Compras', href: `/${passkey}/compras`, icon: ShoppingCart, admin: true },
+    { name: 'Fornecedores', href: `/${passkey}/fornecedores`, icon: Truck, admin: true },
+    { name: 'Financeiro', href: `/${passkey}/financeiro/caixa`, icon: Wallet },
+    {
+      name: 'Contas a Pagar',
+      href: `/${passkey}/financeiro/contas-pagar`,
+      icon: FileText,
+      admin: true,
+    },
+    {
+      name: 'Contas a Receber',
+      href: `/${passkey}/financeiro/contas-receber`,
+      icon: FileText,
+      admin: true,
+    },
+    { name: 'Relatórios', href: `/${passkey}/financeiro/relatorios`, icon: FileText, admin: true },
+    { name: 'Equipe', href: `/${passkey}/usuarios`, icon: Users, admin: true },
+    { name: 'Configurações', href: `/${passkey}/configuracoes`, icon: Settings, admin: true },
+  ]
+
+  if (isRoot) {
+    navigation.push({
+      name: 'Empresas (Root)',
+      href: `/${passkey}/empresas`,
+      icon: Building2,
+      admin: true,
+    })
   }
 
-  const nav = (path: string) => `/${passkey}${path}`
+  const items = navigation.filter((item) => !item.admin || isAdmin)
 
   return (
-    <Sidebar variant="inset" collapsible="icon">
+    <Sidebar variant="inset" className="border-r shadow-sm">
+      <SidebarHeader className="p-4 flex flex-row items-center gap-3">
+        {company?.logo_url ? (
+          <img src={company.logo_url} alt="Logo" className="w-10 h-10 rounded-lg object-cover" />
+        ) : (
+          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary font-bold text-lg">
+            {company?.name.charAt(0)}
+          </div>
+        )}
+        <div className="flex flex-col overflow-hidden">
+          <span className="font-bold truncate">{company?.name}</span>
+          <span className="text-xs text-muted-foreground truncate capitalize">{profile?.role}</span>
+        </div>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Principal</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === nav('/dashboard')}
-                tooltip="Dashboard"
-              >
-                <Link to={nav('/dashboard')} onClick={handleLinkClick}>
-                  <LayoutDashboard />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === nav('/agenda')}
-                tooltip="Agenda"
-              >
-                <Link to={nav('/agenda')} onClick={handleLinkClick}>
-                  <Calendar />
-                  <span>Agenda</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Atendimento</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === nav('/atendimento/novo')}
-                tooltip="Novo Checkout"
-              >
-                <Link to={nav('/atendimento/novo')} onClick={handleLinkClick}>
-                  <PlayCircle />
-                  <span>Novo Checkout</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === nav('/atendimento/historico')}
-                tooltip="Histórico"
-              >
-                <Link to={nav('/atendimento/historico')} onClick={handleLinkClick}>
-                  <History />
-                  <span>Histórico</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Cadastros</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname.includes('/clientes')}
-                tooltip="Clientes"
-              >
-                <Link to={nav('/clientes')} onClick={handleLinkClick}>
-                  <Users />
-                  <span>Clientes</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname.includes('/servicos')}
-                tooltip="Serviços & Produtos"
-              >
-                <Link to={nav('/servicos')} onClick={handleLinkClick}>
-                  <Scissors />
-                  <span>Serviços & Produtos</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname.includes('/estoque')}
-                tooltip="Estoque"
-              >
-                <Link to={nav('/estoque')} onClick={handleLinkClick}>
-                  <Package />
-                  <span>Estoque</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Financeiro</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === nav('/financeiro/caixa')}
-                tooltip="Caixa"
-              >
-                <Link to={nav('/financeiro/caixa')} onClick={handleLinkClick}>
-                  <DollarSign />
-                  <span>Caixa</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            {isAdmin && (
-              <>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === nav('/financeiro/contas-pagar')}
-                    tooltip="A Pagar"
-                  >
-                    <Link to={nav('/financeiro/contas-pagar')} onClick={handleLinkClick}>
-                      <ArrowUpCircle />
-                      <span>Contas a Pagar</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === nav('/financeiro/contas-receber')}
-                    tooltip="A Receber"
-                  >
-                    <Link to={nav('/financeiro/contas-receber')} onClick={handleLinkClick}>
-                      <ArrowDownCircle />
-                      <span>Contas a Receber</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === nav('/financeiro/relatorios')}
-                    tooltip="Relatórios"
-                  >
-                    <Link to={nav('/financeiro/relatorios')} onClick={handleLinkClick}>
-                      <FileText />
-                      <span>Relatórios</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </>
-            )}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Administração</SidebarGroupLabel>
+          <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === nav('/usuarios')}
-                  tooltip="Usuários"
-                >
-                  <Link to={nav('/usuarios')} onClick={handleLinkClick}>
-                    <UserCog />
-                    <span>Usuários</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === nav('/configuracoes')}
-                  tooltip="Configurações"
-                >
-                  <Link to={nav('/configuracoes')} onClick={handleLinkClick}>
-                    <Settings />
-                    <span>Configurações</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === nav('/empresas')}
-                  tooltip="Empresas (Root)"
-                >
-                  <Link to={nav('/empresas')} onClick={handleLinkClick}>
-                    <Building2 />
-                    <span>Empresas (Root)</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.name}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname.startsWith(item.href)}
+                    tooltip={item.name}
+                    className="font-medium"
+                  >
+                    <Link to={item.href}>
+                      <item.icon
+                        className={cn(
+                          'w-4 h-4',
+                          location.pathname.startsWith(item.href) && 'text-primary',
+                        )}
+                      />
+                      <span>{item.name}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
-          </SidebarGroup>
-        )}
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
-      <SidebarSeparator />
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={signOut} tooltip="Sair" aria-label="Sair da conta">
-              <LogOut className="text-destructive" />
-              <span className="text-destructive font-medium">Sair</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   )
 }

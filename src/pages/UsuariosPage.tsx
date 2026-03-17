@@ -21,14 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { UserPlus, Trash2, KeyRound, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -42,48 +35,67 @@ export default function UsuariosPage() {
     refetch,
   } = useQuery<any>('profiles', { match: { is_active: true } })
 
-  const [openCreate, setOpenCreate] = useState(false)
-  const [openDelete, setOpenDelete] = useState<any>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState('')
-
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'atendimento' })
   const [saving, setSaving] = useState(false)
 
-  const handleCreate = async () => {
-    setSaving(true)
-    const { data, error } = await supabase.functions.invoke('create-user', {
-      body: { ...form, company_id: company?.id },
-    })
-    setSaving(false)
+  const filteredUsers = users.filter((u) => u.role !== 'root')
 
-    if (error || !data?.success) {
-      toast.error('Erro ao criar usuário', { description: data?.error || error?.message })
-    } else {
-      toast.success('Usuário criado com sucesso')
-      setOpenCreate(false)
+  const openSheet = (u: any = null) => {
+    setEditing(u)
+    setForm(
+      u
+        ? { name: u.name, email: u.username, password: '', role: u.role }
+        : { name: '', email: '', password: '', role: 'atendimento' },
+    )
+    setSheetOpen(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    if (editing) {
+      await supabase
+        .from('profiles')
+        .update({ name: form.name, role: form.role })
+        .eq('id', editing.id)
+      toast.success('Usuário atualizado')
+      setSheetOpen(false)
       refetch()
+    } else {
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: { ...form, company_id: company?.id },
+      })
+      if (error || !data?.success) {
+        toast.error('Erro ao criar usuário', { description: data?.error || error?.message })
+      } else {
+        toast.success('Usuário criado com sucesso')
+        setSheetOpen(false)
+        refetch()
+      }
+    }
+    setSaving(false)
+  }
+
+  const handleDelete = async (u: any) => {
+    if (!confirm(`Remover permanentemente o usuário ${u.username}?`)) return
+    const { data } = await supabase.functions.invoke('delete-user', { body: { user_id: u.id } })
+    if (data?.success) {
+      toast.success('Usuário removido')
+      refetch()
+    } else {
+      toast.error('Erro ao remover')
     }
   }
-
-  const handleDelete = async () => {
-    if (deleteConfirm !== openDelete.username) return
-    await supabase.from('profiles').update({ is_active: false }).eq('id', openDelete.id)
-    toast.success('Usuário desativado')
-    setOpenDelete(null)
-    setDeleteConfirm('')
-    refetch()
-  }
-
-  const resetPassword = () => toast.info('Link de redefinição enviado para o e-mail do usuário.')
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Usuários do Sistema</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Equipe e Acessos</h1>
           <p className="text-muted-foreground">Gerencie o acesso da sua equipe.</p>
         </div>
-        <Button onClick={() => setOpenCreate(true)} className="rounded-full shadow-md">
+        <Button onClick={() => openSheet()} className="rounded-full shadow-md">
           <UserPlus className="w-4 h-4 mr-2" /> Novo Usuário
         </Button>
       </div>
@@ -105,7 +117,7 @@ export default function UsuariosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((u) => (
+                {filteredUsers.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -122,14 +134,14 @@ export default function UsuariosPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="icon" onClick={resetPassword}>
+                      <Button variant="ghost" size="icon" onClick={() => openSheet(u)}>
                         <KeyRound className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-destructive"
-                        onClick={() => setOpenDelete(u)}
+                        onClick={() => handleDelete(u)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -142,12 +154,15 @@ export default function UsuariosPage() {
         </Card>
       )}
 
-      <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Novo Usuário</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent
+          side="right"
+          className="sm:max-w-[480px] overflow-y-auto max-h-screen flex flex-col"
+        >
+          <SheetHeader className="mb-6">
+            <SheetTitle>{editing ? 'Editar Usuário' : 'Novo Usuário'}</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 flex-1">
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input
@@ -160,17 +175,20 @@ export default function UsuariosPage() {
               <Input
                 type="email"
                 value={form.email}
+                disabled={!!editing}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Senha Provisória</Label>
-              <Input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            </div>
+            {!editing && (
+              <div className="space-y-2">
+                <Label>Senha Inicial</Label>
+                <Input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Nível de Acesso</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
@@ -178,51 +196,20 @@ export default function UsuariosPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="atendimento">Atendimento (Agenda e Checkout)</SelectItem>
+                  <SelectItem value="atendimento">Atendimento (PDV/Agenda)</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              onClick={handleCreate}
-              disabled={saving || !form.email || !form.password}
-              className="w-full sm:w-auto"
-            >
-              {saving ? 'Criando...' : 'Criar Conta'}
+          <div className="mt-8 border-t pt-4 sticky bottom-0 bg-background">
+            <Button onClick={handleSave} disabled={saving} className="w-full h-12">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {editing ? 'Salvar Alterações' : 'Criar Conta'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!openDelete} onOpenChange={(o) => !o && setOpenDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Remover Usuário</DialogTitle>
-            <DialogDescription>
-              Digite o username <strong>{openDelete?.username}</strong> para confirmar a exclusão
-              deste usuário.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={deleteConfirm}
-            onChange={(e) => setDeleteConfirm(e.target.value)}
-            placeholder="username do usuário"
-            className="mt-4"
-          />
-          <DialogFooter className="mt-4">
-            <Button
-              variant="destructive"
-              disabled={deleteConfirm !== openDelete?.username}
-              onClick={handleDelete}
-              className="w-full sm:w-auto"
-            >
-              Confirmar Exclusão
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
