@@ -66,7 +66,7 @@ CREATE OR REPLACE FUNCTION public.enforce_single_active_gateway()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $
+AS $$
 BEGIN
     IF NEW.is_active = true THEN
         UPDATE public.pix_gateways
@@ -75,10 +75,9 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS trg_single_active_gateway ON public.pix_gateways;
 CREATE TRIGGER trg_single_active_gateway
 BEFORE INSERT OR UPDATE ON public.pix_gateways
 FOR EACH ROW EXECUTE FUNCTION public.enforce_single_active_gateway();
-

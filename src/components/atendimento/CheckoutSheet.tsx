@@ -130,16 +130,14 @@ export function CheckoutSheet({
           const pct = rule?.percentage || 0
           const amount = (item.finalPrice * pct) / 100
           if (amount > 0) {
-            await supabase
-              .from('commissions')
-              .insert([
-                {
-                  company_id: company?.id,
-                  professional_id: professionalId,
-                  amount,
-                  status: 'pending',
-                },
-              ])
+            await supabase.from('commissions').insert([
+              {
+                company_id: company?.id,
+                professional_id: professionalId,
+                amount,
+                status: 'pending',
+              },
+            ])
           }
         }
       }
