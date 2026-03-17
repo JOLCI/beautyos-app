@@ -46,9 +46,7 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
         setCompany(data)
         if (data.primary_color) applyTheme(data.primary_color)
       } else {
-        toast.error('Empresa não encontrada', {
-          description: 'A chave de acesso informada não existe.',
-        })
+        toast.error('Chave de acesso inválida.')
         setError(true)
       }
       setLoading(false)
@@ -59,7 +57,7 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )

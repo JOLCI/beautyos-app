@@ -33,7 +33,7 @@ export default function LoginPage() {
 
     let loginEmail = identifier.trim()
 
-    // Se não for um e-mail, busca o e-mail pelo username e company_id
+    // If not an email, lookup email by username and company_id
     if (!loginEmail.includes('@')) {
       const { data, error } = await supabase.rpc('get_email_for_login', {
         p_username: loginEmail,
@@ -42,7 +42,7 @@ export default function LoginPage() {
 
       if (error || !data) {
         setLoading(false)
-        toast.error('Usuário ou senha inválidos')
+        toast.error('Usuário ou senha incorretos.')
         return
       }
       loginEmail = data as string
@@ -52,7 +52,7 @@ export default function LoginPage() {
     setLoading(false)
 
     if (error) {
-      toast.error('Usuário ou senha inválidos')
+      toast.error('Usuário ou senha incorretos.')
     } else {
       navigate(`/${passkey}/dashboard`)
     }
@@ -66,15 +66,17 @@ export default function LoginPage() {
             <img
               src={company.logo_url}
               alt="Logo"
-              className="w-20 h-20 object-contain rounded-full border shadow-sm"
+              className="w-20 h-20 object-contain rounded-full border shadow-sm bg-white"
             />
           ) : (
-            <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center text-primary font-bold text-2xl">
-              {company?.name.charAt(0)}
+            <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center text-primary font-bold text-3xl shadow-inner border border-primary/20">
+              {company?.name.charAt(0).toUpperCase()}
             </div>
           )}
-          <CardTitle className="text-2xl font-bold tracking-tight">{company?.name}</CardTitle>
-          <CardDescription>Acesse sua conta</CardDescription>
+          <div className="space-y-1">
+            <CardTitle className="text-2xl font-bold tracking-tight">{company?.name}</CardTitle>
+            <CardDescription>Acesse sua conta do BeautyOS</CardDescription>
+          </div>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
@@ -83,10 +85,11 @@ export default function LoginPage() {
               <Input
                 id="identifier"
                 type="text"
-                placeholder="admin@beautyos.com ou admin"
+                placeholder="Ex: admin@beautyos.com ou admin"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 required
+                className="h-11"
               />
             </div>
             <div className="space-y-2">
@@ -98,16 +101,17 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="h-11"
               />
             </div>
           </CardContent>
           <CardFooter>
             <Button
               type="submit"
-              className="w-full rounded-full h-11 text-base shadow-md"
+              className="w-full rounded-full h-11 text-base shadow-md font-medium"
               disabled={loading}
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Autenticando...' : 'Entrar no Sistema'}
             </Button>
           </CardFooter>
         </form>

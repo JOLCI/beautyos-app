@@ -547,6 +547,10 @@ export type Database = {
     }
     Functions: {
       auth_company_id: { Args: never; Returns: string }
+      get_email_for_login: {
+        Args: { p_company_id: string; p_username: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
@@ -887,6 +891,28 @@ export const Constants = {
 //    STABLE
 //   AS $function$
 //     SELECT company_id FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+//   $function$
+//
+// FUNCTION get_email_for_login(text, uuid)
+//   CREATE OR REPLACE FUNCTION public.get_email_for_login(p_username text, p_company_id uuid)
+//    RETURNS text
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//    SET search_path TO 'public'
+//   AS $function$
+//   DECLARE
+//     v_email TEXT;
+//   BEGIN
+//     SELECT au.email INTO v_email
+//     FROM public.profiles p
+//     JOIN auth.users au ON au.id = p.id
+//     WHERE p.username = p_username
+//       AND p.company_id = p_company_id
+//       AND p.is_active = true
+//     LIMIT 1;
+//
+//     RETURN v_email;
+//   END;
 //   $function$
 //
 // FUNCTION handle_new_user()
