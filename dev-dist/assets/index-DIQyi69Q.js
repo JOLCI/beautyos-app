@@ -24660,7 +24660,9 @@ var AuthProvider = ({ children }) => {
 		const stored = localStorage.getItem("@beautyos:user");
 		if (stored) try {
 			setUser(JSON.parse(stored));
-		} catch (e) {}
+		} catch (e) {
+			console.error("Failed to parse user from local storage", e);
+		}
 	}, []);
 	const login = (passkey, username, pass) => {
 		if (username === "root" && pass === "s3nh4") {
@@ -24687,7 +24689,7 @@ var AuthProvider = ({ children }) => {
 		localStorage.removeItem("@beautyos:user");
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
-		"data-uid": "src/contexts/AuthContext.tsx:51:10",
+		"data-uid": "src/contexts/AuthContext.tsx:53:10",
 		"data-prohibitions": "[editContent]",
 		value: {
 			user,
@@ -31622,4 +31624,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ThemeProvider, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-DudtwQ34.js.map
+//# sourceMappingURL=index-DIQyi69Q.js.map
