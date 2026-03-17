@@ -858,7 +858,9 @@ export const Constants = {
 //   Policy "company_commissions" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
 // Table: companies
-//   Policy "anon_select_companies" (SELECT, PERMISSIVE) roles={public}
+//   Policy "anon_select_companies" (SELECT, PERMISSIVE) roles={anon}
+//     USING: true
+//   Policy "auth_select_companies" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "auth_update_companies" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (id = ( SELECT profiles.company_id    FROM profiles   WHERE (profiles.id = auth.uid())))

@@ -28,6 +28,8 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState(false)
 
   useEffect(() => {
+    let mounted = true
+
     if (!passkey) {
       setLoading(false)
       setError(true)
@@ -44,6 +46,8 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
           .ilike('passkey', passkey)
           .maybeSingle()
 
+        if (!mounted) return
+
         if (err) throw err
 
         if (data) {
@@ -55,13 +59,17 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (e: any) {
         console.error('Error fetching company context:', e)
-        setError(true)
+        if (mounted) setError(true)
       } finally {
-        setLoading(false)
+        if (mounted) setLoading(false)
       }
     }
 
     fetchCompany()
+
+    return () => {
+      mounted = false
+    }
   }, [passkey])
 
   if (loading) {
