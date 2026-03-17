@@ -157,9 +157,9 @@ CREATE POLICY "auth_select_profiles" ON public.profiles FOR SELECT TO authentica
 CREATE POLICY "auth_all_profiles" ON public.profiles FOR ALL TO authenticated USING (company_id = (SELECT company_id FROM public.profiles WHERE id = auth.uid()));
 
 -- Generic policy function for company-scoped tables
-CREATE OR REPLACE FUNCTION auth_company_id() RETURNS UUID AS $
+CREATE OR REPLACE FUNCTION auth_company_id() RETURNS UUID AS $$
   SELECT company_id FROM public.profiles WHERE id = auth.uid() LIMIT 1;
-$ LANGUAGE sql STABLE;
+$$ LANGUAGE sql STABLE;
 
 CREATE POLICY "company_clients" ON public.clients FOR ALL TO authenticated USING (company_id = auth_company_id());
 CREATE POLICY "company_services" ON public.services FOR ALL TO authenticated USING (company_id = auth_company_id());
@@ -172,7 +172,7 @@ CREATE POLICY "company_comm_rules" ON public.commission_rules FOR ALL TO authent
 CREATE POLICY "company_commissions" ON public.commissions FOR ALL TO authenticated USING (company_id = auth_company_id());
 
 -- Triggers
-CREATE OR REPLACE FUNCTION handle_new_user() RETURNS trigger AS $
+CREATE OR REPLACE FUNCTION handle_new_user() RETURNS trigger AS $$
 BEGIN
   INSERT INTO public.profiles (id, company_id, name, username, role)
   VALUES (
@@ -184,13 +184,13 @@ BEGIN
   );
   RETURN NEW;
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
 -- SEED DATA
-DO $seed$
+DO $$
 DECLARE
   comp_id UUID := gen_random_uuid();
   admin_id UUID := gen_random_uuid();
@@ -239,5 +239,4 @@ BEGIN
   INSERT INTO public.inventory_movements (company_id, inventory_id, type, quantity, reason, user_id) VALUES
     (comp_id, inv_id, 'in', 20, 'Estoque Inicial', admin_id);
 
-END $seed$;
-
+END $$;

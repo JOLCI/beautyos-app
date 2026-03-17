@@ -27,17 +27,15 @@ export default function ServicosPage() {
     if (!name) return
     const price = prompt('Preço (R$):') || '0'
     const type = confirm('É um produto? (OK=Sim, Cancelar=Não)') ? 'product' : 'service'
-    const { error } = await supabase
-      .from('services')
-      .insert([
-        {
-          name,
-          price: Number(price),
-          type,
-          code: `SRV-${Date.now().toString().slice(-4)}`,
-          company_id: services[0]?.company_id,
-        },
-      ])
+    const { error } = await supabase.from('services').insert([
+      {
+        name,
+        price: Number(price),
+        type,
+        code: `SRV-${Date.now().toString().slice(-4)}`,
+        company_id: services[0]?.company_id,
+      },
+    ])
     if (!error) {
       toast.success('Adicionado')
       refetch()

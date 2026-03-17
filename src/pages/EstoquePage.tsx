@@ -38,18 +38,16 @@ export default function EstoquePage() {
 
     const newQty = type === 'in' ? currentQty + qty : currentQty - qty
     await supabase.from('inventory').update({ quantity: newQty }).eq('id', invId)
-    await supabase
-      .from('inventory_movements')
-      .insert([
-        {
-          company_id: company?.id,
-          inventory_id: invId,
-          type,
-          quantity: qty,
-          reason,
-          user_id: profile?.id,
-        },
-      ])
+    await supabase.from('inventory_movements').insert([
+      {
+        company_id: company?.id,
+        inventory_id: invId,
+        type,
+        quantity: qty,
+        reason,
+        user_id: profile?.id,
+      },
+    ])
 
     toast.success('Estoque atualizado')
     refetchInv()
