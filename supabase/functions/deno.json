@@ -5,11 +5,12 @@
     "check-pix-status": 2,
     "send-whatsapp": 4,
     "create-user": 1,
-    "google-calendar-sync": 3,
-    "save-integration-secrets": 3,
+    "google-calendar-sync": 4,
+    "save-integration-secrets": 4,
     "delete-user": 1,
     "test-pix": 1,
     "whatsapp-generate-qr": 1,
-    "whatsapp-check-status": 1
+    "whatsapp-check-status": 1,
+    "functions": 1
   }
 }
