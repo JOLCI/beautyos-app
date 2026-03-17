@@ -38,7 +38,7 @@ export const mockServices: Service[] = [
   {
     id: '4',
     code: 'SRV-0004',
-    name: 'Pacote Noiva (Corte + Cor)',
+    name: 'Pacote Noiva',
     price: 380,
     duration: 180,
     isComposite: true,
@@ -73,3 +73,68 @@ export const mockAppointments: Appointment[] = [
     status: 'agendado',
   },
 ]
+
+export const mockTransactions = [
+  {
+    id: 't1',
+    type: 'entrada',
+    amount: 150,
+    description: 'Corte - Carla',
+    date: new Date().toISOString(),
+  },
+  {
+    id: 't2',
+    type: 'saida',
+    amount: 50,
+    description: 'Material Limpeza',
+    date: new Date().toISOString(),
+  },
+]
+
+export const mockPayables = [
+  {
+    id: 'p1',
+    description: 'Conta de Luz',
+    amount: 350,
+    dueDate: new Date().toISOString(),
+    status: 'pending',
+  },
+  {
+    id: 'p2',
+    description: 'Fornecedor X',
+    amount: 1200,
+    dueDate: new Date(Date.now() - 86400000).toISOString(),
+    status: 'overdue',
+  },
+]
+
+export const mockReceivables = [
+  {
+    id: 'r1',
+    description: 'Convênio Y',
+    amount: 500,
+    dueDate: new Date().toISOString(),
+    status: 'pending',
+    type: 'convenio',
+  },
+]
+
+export const mockDashboard = {
+  revenueWeekly: [
+    { name: 'Seg', total: 400 },
+    { name: 'Ter', total: 300 },
+    { name: 'Qua', total: 550 },
+    { name: 'Qui', total: 200 },
+    { name: 'Sex', total: 800 },
+    { name: 'Sáb', total: 1200 },
+    { name: 'Dom', total: 0 },
+  ],
+  cashFlow: [
+    { name: 'Jan', entrada: 4000, saida: 2400 },
+    { name: 'Fev', entrada: 3000, saida: 1398 },
+    { name: 'Mar', entrada: 2000, saida: 9800 },
+    { name: 'Abr', entrada: 2780, saida: 3908 },
+    { name: 'Mai', entrada: 1890, saida: 4800 },
+    { name: 'Jun', entrada: 2390, saida: 3800 },
+  ],
+}

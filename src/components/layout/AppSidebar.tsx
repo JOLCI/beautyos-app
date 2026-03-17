@@ -22,6 +22,9 @@ import {
   Settings,
   LogOut,
   Wallet,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  UserCog,
 } from 'lucide-react'
 
 export function AppSidebar() {
@@ -52,13 +55,13 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Agenda</SidebarGroupLabel>
+          <SidebarGroupLabel>Atendimento</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={location.pathname.startsWith('/agenda')}
-                tooltip="Ver Agenda"
+                isActive={location.pathname === '/agenda'}
+                tooltip="Agenda"
               >
                 <Link to="/agenda">
                   <Calendar />
@@ -66,17 +69,11 @@ export function AppSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Atendimento</SidebarGroupLabel>
-          <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
                 isActive={location.pathname === '/atendimento/novo'}
-                tooltip="Novo Atendimento"
+                tooltip="Novo Checkout"
               >
                 <Link to="/atendimento/novo">
                   <PlayCircle />
@@ -129,24 +126,78 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel>Financeiro</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={location.pathname === '/financeiro/caixa'}
+                tooltip="Caixa"
+              >
+                <Link to="/financeiro/caixa">
+                  <DollarSign />
+                  <span>Caixa</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            {!isAtendimento && (
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === '/financeiro/contas-pagar'}
+                    tooltip="A Pagar"
+                  >
+                    <Link to="/financeiro/contas-pagar">
+                      <ArrowUpCircle />
+                      <span>Contas a Pagar</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === '/financeiro/contas-receber'}
+                    tooltip="A Receber"
+                  >
+                    <Link to="/financeiro/contas-receber">
+                      <ArrowDownCircle />
+                      <span>Contas a Receber</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
+          </SidebarMenu>
+        </SidebarGroup>
+
         {!isAtendimento && (
           <SidebarGroup>
             <SidebarGroupLabel>Administração</SidebarGroupLabel>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Financeiro">
-                  <a href="#">
-                    <DollarSign />
-                    <span>Financeiro</span>
-                  </a>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === '/usuarios'}
+                  tooltip="Usuários"
+                >
+                  <Link to="/usuarios">
+                    <UserCog />
+                    <span>Usuários</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Configurações">
-                  <a href="#">
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === '/configuracoes'}
+                  tooltip="Configurações"
+                >
+                  <Link to="/configuracoes">
                     <Settings />
                     <span>Configurações</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {user?.role === 'root' && (

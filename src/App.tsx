@@ -16,6 +16,11 @@ import ServicosPage from './pages/ServicosPage'
 import AtendimentoNovoPage from './pages/AtendimentoNovoPage'
 import AtendimentoHistoricoPage from './pages/AtendimentoHistoricoPage'
 import SaldoInicialPage from './pages/SaldoInicialPage'
+import CaixaPage from './pages/CaixaPage'
+import ContasPagarPage from './pages/ContasPagarPage'
+import ContasReceberPage from './pages/ContasReceberPage'
+import UsuariosPage from './pages/UsuariosPage'
+import ConfiguracoesPage from './pages/ConfiguracoesPage'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -48,7 +53,42 @@ const App = () => (
               <Route path="/atendimento/novo" element={<AtendimentoNovoPage />} />
               <Route path="/atendimento/historico" element={<AtendimentoHistoricoPage />} />
 
-              {/* Protected only for 'root' */}
+              <Route path="/financeiro/caixa" element={<CaixaPage />} />
+              <Route
+                path="/financeiro/contas-pagar"
+                element={
+                  <ProtectedRoute allowedRoles={['root', 'admin']}>
+                    <ContasPagarPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/financeiro/contas-receber"
+                element={
+                  <ProtectedRoute allowedRoles={['root', 'admin']}>
+                    <ContasReceberPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/usuarios"
+                element={
+                  <ProtectedRoute allowedRoles={['root', 'admin']}>
+                    <UsuariosPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/configuracoes"
+                element={
+                  <ProtectedRoute allowedRoles={['root', 'admin']}>
+                    <ConfiguracoesPage />
+                  </ProtectedRoute>
+                }
+              />
+
               <Route
                 path="/saldo-inicial"
                 element={
