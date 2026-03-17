@@ -36,20 +36,30 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
 
     const fetchCompany = async () => {
       setLoading(true)
-      const { data, error: err } = await supabase
-        .from('companies')
-        .select('*')
-        .ilike('passkey', passkey)
-        .single()
+      setError(false)
+      try {
+        const { data, error: err } = await supabase
+          .from('companies')
+          .select('*')
+          .ilike('passkey', passkey)
+          .maybeSingle()
 
-      if (data && !err) {
-        setCompany(data)
-        if (data.primary_color) applyTheme(data.primary_color)
-      } else {
-        toast.error('Chave de acesso inválida.')
+        if (err) throw err
+
+        if (data) {
+          setCompany(data)
+          if (data.primary_color) applyTheme(data.primary_color)
+        } else {
+          toast.error('Chave de acesso inválida ou não encontrada.')
+          setError(true)
+        }
+      } catch (e: any) {
+        console.error('Error fetching company context:', e)
+        toast.error('Erro ao conectar com o servidor da empresa.')
         setError(true)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     fetchCompany()

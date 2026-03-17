@@ -906,7 +906,7 @@ export const Constants = {
 //     SELECT au.email INTO v_email
 //     FROM public.profiles p
 //     JOIN auth.users au ON au.id = p.id
-//     WHERE p.username = p_username
+//     WHERE p.username ILIKE p_username
 //       AND p.company_id = p_company_id
 //       AND p.is_active = true
 //     LIMIT 1;
