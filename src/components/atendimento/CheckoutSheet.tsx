@@ -1,17 +1,11 @@
 import { useState } from 'react'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle2, QrCode } from 'lucide-react'
+import { CheckCircle2, QrCode, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
@@ -29,24 +23,21 @@ export function CheckoutSheet({
   const [method, setMethod] = useState('pix')
   const [discount, setDiscount] = useState('0')
   const [status, setStatus] = useState<'idle' | 'waiting' | 'success'>('idle')
+  const [pixPayload, setPixPayload] = useState('')
 
   const finalTotal = total - Number(discount || 0)
 
   const calculateCommissions = async (appointmentId?: string) => {
     if (!professionalId) return
-
-    // Fetch rules for this professional
     const { data: rules } = await supabase
       .from('commission_rules')
       .select('*')
       .eq('professional_id', professionalId)
-
     for (const item of items) {
       if (item.type === 'service') {
         const rule = rules?.find((r) => r.service_id === item.id)
         const pct = rule?.percentage || 0
         const amount = (item.price * pct) / 100
-
         if (amount > 0) {
           await supabase.from('commissions').insert([
             {
@@ -62,10 +53,7 @@ export function CheckoutSheet({
     }
   }
 
-  const handleFinish = async () => {
-    setStatus('waiting')
-
-    // Create transaction
+  const finalizeTransaction = async (methodUsed: string, isPending: boolean) => {
     const { data: tx } = await supabase
       .from('transactions')
       .insert([
@@ -74,20 +62,19 @@ export function CheckoutSheet({
           type: 'entrada',
           amount: finalTotal,
           description: `Checkout PDV - ${items.length} itens`,
-          payment_method: method,
-          status: method === 'pix_agendado' || method === 'convenio' ? 'pending' : 'completed',
+          payment_method: methodUsed,
+          status: isPending ? 'pending' : 'completed',
         },
       ])
       .select()
       .single()
 
-    // If PIX Agendado / Convenio, create Receivable
-    if (method === 'pix_agendado' || method === 'convenio') {
+    if (isPending) {
       await supabase.from('financial_accounts').insert([
         {
           company_id: company?.id,
           type: 'receivable',
-          description: `Recebível - ${method}`,
+          description: `Recebível - ${methodUsed}`,
           amount: finalTotal,
           due_date: new Date(Date.now() + 86400000).toISOString(),
           transaction_id: tx?.id,
@@ -96,7 +83,6 @@ export function CheckoutSheet({
       ])
     }
 
-    // Decrement inventory for products
     for (const item of items) {
       if (item.type === 'product') {
         const { data: inv } = await supabase
@@ -123,12 +109,41 @@ export function CheckoutSheet({
       }
     }
 
-    // Calculate Commissions
     await calculateCommissions()
-
     setStatus('success')
     toast.success('Atendimento Finalizado')
     if (onComplete) onComplete()
+  }
+
+  const handleFinish = async () => {
+    setStatus('waiting')
+    if (method === 'pix') {
+      const { data } = await supabase.functions.invoke('generate-pix', {
+        body: { amount: finalTotal },
+      })
+      if (data?.success) {
+        setPixPayload(data.payload)
+        // Simulate PIX validation after 3s
+        setTimeout(async () => {
+          const { data: checkData } = await supabase.functions.invoke('check-pix-status', {
+            body: { transactionId: 'test' },
+          })
+          if (checkData?.status === 'paid') {
+            await finalizeTransaction(method, false)
+          } else {
+            toast.error('Pagamento PIX não confirmado')
+            setStatus('idle')
+            setPixPayload('')
+          }
+        }, 3000)
+      } else {
+        toast.error('Erro ao gerar PIX')
+        setStatus('idle')
+      }
+    } else {
+      const isPending = method === 'pix_agendado' || method === 'convenio'
+      await finalizeTransaction(method, isPending)
+    }
   }
 
   return (
@@ -141,11 +156,27 @@ export function CheckoutSheet({
         </div>
         {status === 'success' ? (
           <div className="flex-1 flex flex-col items-center justify-center p-6">
-            <CheckCircle2 className="w-16 h-16 text-green-600 mb-4" />
+            <CheckCircle2 className="w-16 h-16 text-green-600 mb-4 animate-in zoom-in" />
             <h3 className="text-2xl font-bold">Tudo Certo!</h3>
-            <Button className="mt-8" onClick={() => onOpenChange(false)}>
+            <Button className="mt-8 rounded-full px-8" onClick={() => onOpenChange(false)}>
               Concluir
             </Button>
+          </div>
+        ) : status === 'waiting' && method === 'pix' && pixPayload ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6 animate-fade-in">
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-bold">Aguardando Pagamento PIX</h3>
+              <p className="text-muted-foreground">Valor: R$ {finalTotal.toFixed(2)}</p>
+            </div>
+            <div className="p-4 bg-white rounded-xl shadow-sm border">
+              <QrCode className="w-48 h-48 text-black" />
+            </div>
+            <div className="bg-muted p-3 w-full rounded-lg text-center font-mono text-xs break-all border">
+              {pixPayload}
+            </div>
+            <div className="flex items-center gap-2 text-primary font-medium">
+              <Loader2 className="w-5 h-5 animate-spin" /> Verificando status...
+            </div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -181,22 +212,28 @@ export function CheckoutSheet({
                 <div
                   key={o.id}
                   className={cn(
-                    'border-2 rounded-xl p-3 text-center cursor-pointer',
-                    method === o.id ? 'border-primary bg-primary/10 text-primary' : '',
+                    'border-2 rounded-xl p-3 text-center cursor-pointer transition-colors',
+                    method === o.id
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'hover:border-muted-foreground/30',
                   )}
                   onClick={() => setMethod(o.id)}
                 >
                   <RadioGroupItem value={o.id} id={o.id} className="sr-only" />
-                  <Label className="cursor-pointer">{o.l}</Label>
+                  <Label className="cursor-pointer font-medium">{o.l}</Label>
                 </div>
               ))}
             </RadioGroup>
             <Button
               onClick={handleFinish}
               disabled={status === 'waiting'}
-              className="w-full h-12 text-lg rounded-full mt-4"
+              className="w-full h-14 text-lg rounded-full mt-4"
             >
-              Confirmar
+              {status === 'waiting' ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                'Confirmar Pagamento'
+              )}
             </Button>
           </div>
         )}

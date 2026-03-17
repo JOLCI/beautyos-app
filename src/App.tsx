@@ -25,6 +25,7 @@ import EstoquePage from './pages/EstoquePage'
 import RelatoriosPage from './pages/RelatoriosPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
+import RootCompaniesPage from './pages/RootCompaniesPage'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -66,7 +67,7 @@ const App = () => (
                 <Route
                   path="financeiro/contas-pagar"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']}>
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
                       <ContasPagarPage />
                     </ProtectedRoute>
                   }
@@ -74,7 +75,7 @@ const App = () => (
                 <Route
                   path="financeiro/contas-receber"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']}>
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
                       <ContasReceberPage />
                     </ProtectedRoute>
                   }
@@ -82,7 +83,7 @@ const App = () => (
                 <Route
                   path="financeiro/relatorios"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']}>
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
                       <RelatoriosPage />
                     </ProtectedRoute>
                   }
@@ -90,7 +91,7 @@ const App = () => (
                 <Route
                   path="estoque"
                   element={
-                    <ProtectedRoute allowedRoles={['admin', 'atendimento']}>
+                    <ProtectedRoute allowedRoles={['admin', 'root', 'atendimento']}>
                       <EstoquePage />
                     </ProtectedRoute>
                   }
@@ -98,7 +99,7 @@ const App = () => (
                 <Route
                   path="usuarios"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']}>
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
                       <UsuariosPage />
                     </ProtectedRoute>
                   }
@@ -106,7 +107,7 @@ const App = () => (
                 <Route
                   path="configuracoes"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']}>
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
                       <ConfiguracoesPage />
                     </ProtectedRoute>
                   }
@@ -114,8 +115,16 @@ const App = () => (
                 <Route
                   path="saldo-inicial"
                   element={
-                    <ProtectedRoute allowedRoles={['admin']}>
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
                       <SaldoInicialPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="empresas"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
+                      <RootCompaniesPage />
                     </ProtectedRoute>
                   }
                 />

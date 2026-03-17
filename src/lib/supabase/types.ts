@@ -863,7 +863,7 @@ export const Constants = {
 //   Policy "auth_select_companies" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "auth_update_companies" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (id = ( SELECT profiles.company_id    FROM profiles   WHERE (profiles.id = auth.uid())))
+//     USING: ((id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text))
 // Table: financial_accounts
 //   Policy "company_financials" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
@@ -875,9 +875,9 @@ export const Constants = {
 //     USING: (company_id = auth_company_id())
 // Table: profiles
 //   Policy "auth_all_profiles" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (company_id = ( SELECT profiles_1.company_id    FROM profiles profiles_1   WHERE (profiles_1.id = auth.uid())))
+//     USING: (((company_id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text)) OR (id = auth.uid()))
 //   Policy "auth_select_profiles" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (company_id = ( SELECT profiles_1.company_id    FROM profiles profiles_1   WHERE (profiles_1.id = auth.uid())))
+//     USING: (((company_id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text)) OR (id = auth.uid()))
 // Table: services
 //   Policy "company_services" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
@@ -892,7 +892,7 @@ export const Constants = {
 //    LANGUAGE sql
 //    STABLE
 //   AS $function$
-//     SELECT company_id FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+//     SELECT (auth.jwt() -> 'user_metadata' ->> 'company_id')::uuid;
 //   $function$
 //
 // FUNCTION get_email_for_login(text, uuid)

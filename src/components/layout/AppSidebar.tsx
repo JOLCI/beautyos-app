@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import {
@@ -28,6 +27,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   UserCog,
+  Building2,
 } from 'lucide-react'
 
 export function AppSidebar() {
@@ -36,7 +36,7 @@ export function AppSidebar() {
   const location = useLocation()
   const { setOpenMobile, isMobile } = useSidebar()
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'root'
 
   const handleLinkClick = () => {
     if (isMobile) setOpenMobile(false)
@@ -232,6 +232,18 @@ export function AppSidebar() {
                   <Link to={nav('/configuracoes')} onClick={handleLinkClick}>
                     <Settings />
                     <span>Configurações</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === nav('/empresas')}
+                  tooltip="Empresas (Root)"
+                >
+                  <Link to={nav('/empresas')} onClick={handleLinkClick}>
+                    <Building2 />
+                    <span>Empresas (Root)</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

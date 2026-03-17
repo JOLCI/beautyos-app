@@ -26,7 +26,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
   const { company } = usePasskey()
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
   const { data: services } = useQuery<any>('services', { match: { is_active: true } })
-  const { data: professionals } = useQuery<any>('profiles') // professionals
+  const { data: professionals } = useQuery<any>('profiles')
 
   const [clientId, setClientId] = useState('')
   const [serviceId, setServiceId] = useState('')
@@ -61,6 +61,14 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
       toast.error('Erro ao agendar')
     } else {
       toast.success('Agendamento confirmado')
+
+      const client = clients.find((c: any) => c.id === clientId)
+      if (client?.phone) {
+        supabase.functions.invoke('send-whatsapp', {
+          body: { template: 'confirmacao', to: client.phone },
+        })
+      }
+
       if (onSuccess) onSuccess()
       onOpenChange(false)
     }
@@ -68,7 +76,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
+      <SheetContent className="sm:max-w-md overflow-y-auto max-h-screen">
         <SheetHeader className="mb-6">
           <SheetTitle>Novo Agendamento</SheetTitle>
           <SheetDescription>Reserve um horário na agenda.</SheetDescription>
@@ -142,7 +150,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
             className="w-full rounded-full"
             disabled={!clientId || !serviceId || !profId}
           >
-            Confirmar
+            Confirmar Agendamento
           </Button>
         </SheetFooter>
       </SheetContent>

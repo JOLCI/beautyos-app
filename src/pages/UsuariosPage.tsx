@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -68,7 +68,7 @@ export default function UsuariosPage() {
   const handleDelete = async () => {
     if (deleteConfirm !== openDelete.username) return
     await supabase.from('profiles').update({ is_active: false }).eq('id', openDelete.id)
-    toast.success('Usuário removido')
+    toast.success('Usuário desativado')
     setOpenDelete(null)
     setDeleteConfirm('')
     refetch()
@@ -94,7 +94,7 @@ export default function UsuariosPage() {
         </div>
       ) : (
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -111,7 +111,7 @@ export default function UsuariosPage() {
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
                           <AvatarFallback>{u.name.charAt(0)}</AvatarFallback>
-                        </Avatar>{' '}
+                        </Avatar>
                         {u.name}
                       </div>
                     </TableCell>
@@ -121,13 +121,8 @@ export default function UsuariosPage() {
                         {u.role}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={resetPassword}
-                        aria-label="Resetar Senha"
-                      >
+                    <TableCell className="text-right space-x-1">
+                      <Button variant="ghost" size="icon" onClick={resetPassword}>
                         <KeyRound className="w-4 h-4" />
                       </Button>
                       <Button
@@ -135,7 +130,6 @@ export default function UsuariosPage() {
                         size="icon"
                         className="text-destructive"
                         onClick={() => setOpenDelete(u)}
-                        aria-label="Remover"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -149,7 +143,7 @@ export default function UsuariosPage() {
       )}
 
       <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Novo Usuário</DialogTitle>
           </DialogHeader>
@@ -185,13 +179,17 @@ export default function UsuariosPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="atendimento">Atendimento (Agenda e Checkout)</SelectItem>
-                  <SelectItem value="admin">Administrador (Total)</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleCreate} disabled={saving || !form.email || !form.password}>
+            <Button
+              onClick={handleCreate}
+              disabled={saving || !form.email || !form.password}
+              className="w-full sm:w-auto"
+            >
               {saving ? 'Criando...' : 'Criar Conta'}
             </Button>
           </DialogFooter>
@@ -218,6 +216,7 @@ export default function UsuariosPage() {
               variant="destructive"
               disabled={deleteConfirm !== openDelete?.username}
               onClick={handleDelete}
+              className="w-full sm:w-auto"
             >
               Confirmar Exclusão
             </Button>
