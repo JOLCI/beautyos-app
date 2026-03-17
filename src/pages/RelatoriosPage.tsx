@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
@@ -10,7 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Download, FileText, Printer, ShieldAlert, Coins } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Download, FileText, Printer, ShieldAlert, Coins, CalendarDays } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQuery } from '@/hooks/use-query'
 import { supabase } from '@/lib/supabase/client'
@@ -18,63 +20,101 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 
 export default function RelatoriosPage() {
   const { company } = usePasskey()
+  const [dateStart, setDateStart] = useState(() => {
+    const d = new Date()
+    d.setDate(1)
+    return d.toISOString().split('T')[0]
+  })
+  const [dateEnd, setDateEnd] = useState(new Date().toISOString().split('T')[0])
+
   const { data: auditLogs } = useQuery<any>('financial_audit_logs', {
     order: { column: 'created_at', ascending: false },
   })
   const { data: commissions, refetch: refetchComm } = useQuery<any>('commissions')
   const { data: profiles } = useQuery<any>('profiles')
-  const { data: transactions } = useQuery<any>('transactions')
+  const { data: transactions } = useQuery<any>('transactions', {
+    order: { column: 'created_at', ascending: false },
+  })
+
+  const filteredTx = useMemo(
+    () =>
+      transactions.filter((t: any) => {
+        const d = t.created_at.split('T')[0]
+        return d >= dateStart && d <= dateEnd
+      }),
+    [transactions, dateStart, dateEnd],
+  )
 
   const handleExportCSV = (data: any[], filename: string) => {
     if (!data.length) return toast.warning('Nenhum dado para exportar')
     const keys = Object.keys(data[0])
     const csv = [keys.join(',')]
       .concat(
-        data.map((row) => keys.map((k) => `"${String(row[k]).replace(/"/g, '""')}"`).join(',')),
+        data.map((row) =>
+          keys.map((k) => `"${String(row[k] || '').replace(/"/g, '""')}"`).join(','),
+        ),
       )
       .join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
+    a.href = window.URL.createObjectURL(blob)
     a.download = `${filename}.csv`
     a.click()
     toast.success('Exportação concluída')
+  }
+
+  const handlePrint = () => {
+    window.print()
   }
 
   const payCommissions = async () => {
     const pending = commissions.filter((c: any) => c.status === 'pending')
     if (pending.length === 0) return toast.info('Nenhuma comissão pendente')
     const total = pending.reduce((a: any, b: any) => a + b.amount, 0)
-
-    await supabase.from('transactions').insert([
-      {
-        company_id: company?.id,
-        type: 'saida',
-        amount: total,
-        description: 'Pagamento de Comissões em Lote',
-        status: 'completed',
-      },
-    ])
-
-    for (const c of pending) {
+    await supabase
+      .from('transactions')
+      .insert([
+        {
+          company_id: company?.id,
+          type: 'saida',
+          amount: total,
+          description: 'Pagamento de Comissões em Lote',
+          status: 'completed',
+        },
+      ])
+    for (const c of pending)
       await supabase.from('commissions').update({ status: 'paid' }).eq('id', c.id)
-    }
     toast.success('Comissões pagas e baixadas no caixa')
     refetchComm()
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 printable-hide">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Centro de Relatórios</h1>
           <p className="text-muted-foreground">Análises financeiras e exportações.</p>
         </div>
+        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-xl border">
+          <CalendarDays className="w-4 h-4 text-muted-foreground ml-2" />
+          <Input
+            type="date"
+            value={dateStart}
+            onChange={(e) => setDateStart(e.target.value)}
+            className="h-8 w-auto border-none bg-transparent"
+          />
+          <span className="text-muted-foreground">até</span>
+          <Input
+            type="date"
+            value={dateEnd}
+            onChange={(e) => setDateEnd(e.target.value)}
+            className="h-8 w-auto border-none bg-transparent"
+          />
+        </div>
       </div>
 
       <Tabs defaultValue="fluxo" className="flex flex-col md:flex-row gap-6">
-        <TabsList className="flex md:flex-col h-auto bg-transparent p-0 gap-2 w-full md:w-56 justify-start overflow-x-auto border-r-0 md:border-r pr-2">
+        <TabsList className="flex md:flex-col h-auto bg-transparent p-0 gap-2 w-full md:w-56 justify-start overflow-x-auto border-r-0 md:border-r pr-2 printable-hide">
           <TabsTrigger value="fluxo" className="w-full justify-start gap-3 px-4 py-3">
             <FileText className="w-4 h-4" /> Fluxo de Caixa
           </TabsTrigger>
@@ -86,18 +126,23 @@ export default function RelatoriosPage() {
           </TabsTrigger>
         </TabsList>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 printable-content">
           <TabsContent value="fluxo" className="mt-0">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between printable-hide">
                 <CardTitle>Fluxo de Caixa (Transações)</CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleExportCSV(transactions, 'fluxo_caixa')}
-                >
-                  <Download className="w-4 h-4 mr-2" /> CSV
-                </Button>
+                <div className="space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportCSV(filteredTx, 'fluxo_caixa')}
+                  >
+                    <Download className="w-4 h-4 mr-2" /> CSV
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handlePrint}>
+                    <Printer className="w-4 h-4 mr-2" /> PDF / Imprimir
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -110,11 +155,15 @@ export default function RelatoriosPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.slice(0, 50).map((t: any) => (
+                    {filteredTx.map((t: any) => (
                       <TableRow key={t.id}>
                         <TableCell>{new Date(t.created_at).toLocaleDateString()}</TableCell>
                         <TableCell
-                          className={t.type === 'entrada' ? 'text-green-600' : 'text-destructive'}
+                          className={
+                            t.type === 'entrada'
+                              ? 'text-green-600 font-medium'
+                              : 'text-destructive font-medium'
+                          }
                         >
                           {t.type}
                         </TableCell>
@@ -124,6 +173,13 @@ export default function RelatoriosPage() {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredTx.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          Nenhum registro no período.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -132,7 +188,7 @@ export default function RelatoriosPage() {
 
           <TabsContent value="comissoes" className="mt-0">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between printable-hide">
                 <div>
                   <CardTitle>Comissões Devidas</CardTitle>
                   <CardDescription>Valores a repassar para os profissionais.</CardDescription>
@@ -167,7 +223,13 @@ export default function RelatoriosPage() {
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{p?.name}</TableCell>
                           <TableCell>{new Date(c.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>{c.status === 'paid' ? 'Pago' : 'Pendente'}</TableCell>
+                          <TableCell>
+                            {c.status === 'paid' ? (
+                              <Badge className="bg-green-500">Pago</Badge>
+                            ) : (
+                              <Badge variant="outline">Pendente</Badge>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">R$ {c.amount.toFixed(2)}</TableCell>
                         </TableRow>
                       )
@@ -180,7 +242,7 @@ export default function RelatoriosPage() {
 
           <TabsContent value="auditoria" className="mt-0">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between printable-hide">
                 <CardTitle>Logs de Auditoria Financeira</CardTitle>
                 <Button
                   variant="outline"
@@ -194,22 +256,41 @@ export default function RelatoriosPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Data</TableHead>
+                      <TableHead>Data / Hora</TableHead>
                       <TableHead>Tabela</TableHead>
                       <TableHead>Ação</TableHead>
-                      <TableHead>Detalhes</TableHead>
+                      <TableHead>Histórico de Alterações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {auditLogs.slice(0, 50).map((a: any) => (
                       <TableRow key={a.id}>
-                        <TableCell className="text-xs">
+                        <TableCell className="text-xs whitespace-nowrap">
                           {new Date(a.created_at).toLocaleString()}
                         </TableCell>
-                        <TableCell className="font-mono text-xs">{a.table_name}</TableCell>
-                        <TableCell>{a.action}</TableCell>
-                        <TableCell className="text-xs max-w-xs truncate text-muted-foreground">
-                          {JSON.stringify(a.new_values || a.old_values)}
+                        <TableCell className="font-mono text-[10px]">{a.table_name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px]">
+                            {a.action}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs max-w-sm">
+                          {a.action === 'UPDATE' && a.old_values && a.new_values ? (
+                            <div className="flex flex-col gap-1 overflow-x-auto pb-2">
+                              <div className="text-destructive opacity-80 break-all">
+                                <span className="font-bold">De:</span>{' '}
+                                {JSON.stringify(a.old_values)}
+                              </div>
+                              <div className="text-green-700 break-all">
+                                <span className="font-bold">Para:</span>{' '}
+                                {JSON.stringify(a.new_values)}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground break-all">
+                              {JSON.stringify(a.new_values || a.old_values)}
+                            </span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

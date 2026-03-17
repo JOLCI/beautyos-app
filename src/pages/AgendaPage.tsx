@@ -1,12 +1,15 @@
 import { useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@/hooks/use-query'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Calendar as CalendarIcon, Plus, Loader2 } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Loader2, CheckCircle2 } from 'lucide-react'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
 
 export default function AgendaPage() {
+  const navigate = useNavigate()
+  const { passkey } = useParams()
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingApp, setEditingApp] = useState<any>(null)
@@ -34,7 +37,7 @@ export default function AgendaPage() {
           <p className="text-muted-foreground">Clique num horário para criar ou editar.</p>
         </div>
         <Button onClick={() => openSheet()} className="rounded-full shadow-md">
-          <Plus className="w-4 h-4 mr-2" /> Novo
+          <Plus className="w-4 h-4 mr-2" /> Novo Agendamento
         </Button>
       </div>
 
@@ -77,27 +80,44 @@ export default function AgendaPage() {
                     ) : (
                       apps.map((a: any) => {
                         const cli = clients.find((c: any) => c.id === a.client_id)
-                        const srv = services.find((s: any) => s.id === a.service_id)
+                        const srvs = services.filter(
+                          (s: any) => a.service_ids?.includes(s.id) || a.service_id === s.id,
+                        )
+                        const srvNames = srvs.map((s: any) => s.name).join(', ')
+
                         return (
                           <div
                             key={a.id}
                             onClick={() => openSheet(a)}
-                            className={`flex-1 border shadow-sm rounded-lg p-3 cursor-pointer transition-all hover:shadow-md border-l-4 ${a.status === 'cancelado' ? 'border-l-destructive bg-destructive/5 opacity-60' : 'border-l-primary bg-card hover:-translate-y-1'}`}
+                            className={`flex-1 flex flex-col justify-between border shadow-sm rounded-lg p-3 cursor-pointer transition-all hover:shadow-md border-l-4 ${a.status === 'cancelado' ? 'border-l-destructive bg-destructive/5 opacity-60' : 'border-l-primary bg-card hover:-translate-y-1'}`}
                           >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-semibold text-sm">{cli?.name}</span>
-                                  <Badge variant="outline" className="text-[10px] uppercase">
-                                    {a.status}
-                                  </Badge>
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {srv?.name} • {a.start_time.slice(0, 5)} -{' '}
-                                  {a.end_time.slice(0, 5)}
-                                </div>
+                            <div>
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="font-semibold text-sm">{cli?.name}</span>
+                                <Badge variant="outline" className="text-[10px] uppercase">
+                                  {a.status}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground line-clamp-2">
+                                {srvNames || 'Serviço'} • {a.start_time.slice(0, 5)} -{' '}
+                                {a.end_time.slice(0, 5)}
                               </div>
                             </div>
+                            {a.status !== 'cancelado' && a.status !== 'finalizado' && (
+                              <div className="mt-3 flex justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-7 text-xs bg-green-500/10 text-green-700 hover:bg-green-500/20 rounded-md"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigate(`/${passkey}/atendimento/novo?appointmentId=${a.id}`)
+                                  }}
+                                >
+                                  <CheckCircle2 className="w-3 h-3 mr-1" /> Checkout
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         )
                       })

@@ -32,7 +32,8 @@ export interface Service {
 export interface Appointment {
   id: string
   clientId: string
-  serviceId: string
+  serviceId?: string
+  serviceIds?: string[]
   professionalId: string
   date: string // YYYY-MM-DD
   startTime: string // HH:mm
@@ -48,7 +49,7 @@ export interface Attendance {
   total: number
   discount: number
   finalTotal: number
-  paymentMethod: 'pix' | 'credit' | 'debit' | 'cash'
+  paymentMethod: 'pix' | 'credit' | 'debit' | 'cash' | 'pix_agendado' | 'convenio' | 'pix_simples'
   status: 'pending' | 'paid'
   date: string
 }

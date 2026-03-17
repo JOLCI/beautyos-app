@@ -49,8 +49,6 @@ export default function ServicosPage() {
     composite_items: [] as any[],
   })
 
-  const [compSearch, setCompSearch] = useState('')
-
   const openSheet = (s: any = null) => {
     if (s) {
       setEditing(s)
@@ -87,7 +85,13 @@ export default function ServicosPage() {
         ...form,
         composite_items: [
           ...form.composite_items,
-          { id: it.id, name: it.name, quantity: 1, cost: it.cost_price || 0 },
+          {
+            id: it.id,
+            name: it.name,
+            quantity: 1,
+            cost: it.cost_price || 0,
+            um: it.unit_of_measure || 'UN',
+          },
         ],
       })
   }
@@ -98,14 +102,14 @@ export default function ServicosPage() {
     setForm({ ...form, composite_items: newItems })
   }
 
+  const calculatedCost = form.is_composite
+    ? form.composite_items.reduce((acc, i) => acc + i.cost * i.quantity, 0)
+    : form.cost_price
+      ? Number(form.cost_price)
+      : 0
+
   const handleSave = async () => {
     if (!form.name || !form.price) return toast.error('Nome e preço obrigatórios')
-
-    const calculatedCost = form.is_composite
-      ? form.composite_items.reduce((acc, i) => acc + i.cost * i.quantity, 0)
-      : form.cost_price
-        ? Number(form.cost_price)
-        : null
 
     const payload = {
       name: form.name,
@@ -135,10 +139,10 @@ export default function ServicosPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Serviços & Produtos</h1>
-          <p className="text-muted-foreground">Catálogo e estrutura de composição (BOM).</p>
+          <p className="text-muted-foreground">Catálogo e composição avançada (BOM).</p>
         </div>
         <Button onClick={() => openSheet()} className="rounded-full shadow-md">
-          <Plus className="w-4 h-4 mr-2" /> Novo
+          <Plus className="w-4 h-4 mr-2" /> Novo Item
         </Button>
       </div>
 
@@ -257,7 +261,7 @@ export default function ServicosPage() {
               </div>
               {!form.is_composite && (
                 <div className="space-y-2">
-                  <Label>Custo (R$)</Label>
+                  <Label>Custo Unitário (R$)</Label>
                   <Input
                     type="number"
                     value={form.cost_price}
@@ -280,8 +284,8 @@ export default function ServicosPage() {
 
                 <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg border">
                   <div>
-                    <Label className="text-sm font-semibold">Serviço Composto (BOM)</Label>
-                    <p className="text-xs text-muted-foreground">Consome insumos ao finalizar.</p>
+                    <Label className="text-sm font-semibold">Bill of Materials (BOM)</Label>
+                    <p className="text-xs text-muted-foreground">Consome produtos ao finalizar.</p>
                   </div>
                   <Switch
                     checked={form.is_composite}
@@ -290,11 +294,11 @@ export default function ServicosPage() {
                 </div>
 
                 {form.is_composite && (
-                  <div className="border p-3 rounded-lg space-y-3 bg-card">
+                  <div className="border p-3 rounded-lg space-y-3 bg-card shadow-inner">
                     <Label>Insumos Utilizados</Label>
                     <Select value="" onValueChange={addCompositeItem}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Adicionar produto/insumo..." />
+                        <SelectValue placeholder="Adicionar insumo..." />
                       </SelectTrigger>
                       <SelectContent>
                         {services
@@ -310,9 +314,10 @@ export default function ServicosPage() {
                       {form.composite_items.map((ci: any, idx) => (
                         <div key={idx} className="flex items-center gap-2 text-sm">
                           <span className="flex-1 truncate">{ci.name}</span>
+                          <span className="text-xs text-muted-foreground w-8">{ci.um}</span>
                           <Input
                             type="number"
-                            className="w-16 h-8"
+                            className="w-16 h-8 text-right"
                             value={ci.quantity}
                             onChange={(e) => {
                               const newI = [...form.composite_items]
@@ -330,6 +335,10 @@ export default function ServicosPage() {
                           </Button>
                         </div>
                       ))}
+                    </div>
+                    <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                      <span>Custo Calculado:</span>
+                      <span className="text-primary">R$ {calculatedCost.toFixed(2)}</span>
                     </div>
                   </div>
                 )}

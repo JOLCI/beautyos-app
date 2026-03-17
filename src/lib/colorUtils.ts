@@ -38,10 +38,15 @@ export function hexToHSL(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`
 }
 
-export function applyTheme(hex: string) {
-  const hsl = hexToHSL(hex)
-  document.documentElement.style.setProperty('--primary', hsl)
-  document.documentElement.style.setProperty('--ring', hsl)
-  document.documentElement.style.setProperty('--sidebar-primary', hsl)
-  document.documentElement.style.setProperty('--sidebar-ring', hsl)
+export function applyTheme(primaryHex: string, secondaryHex?: string) {
+  const p = hexToHSL(primaryHex)
+  document.documentElement.style.setProperty('--primary', p)
+  document.documentElement.style.setProperty('--ring', p)
+  document.documentElement.style.setProperty('--sidebar-primary', p)
+  document.documentElement.style.setProperty('--sidebar-ring', p)
+
+  if (secondaryHex) {
+    const s = hexToHSL(secondaryHex)
+    document.documentElement.style.setProperty('--secondary', s)
+  }
 }

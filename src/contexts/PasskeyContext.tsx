@@ -10,6 +10,7 @@ interface Company {
   passkey: string
   name: string
   primary_color: string
+  secondary_color?: string
   logo_url: string
   settings: any
 }
@@ -52,7 +53,7 @@ export const PasskeyProvider = ({ children }: { children: ReactNode }) => {
 
         if (data) {
           setCompany(data)
-          if (data.primary_color) applyTheme(data.primary_color)
+          if (data.primary_color) applyTheme(data.primary_color, data.secondary_color)
         } else {
           console.warn('Company not found for passkey:', passkey)
           setError(true)

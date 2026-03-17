@@ -10,6 +10,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -21,56 +22,113 @@ import { useQuery } from '@/hooks/use-query'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, X, Clock } from 'lucide-react'
 
 export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointment }: any) {
   const { company } = usePasskey()
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
   const { data: services } = useQuery<any>('services', { match: { is_active: true } })
   const { data: professionals } = useQuery<any>('profiles')
+  const { data: appointments } = useQuery<any>('appointments')
 
   const [clientId, setClientId] = useState('')
-  const [serviceId, setServiceId] = useState('')
+  const [selectedServices, setSelectedServices] = useState<string[]>([])
   const [profId, setProfId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [startTime, setStartTime] = useState('09:00')
+  const [endTime, setEndTime] = useState('09:30')
   const [saving, setSaving] = useState(false)
+  const [manualOverride, setManualOverride] = useState(false)
 
   useEffect(() => {
-    if (appointment) {
+    if (appointment && open) {
       setClientId(appointment.client_id)
-      setServiceId(appointment.service_id)
+      setSelectedServices(
+        appointment.service_ids?.length
+          ? appointment.service_ids
+          : appointment.service_id
+            ? [appointment.service_id]
+            : [],
+      )
       setProfId(appointment.professional_id)
       setDate(appointment.date)
       setStartTime(appointment.start_time.slice(0, 5))
-    } else {
+      setEndTime(appointment.end_time.slice(0, 5))
+      setManualOverride(true)
+    } else if (open) {
       setClientId('')
-      setServiceId('')
+      setSelectedServices([])
       setProfId('')
       setDate(new Date().toISOString().split('T')[0])
       setStartTime('09:00')
+      setEndTime('09:30')
+      setManualOverride(false)
     }
   }, [appointment, open])
 
-  const endTime = useMemo(() => {
-    if (!startTime || !serviceId) return ''
-    const srv = services.find((s: any) => s.id === serviceId)
-    if (!srv) return ''
-    const [h, m] = startTime.split(':').map(Number)
-    const total = h * 60 + m + srv.duration
-    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}:00`
-  }, [startTime, serviceId, services])
+  // Smart Start Time Suggestion
+  useEffect(() => {
+    if (!manualOverride && profId && date && !appointment) {
+      const profApps =
+        appointments?.filter(
+          (a: any) => a.professional_id === profId && a.date === date && a.status !== 'cancelado',
+        ) || []
+      if (profApps.length > 0) {
+        const latest = profApps.reduce(
+          (max: string, a: any) => (a.end_time > max ? a.end_time : max),
+          '00:00',
+        )
+        const [h, m] = latest.split(':').map(Number)
+        const totalM = h * 60 + m + 15
+        setStartTime(
+          `${String(Math.floor(totalM / 60)).padStart(2, '0')}:${String(totalM % 60).padStart(2, '0')}`,
+        )
+      }
+    }
+  }, [profId, date, appointments, appointment, manualOverride])
+
+  const totalDuration = useMemo(() => {
+    return selectedServices.reduce((acc, id) => {
+      const s = services.find((x: any) => x.id === id)
+      return acc + (s?.duration || 0)
+    }, 0)
+  }, [selectedServices, services])
+
+  // Smart End Time Suggestion
+  useEffect(() => {
+    if (!manualOverride && selectedServices.length > 0 && startTime) {
+      const [h, m] = startTime.split(':').map(Number)
+      const totalM = h * 60 + m + totalDuration
+      setEndTime(
+        `${String(Math.floor(totalM / 60)).padStart(2, '0')}:${String(totalM % 60).padStart(2, '0')}`,
+      )
+    }
+  }, [selectedServices, startTime, totalDuration, manualOverride])
+
+  const handleServiceSelect = (id: string) => {
+    if (!selectedServices.includes(id)) {
+      setSelectedServices([...selectedServices, id])
+      setManualOverride(false)
+    }
+  }
+
+  const removeService = (id: string) => {
+    setSelectedServices(selectedServices.filter((x) => x !== id))
+    setManualOverride(false)
+  }
 
   const handleSave = async () => {
     setSaving(true)
     const payload = {
       company_id: company?.id,
       client_id: clientId,
-      service_id: serviceId,
+      service_id: selectedServices[0] || null, // fallback
+      service_ids: selectedServices,
       professional_id: profId,
       date,
       start_time: startTime + ':00',
-      end_time: endTime,
+      end_time: endTime + ':00',
+      duration_minutes: totalDuration,
     }
 
     let err = null
@@ -87,8 +145,8 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     setSaving(false)
     if (err) return toast.error('Erro ao salvar')
 
-    toast.success(appointment ? 'Atualizado' : 'Agendado')
-    supabase.functions.invoke('google-calendar-sync') // async trigger
+    toast.success(appointment ? 'Agendamento Atualizado' : 'Horário Reservado')
+    supabase.functions.invoke('google-calendar-sync')
 
     if (onSuccess) onSuccess()
     onOpenChange(false)
@@ -96,9 +154,9 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
 
   const handleCancel = async () => {
     if (!appointment) return
-    if (!confirm('Cancelar este agendamento?')) return
+    if (!confirm('Deseja cancelar este agendamento?')) return
     await supabase.from('appointments').update({ status: 'cancelado' }).eq('id', appointment.id)
-    toast.success('Cancelado')
+    toast.success('Agendamento Cancelado')
     supabase.functions.invoke('google-calendar-sync')
     if (onSuccess) onSuccess()
     onOpenChange(false)
@@ -109,14 +167,14 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
       <SheetContent side="right" className="sm:max-w-md overflow-y-auto max-h-screen">
         <SheetHeader className="mb-6">
           <SheetTitle>{appointment ? 'Editar Agendamento' : 'Novo Agendamento'}</SheetTitle>
-          <SheetDescription>Reserve ou edite um horário na agenda.</SheetDescription>
+          <SheetDescription>Reserve múltiplos serviços em um único horário.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Cliente</Label>
             <Select value={clientId} onValueChange={setClientId}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Selecione o cliente" />
               </SelectTrigger>
               <SelectContent>
                 {clients.map((c: any) => (
@@ -127,28 +185,12 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Serviço</Label>
-            <Select value={serviceId} onValueChange={setServiceId}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {services
-                  .filter((s: any) => s.type === 'service')
-                  .map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+
           <div className="space-y-2">
             <Label>Profissional</Label>
             <Select value={profId} onValueChange={setProfId}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Quem vai atender?" />
               </SelectTrigger>
               <SelectContent>
                 {professionals.map((p: any) => (
@@ -159,25 +201,93 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2 p-3 bg-muted/30 rounded-xl border">
+            <Label>Adicionar Serviço</Label>
+            <Select value="" onValueChange={handleServiceSelect}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione serviços..." />
+              </SelectTrigger>
+              <SelectContent>
+                {services
+                  .filter((s: any) => s.type === 'service')
+                  .map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} ({s.duration}m)
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <div className="flex flex-wrap gap-2 pt-2">
+              {selectedServices.map((id) => {
+                const s = services.find((x: any) => x.id === id)
+                if (!s) return null
+                return (
+                  <Badge key={id} variant="secondary" className="flex items-center gap-1 py-1">
+                    <span className="truncate max-w-[120px]">{s.name}</span>
+                    <span className="text-[10px] opacity-70">({s.duration}m)</span>
+                    <button
+                      onClick={() => removeService(id)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                )
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => {
+                  setDate(e.target.value)
+                  setManualOverride(true)
+                }}
+              />
             </div>
             <div className="space-y-2">
-              <Label>Início</Label>
-              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              <Label>Duração Total</Label>
+              <div className="flex h-10 w-full items-center rounded-md border bg-muted px-3 text-sm font-medium">
+                <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                {totalDuration} min
+              </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Término Estimado</Label>
-            <Input type="time" value={endTime.slice(0, 5)} disabled className="bg-muted" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Início</Label>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(e) => {
+                  setStartTime(e.target.value)
+                  setManualOverride(true)
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Término</Label>
+              <Input
+                type="time"
+                value={endTime}
+                onChange={(e) => {
+                  setEndTime(e.target.value)
+                  setManualOverride(true)
+                }}
+              />
+            </div>
           </div>
         </div>
         <SheetFooter className="mt-8 flex flex-col gap-2 sm:flex-col">
           <Button
             onClick={handleSave}
-            disabled={!clientId || !serviceId || !profId || saving}
+            disabled={!clientId || selectedServices.length === 0 || !profId || saving}
             className="w-full"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Salvar

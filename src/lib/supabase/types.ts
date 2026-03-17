@@ -80,34 +80,40 @@ export type Database = {
       clients: {
         Row: {
           anamnesis: Json | null
+          birthday: string | null
           company_id: string | null
           created_at: string
           email: string | null
           id: string
           is_active: boolean | null
           name: string
+          notes: string | null
           phone: string
           special_prices: Json | null
         }
         Insert: {
           anamnesis?: Json | null
+          birthday?: string | null
           company_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
           is_active?: boolean | null
           name: string
+          notes?: string | null
           phone: string
           special_prices?: Json | null
         }
         Update: {
           anamnesis?: Json | null
+          birthday?: string | null
           company_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
+          notes?: string | null
           phone?: string
           special_prices?: Json | null
         }
@@ -453,6 +459,53 @@ export type Database = {
           },
         ]
       }
+      pix_gateways: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          pix_key: string
+          pix_key_type: string
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          pix_key: string
+          pix_key_type: string
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          pix_key?: string
+          pix_key_type?: string
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pix_gateways_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_id: string | null
@@ -491,10 +544,72 @@ export type Database = {
           },
         ]
       }
+      purchases: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          purchase_date: string
+          quantity: number
+          service_id: string | null
+          supplier_id: string | null
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_date: string
+          quantity: number
+          service_id?: string | null
+          supplier_id?: string | null
+          total_cost: number
+          unit_cost: number
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          quantity?: number
+          service_id?: string | null
+          supplier_id?: string | null
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'purchases_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchases_service_id_fkey'
+            columns: ['service_id']
+            isOneToOne: false
+            referencedRelation: 'services'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchases_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       services: {
         Row: {
           code: string
           company_id: string | null
+          composite_items: Json | null
           cost_price: number | null
           created_at: string
           duration: number
@@ -504,10 +619,12 @@ export type Database = {
           name: string
           price: number
           type: string
+          unit_of_measure: string | null
         }
         Insert: {
           code: string
           company_id?: string | null
+          composite_items?: Json | null
           cost_price?: number | null
           created_at?: string
           duration?: number
@@ -517,10 +634,12 @@ export type Database = {
           name: string
           price: number
           type?: string
+          unit_of_measure?: string | null
         }
         Update: {
           code?: string
           company_id?: string | null
+          composite_items?: Json | null
           cost_price?: number | null
           created_at?: string
           duration?: number
@@ -530,10 +649,52 @@ export type Database = {
           name?: string
           price?: number
           type?: string
+          unit_of_measure?: string | null
         }
         Relationships: [
           {
             foreignKeyName: 'services_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          document: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'suppliers_company_id_fkey'
             columns: ['company_id']
             isOneToOne: false
             referencedRelation: 'companies'
@@ -578,6 +739,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: 'transactions_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      whatsapp_templates: {
+        Row: {
+          body: string
+          company_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          template_key: string
+        }
+        Insert: {
+          body: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          template_key: string
+        }
+        Update: {
+          body?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          template_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'whatsapp_templates_company_id_fkey'
             columns: ['company_id']
             isOneToOne: false
             referencedRelation: 'companies'
@@ -757,6 +956,8 @@ export const Constants = {
 //   special_prices: jsonb (nullable, default: '{}'::jsonb)
 //   is_active: boolean (nullable, default: true)
 //   created_at: timestamp with time zone (not null, default: now())
+//   birthday: date (nullable)
+//   notes: text (nullable)
 // Table: commission_rules
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -819,6 +1020,17 @@ export const Constants = {
 //   reason: text (nullable)
 //   user_id: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
+// Table: pix_gateways
+//   id: uuid (not null, default: gen_random_uuid())
+//   company_id: uuid (nullable)
+//   name: text (not null)
+//   provider: text (not null)
+//   pix_key: text (not null)
+//   pix_key_type: text (not null)
+//   is_active: boolean (nullable, default: false)
+//   notes: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: profiles
 //   id: uuid (not null)
 //   company_id: uuid (nullable)
@@ -826,6 +1038,17 @@ export const Constants = {
 //   username: text (not null)
 //   role: text (not null, default: 'atendimento'::text)
 //   is_active: boolean (nullable, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: purchases
+//   id: uuid (not null, default: gen_random_uuid())
+//   company_id: uuid (nullable)
+//   supplier_id: uuid (nullable)
+//   service_id: uuid (nullable)
+//   quantity: integer (not null)
+//   unit_cost: numeric (not null)
+//   total_cost: numeric (not null)
+//   purchase_date: date (not null)
+//   notes: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 // Table: services
 //   id: uuid (not null, default: gen_random_uuid())
@@ -839,6 +1062,17 @@ export const Constants = {
 //   is_composite: boolean (nullable, default: false)
 //   is_active: boolean (nullable, default: true)
 //   created_at: timestamp with time zone (not null, default: now())
+//   composite_items: jsonb (nullable, default: '[]'::jsonb)
+//   unit_of_measure: text (nullable, default: 'UN'::text)
+// Table: suppliers
+//   id: uuid (not null, default: gen_random_uuid())
+//   company_id: uuid (nullable)
+//   name: text (not null)
+//   document: text (nullable)
+//   phone: text (nullable)
+//   email: text (nullable)
+//   is_active: boolean (nullable, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: transactions
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -848,6 +1082,14 @@ export const Constants = {
 //   payment_method: text (nullable)
 //   status: text (not null, default: 'completed'::text)
 //   ref_id: uuid (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: whatsapp_templates
+//   id: uuid (not null, default: gen_random_uuid())
+//   company_id: uuid (nullable)
+//   name: text (not null)
+//   template_key: text (not null)
+//   body: text (not null)
+//   is_active: boolean (nullable, default: true)
 //   created_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
@@ -890,17 +1132,31 @@ export const Constants = {
 //   FOREIGN KEY inventory_movements_inventory_id_fkey: FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE CASCADE
 //   PRIMARY KEY inventory_movements_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY inventory_movements_user_id_fkey: FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL
+// Table: pix_gateways
+//   FOREIGN KEY pix_gateways_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   PRIMARY KEY pix_gateways_pkey: PRIMARY KEY (id)
 // Table: profiles
 //   FOREIGN KEY profiles_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   FOREIGN KEY profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY profiles_pkey: PRIMARY KEY (id)
 //   UNIQUE profiles_username_key: UNIQUE (username)
+// Table: purchases
+//   FOREIGN KEY purchases_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   PRIMARY KEY purchases_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY purchases_service_id_fkey: FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+//   FOREIGN KEY purchases_supplier_id_fkey: FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
 // Table: services
 //   FOREIGN KEY services_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY services_pkey: PRIMARY KEY (id)
+// Table: suppliers
+//   FOREIGN KEY suppliers_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   PRIMARY KEY suppliers_pkey: PRIMARY KEY (id)
 // Table: transactions
 //   FOREIGN KEY transactions_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY transactions_pkey: PRIMARY KEY (id)
+// Table: whatsapp_templates
+//   FOREIGN KEY whatsapp_templates_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   PRIMARY KEY whatsapp_templates_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: appointments
@@ -934,16 +1190,28 @@ export const Constants = {
 // Table: inventory_movements
 //   Policy "company_inventory_movements" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
+// Table: pix_gateways
+//   Policy "company_pix_gateways" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (company_id = auth_company_id())
 // Table: profiles
 //   Policy "auth_all_profiles" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (((company_id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text)) OR (id = auth.uid()))
 //   Policy "auth_select_profiles" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (((company_id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text)) OR (id = auth.uid()))
+// Table: purchases
+//   Policy "company_purchases" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (company_id = auth_company_id())
 // Table: services
 //   Policy "company_services" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
+// Table: suppliers
+//   Policy "company_suppliers" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (company_id = auth_company_id())
 // Table: transactions
 //   Policy "company_transactions" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (company_id = auth_company_id())
+// Table: whatsapp_templates
+//   Policy "company_whatsapp_templates" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
 
 // --- DATABASE FUNCTIONS ---
@@ -954,6 +1222,22 @@ export const Constants = {
 //    STABLE
 //   AS $function$
 //     SELECT (auth.jwt() -> 'user_metadata' ->> 'company_id')::uuid;
+//   $function$
+//
+// FUNCTION enforce_single_active_gateway()
+//   CREATE OR REPLACE FUNCTION public.enforce_single_active_gateway()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//       IF NEW.is_active = true THEN
+//           UPDATE public.pix_gateways
+//           SET is_active = false
+//           WHERE company_id = NEW.company_id AND id != NEW.id;
+//       END IF;
+//       RETURN NEW;
+//   END;
 //   $function$
 //
 // FUNCTION get_email_for_login(text, uuid)
@@ -1064,6 +1348,8 @@ export const Constants = {
 // --- TRIGGERS ---
 // Table: financial_accounts
 //   audit_financial_accounts_changes: CREATE TRIGGER audit_financial_accounts_changes AFTER INSERT OR DELETE OR UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
+// Table: pix_gateways
+//   trg_single_active_gateway: CREATE TRIGGER trg_single_active_gateway BEFORE INSERT OR UPDATE ON public.pix_gateways FOR EACH ROW EXECUTE FUNCTION enforce_single_active_gateway()
 // Table: transactions
 //   audit_transactions_changes: CREATE TRIGGER audit_transactions_changes AFTER INSERT OR DELETE OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
 

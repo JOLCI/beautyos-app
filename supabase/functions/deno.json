@@ -9,8 +9,8 @@
     "save-integration-secrets": 4,
     "delete-user": 1,
     "test-pix": 1,
-    "whatsapp-generate-qr": 1,
-    "whatsapp-check-status": 1,
+    "whatsapp-generate-qr": 2,
+    "whatsapp-check-status": 2,
     "functions": 1
   }
 }
