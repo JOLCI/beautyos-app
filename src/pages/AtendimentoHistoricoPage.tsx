@@ -1,31 +1,47 @@
-import { EmptyState } from '@/components/ui/empty-state'
-import { History, PlayCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@/hooks/use-query'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 export default function AtendimentoHistoricoPage() {
-  const navigate = useNavigate()
+  const { data: apps } = useQuery<any>('appointments', { match: { status: 'finalizado' } })
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Histórico</h1>
-        <p className="text-muted-foreground">Listagem de tickets finalizados recentemente.</p>
-      </div>
-
-      <EmptyState
-        icon={History}
-        title="Nenhum histórico disponível"
-        description="Você ainda não finalizou nenhum atendimento hoje. Utilize o Novo Checkout para registrar."
-        action={
-          <Button
-            onClick={() => navigate('/atendimento/novo')}
-            className="rounded-full mt-4 shadow-md"
-          >
-            <PlayCircle className="w-4 h-4 mr-2" /> Ir para Checkout
-          </Button>
-        }
-      />
+      <h1 className="text-3xl font-bold tracking-tight">Histórico de Atendimentos</h1>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Horário</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {apps.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell>{a.date}</TableCell>
+                  <TableCell>{a.start_time}</TableCell>
+                </TableRow>
+              ))}
+              {apps.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center py-8">
+                    Nenhum histórico
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   )
 }

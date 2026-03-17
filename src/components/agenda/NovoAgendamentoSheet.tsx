@@ -17,48 +17,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { mockClients, mockServices, mockProfessionals, mockAppointments } from '@/lib/mock'
-import { AlertTriangle } from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
+import { useQuery } from '@/hooks/use-query'
+import { supabase } from '@/lib/supabase/client'
+import { usePasskey } from '@/contexts/PasskeyContext'
+import { toast } from 'sonner'
 
-interface Props {
-  open: boolean
-  onOpenChange: (o: boolean) => void
-  initialTime?: string
-  initialDate?: string
-}
+export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess }: any) {
+  const { company } = usePasskey()
+  const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
+  const { data: services } = useQuery<any>('services', { match: { is_active: true } })
+  const { data: professionals } = useQuery<any>('profiles') // professionals
 
-export function NovoAgendamentoSheet({ open, onOpenChange, initialTime, initialDate }: Props) {
   const [clientId, setClientId] = useState('')
   const [serviceId, setServiceId] = useState('')
   const [profId, setProfId] = useState('')
-  const [date, setDate] = useState(initialDate || new Date().toISOString().split('T')[0])
-  const [startTime, setStartTime] = useState(initialTime || '09:00')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [startTime, setStartTime] = useState('09:00')
 
   const endTime = useMemo(() => {
     if (!startTime || !serviceId) return ''
-    const srv = mockServices.find((s) => s.id === serviceId)
+    const srv = services.find((s: any) => s.id === serviceId)
     if (!srv) return ''
     const [h, m] = startTime.split(':').map(Number)
     const total = h * 60 + m + srv.duration
-    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
-  }, [startTime, serviceId])
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}:00`
+  }, [startTime, serviceId, services])
 
-  const hasConflict = useMemo(() => {
-    if (!profId || !date || !startTime || !endTime) return false
-    return mockAppointments.some((a) => {
-      if (a.professionalId !== profId || a.date !== date || a.status === 'cancelado') return false
-      return (
-        (startTime >= a.startTime && startTime < a.endTime) ||
-        (endTime > a.startTime && endTime <= a.endTime)
-      )
-    })
-  }, [profId, date, startTime, endTime])
+  const handleSave = async () => {
+    const { error } = await supabase.from('appointments').insert([
+      {
+        company_id: company?.id,
+        client_id: clientId,
+        service_id: serviceId,
+        professional_id: profId,
+        date,
+        start_time: startTime + ':00',
+        end_time: endTime,
+        status: 'agendado',
+      },
+    ])
 
-  const handleSave = () => {
-    toast({ title: 'Sucesso', description: 'Agendamento salvo com sucesso.' })
-    onOpenChange(false)
+    if (error) {
+      toast.error('Erro ao agendar')
+    } else {
+      toast.success('Agendamento confirmado')
+      if (onSuccess) onSuccess()
+      onOpenChange(false)
+    }
   }
 
   return (
@@ -66,7 +71,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, initialTime, initialD
       <SheetContent className="sm:max-w-md overflow-y-auto">
         <SheetHeader className="mb-6">
           <SheetTitle>Novo Agendamento</SheetTitle>
-          <SheetDescription>Preencha os detalhes do serviço a ser agendado.</SheetDescription>
+          <SheetDescription>Reserve um horário na agenda.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -76,7 +81,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, initialTime, initialD
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
-                {mockClients.map((c) => (
+                {clients.map((c: any) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
                   </SelectItem>
@@ -91,11 +96,13 @@ export function NovoAgendamentoSheet({ open, onOpenChange, initialTime, initialD
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
-                {mockServices.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name} ({s.duration}min)
-                  </SelectItem>
-                ))}
+                {services
+                  .filter((s: any) => s.type === 'service')
+                  .map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} ({s.duration}min)
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -106,7 +113,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, initialTime, initialD
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
-                {mockProfessionals.map((p) => (
+                {professionals.map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
                   </SelectItem>
@@ -126,18 +133,8 @@ export function NovoAgendamentoSheet({ open, onOpenChange, initialTime, initialD
           </div>
           <div className="space-y-2">
             <Label>Término Estimado</Label>
-            <Input type="time" value={endTime} readOnly disabled className="bg-muted" />
+            <Input type="time" value={endTime.slice(0, 5)} readOnly disabled className="bg-muted" />
           </div>
-
-          {hasConflict && (
-            <Alert variant="destructive" className="mt-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Atenção</AlertTitle>
-              <AlertDescription>
-                O profissional já possui um agendamento conflitante neste horário.
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
         <SheetFooter className="mt-8">
           <Button
@@ -145,7 +142,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, initialTime, initialD
             className="w-full rounded-full"
             disabled={!clientId || !serviceId || !profId}
           >
-            Confirmar Agendamento
+            Confirmar
           </Button>
         </SheetFooter>
       </SheetContent>

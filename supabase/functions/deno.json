@@ -1,0 +1,11 @@
+{
+  "_versions": {
+    "test-whatsapp": 1,
+    "generate-pix": 1,
+    "check-pix-status": 1,
+    "send-whatsapp": 1,
+    "create-user": 1,
+    "google-calendar-sync": 1,
+    "save-integration-secrets": 1
+  }
+}

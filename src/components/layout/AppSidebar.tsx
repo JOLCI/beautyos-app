@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
 import {
   Sidebar,
   SidebarContent,
@@ -23,36 +23,26 @@ import {
   DollarSign,
   Settings,
   LogOut,
-  Wallet,
+  Package,
+  FileText,
   ArrowDownCircle,
   ArrowUpCircle,
   UserCog,
 } from 'lucide-react'
 
 export function AppSidebar() {
-  const { user, logout } = useAuth()
+  const { profile, signOut } = useAuth()
+  const { passkey } = useParams()
   const location = useLocation()
   const { setOpenMobile, isMobile } = useSidebar()
 
-  const isAtendimento = user?.role === 'atendimento'
+  const isAdmin = profile?.role === 'admin'
 
   const handleLinkClick = () => {
     if (isMobile) setOpenMobile(false)
   }
 
-  const mainMenu = useMemo(
-    () => [{ to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' }],
-    [],
-  )
-
-  const atendimentoMenu = useMemo(
-    () => [
-      { to: '/agenda', icon: Calendar, label: 'Agenda' },
-      { to: '/atendimento/novo', icon: PlayCircle, label: 'Novo Checkout' },
-      { to: '/atendimento/historico', icon: History, label: 'Histórico' },
-    ],
-    [],
-  )
+  const nav = (path: string) => `/${passkey}${path}`
 
   return (
     <Sidebar variant="inset" collapsible="icon">
@@ -60,40 +50,60 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Principal</SidebarGroupLabel>
           <SidebarMenu>
-            {mainMenu.map((item) => (
-              <SidebarMenuItem key={item.to}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === item.to}
-                  tooltip={item.label}
-                >
-                  <Link to={item.to} onClick={handleLinkClick}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={location.pathname === nav('/dashboard')}
+                tooltip="Dashboard"
+              >
+                <Link to={nav('/dashboard')} onClick={handleLinkClick}>
+                  <LayoutDashboard />
+                  <span>Dashboard</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={location.pathname === nav('/agenda')}
+                tooltip="Agenda"
+              >
+                <Link to={nav('/agenda')} onClick={handleLinkClick}>
+                  <Calendar />
+                  <span>Agenda</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel>Atendimento</SidebarGroupLabel>
           <SidebarMenu>
-            {atendimentoMenu.map((item) => (
-              <SidebarMenuItem key={item.to}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === item.to}
-                  tooltip={item.label}
-                >
-                  <Link to={item.to} onClick={handleLinkClick}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={location.pathname === nav('/atendimento/novo')}
+                tooltip="Novo Checkout"
+              >
+                <Link to={nav('/atendimento/novo')} onClick={handleLinkClick}>
+                  <PlayCircle />
+                  <span>Novo Checkout</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={location.pathname === nav('/atendimento/historico')}
+                tooltip="Histórico"
+              >
+                <Link to={nav('/atendimento/historico')} onClick={handleLinkClick}>
+                  <History />
+                  <span>Histórico</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
@@ -103,10 +113,10 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={location.pathname.startsWith('/clientes')}
+                isActive={location.pathname.includes('/clientes')}
                 tooltip="Clientes"
               >
-                <Link to="/clientes" onClick={handleLinkClick}>
+                <Link to={nav('/clientes')} onClick={handleLinkClick}>
                   <Users />
                   <span>Clientes</span>
                 </Link>
@@ -115,12 +125,24 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={location.pathname.startsWith('/servicos')}
-                tooltip="Serviços"
+                isActive={location.pathname.includes('/servicos')}
+                tooltip="Serviços & Produtos"
               >
-                <Link to="/servicos" onClick={handleLinkClick}>
+                <Link to={nav('/servicos')} onClick={handleLinkClick}>
                   <Scissors />
-                  <span>Serviços</span>
+                  <span>Serviços & Produtos</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={location.pathname.includes('/estoque')}
+                tooltip="Estoque"
+              >
+                <Link to={nav('/estoque')} onClick={handleLinkClick}>
+                  <Package />
+                  <span>Estoque</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -133,24 +155,24 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={location.pathname === '/financeiro/caixa'}
+                isActive={location.pathname === nav('/financeiro/caixa')}
                 tooltip="Caixa"
               >
-                <Link to="/financeiro/caixa" onClick={handleLinkClick}>
+                <Link to={nav('/financeiro/caixa')} onClick={handleLinkClick}>
                   <DollarSign />
                   <span>Caixa</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {!isAtendimento && (
+            {isAdmin && (
               <>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={location.pathname === '/financeiro/contas-pagar'}
+                    isActive={location.pathname === nav('/financeiro/contas-pagar')}
                     tooltip="A Pagar"
                   >
-                    <Link to="/financeiro/contas-pagar" onClick={handleLinkClick}>
+                    <Link to={nav('/financeiro/contas-pagar')} onClick={handleLinkClick}>
                       <ArrowUpCircle />
                       <span>Contas a Pagar</span>
                     </Link>
@@ -159,12 +181,24 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={location.pathname === '/financeiro/contas-receber'}
+                    isActive={location.pathname === nav('/financeiro/contas-receber')}
                     tooltip="A Receber"
                   >
-                    <Link to="/financeiro/contas-receber" onClick={handleLinkClick}>
+                    <Link to={nav('/financeiro/contas-receber')} onClick={handleLinkClick}>
                       <ArrowDownCircle />
                       <span>Contas a Receber</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === nav('/financeiro/relatorios')}
+                    tooltip="Relatórios"
+                  >
+                    <Link to={nav('/financeiro/relatorios')} onClick={handleLinkClick}>
+                      <FileText />
+                      <span>Relatórios</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -173,17 +207,17 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        {!isAtendimento && (
+        {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Administração</SidebarGroupLabel>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={location.pathname === '/usuarios'}
+                  isActive={location.pathname === nav('/usuarios')}
                   tooltip="Usuários"
                 >
-                  <Link to="/usuarios" onClick={handleLinkClick}>
+                  <Link to={nav('/usuarios')} onClick={handleLinkClick}>
                     <UserCog />
                     <span>Usuários</span>
                   </Link>
@@ -192,10 +226,10 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={location.pathname === '/configuracoes'}
+                  isActive={location.pathname === nav('/configuracoes')}
                   tooltip="Configurações"
                 >
-                  <Link to="/configuracoes" onClick={handleLinkClick}>
+                  <Link to={nav('/configuracoes')} onClick={handleLinkClick}>
                     <Settings />
                     <span>Configurações</span>
                   </Link>
@@ -209,7 +243,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={logout} tooltip="Sair da Conta" aria-label="Sair da conta">
+            <SidebarMenuButton onClick={signOut} tooltip="Sair" aria-label="Sair da conta">
               <LogOut className="text-destructive" />
               <span className="text-destructive font-medium">Sair</span>
             </SidebarMenuButton>

@@ -1,13 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Toaster } from '@/components/ui/toaster'
+import { Toaster as ShadcnToaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from '@/components/ThemeProvider'
-import { AuthProvider } from '@/contexts/AuthContext'
+import { AuthProvider } from '@/hooks/use-auth'
+import { PasskeyProvider } from '@/contexts/PasskeyContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { ColorProvider } from '@/components/ColorProvider'
 
+import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import AgendaPage from './pages/AgendaPage'
@@ -20,20 +21,31 @@ import SaldoInicialPage from './pages/SaldoInicialPage'
 import CaixaPage from './pages/CaixaPage'
 import ContasPagarPage from './pages/ContasPagarPage'
 import ContasReceberPage from './pages/ContasReceberPage'
+import EstoquePage from './pages/EstoquePage'
+import RelatoriosPage from './pages/RelatoriosPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
 import NotFound from './pages/NotFound'
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-    <ColorProvider>
-      <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner position="bottom-right" richColors duration={4000} />
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
+    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+      <AuthProvider>
+        <TooltipProvider>
+          <ShadcnToaster />
+          <Sonner position="bottom-right" richColors duration={4000} />
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+
+            <Route
+              path="/:passkey"
+              element={
+                <PasskeyProvider>
+                  <OutletWithContext />
+                </PasskeyProvider>
+              }
+            >
+              <Route path="login" element={<LoginPage />} />
 
               <Route
                 element={
@@ -42,63 +54,83 @@ const App = () => (
                   </ProtectedRoute>
                 }
               >
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/agenda" element={<AgendaPage />} />
-                <Route path="/clientes" element={<ClientesPage />} />
-                <Route path="/clientes/:id" element={<ClienteDetailPage />} />
-                <Route path="/servicos" element={<ServicosPage />} />
-                <Route path="/atendimento/novo" element={<AtendimentoNovoPage />} />
-                <Route path="/atendimento/historico" element={<AtendimentoHistoricoPage />} />
-                <Route path="/financeiro/caixa" element={<CaixaPage />} />
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="agenda" element={<AgendaPage />} />
+                <Route path="clientes" element={<ClientesPage />} />
+                <Route path="clientes/:id" element={<ClienteDetailPage />} />
+                <Route path="servicos" element={<ServicosPage />} />
+                <Route path="atendimento/novo" element={<AtendimentoNovoPage />} />
+                <Route path="atendimento/historico" element={<AtendimentoHistoricoPage />} />
+                <Route path="financeiro/caixa" element={<CaixaPage />} />
                 <Route
-                  path="/financeiro/contas-pagar"
+                  path="financeiro/contas-pagar"
                   element={
-                    <ProtectedRoute allowedRoles={['root', 'admin']}>
+                    <ProtectedRoute allowedRoles={['admin']}>
                       <ContasPagarPage />
                     </ProtectedRoute>
                   }
                 />
                 <Route
-                  path="/financeiro/contas-receber"
+                  path="financeiro/contas-receber"
                   element={
-                    <ProtectedRoute allowedRoles={['root', 'admin']}>
+                    <ProtectedRoute allowedRoles={['admin']}>
                       <ContasReceberPage />
                     </ProtectedRoute>
                   }
                 />
                 <Route
-                  path="/usuarios"
+                  path="financeiro/relatorios"
                   element={
-                    <ProtectedRoute allowedRoles={['root', 'admin']}>
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <RelatoriosPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="estoque"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'atendimento']}>
+                      <EstoquePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="usuarios"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
                       <UsuariosPage />
                     </ProtectedRoute>
                   }
                 />
                 <Route
-                  path="/configuracoes"
+                  path="configuracoes"
                   element={
-                    <ProtectedRoute allowedRoles={['root', 'admin']}>
+                    <ProtectedRoute allowedRoles={['admin']}>
                       <ConfiguracoesPage />
                     </ProtectedRoute>
                   }
                 />
                 <Route
-                  path="/saldo-inicial"
+                  path="saldo-inicial"
                   element={
-                    <ProtectedRoute allowedRoles={['root']}>
+                    <ProtectedRoute allowedRoles={['admin']}>
                       <SaldoInicialPage />
                     </ProtectedRoute>
                   }
                 />
               </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </TooltipProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </ColorProvider>
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </ThemeProvider>
 )
+
+import { Outlet } from 'react-router-dom'
+const OutletWithContext = () => <Outlet />
 
 export default App

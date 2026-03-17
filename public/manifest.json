@@ -1,0 +1,22 @@
+{
+  "name": "BeautyOS",
+  "short_name": "BeautyOS",
+  "description": "Sistema completo para gerenciamento de salão de beleza",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e11d48",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://img.usecurling.com/i?q=flower&shape=fill&color=rose",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://img.usecurling.com/i?q=flower&shape=fill&color=rose",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

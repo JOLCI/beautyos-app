@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
+import { usePasskey } from '@/contexts/PasskeyContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,19 +13,28 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Flower } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function LoginPage() {
-  const [passkey, setPasskey] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const { login } = useAuth()
+  const { company } = usePasskey()
+  const { signIn } = useAuth()
   const navigate = useNavigate()
+  const { passkey } = useParams()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (login(passkey, username, password)) {
-      navigate('/dashboard')
+    setLoading(true)
+    const { error } = await signIn(email, password)
+    setLoading(false)
+
+    if (error) {
+      toast.error('Acesso negado', { description: 'Credenciais inválidas.' })
+    } else {
+      navigate(`/${passkey}/dashboard`)
     }
   }
 
@@ -32,32 +42,30 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md shadow-elevation border-border">
         <CardHeader className="space-y-4 items-center text-center">
-          <div className="bg-primary/10 p-4 rounded-full inline-block mb-2">
-            <Flower className="w-10 h-10 text-primary animate-pulse" />
-          </div>
-          <CardTitle className="text-3xl font-bold tracking-tight">BeautyOS</CardTitle>
-          <CardDescription>Gerenciamento inteligente de salão</CardDescription>
+          {company?.logo_url ? (
+            <img
+              src={company.logo_url}
+              alt="Logo"
+              className="w-20 h-20 object-contain rounded-full border shadow-sm"
+            />
+          ) : (
+            <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center text-primary font-bold text-2xl">
+              {company?.name.charAt(0)}
+            </div>
+          )}
+          <CardTitle className="text-2xl font-bold tracking-tight">{company?.name}</CardTitle>
+          <CardDescription>Acesse sua conta</CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="passkey">Chave da Empresa</Label>
+              <Label htmlFor="email">E-mail ou Usuário</Label>
               <Input
-                id="passkey"
-                placeholder="Ex: BEAUTY01"
-                value={passkey}
-                onChange={(e) => setPasskey(e.target.value.toUpperCase())}
-                maxLength={8}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="username">Usuário</Label>
-              <Input
-                id="username"
-                placeholder="Seu usuário"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="admin@beautyos.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -71,17 +79,15 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Dica: Use root/s3nh4 ou admin/123 com BEAUTY01
-              </p>
             </div>
           </CardContent>
           <CardFooter>
             <Button
               type="submit"
-              className="w-full rounded-full h-11 text-base shadow-md hover:scale-[1.02] transition-transform"
+              className="w-full rounded-full h-11 text-base shadow-md"
+              disabled={loading}
             >
-              Entrar no Sistema
+              {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </CardFooter>
         </form>

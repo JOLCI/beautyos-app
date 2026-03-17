@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Sheet,
   SheetContent,
@@ -11,172 +11,194 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle2, QrCode, Copy, MessageSquare } from 'lucide-react'
+import { CheckCircle2, QrCode } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
+import { supabase } from '@/lib/supabase/client'
+import { usePasskey } from '@/contexts/PasskeyContext'
 
-interface Props {
-  open: boolean
-  onOpenChange: (o: boolean) => void
-  total: number
-}
-
-export function CheckoutSheet({ open, onOpenChange, total }: Props) {
+export function CheckoutSheet({
+  open,
+  onOpenChange,
+  total,
+  items,
+  professionalId,
+  onComplete,
+}: any) {
+  const { company } = usePasskey()
   const [method, setMethod] = useState('pix')
   const [discount, setDiscount] = useState('0')
   const [status, setStatus] = useState<'idle' | 'waiting' | 'success'>('idle')
 
   const finalTotal = total - Number(discount || 0)
 
-  useEffect(() => {
-    if (open) setStatus('idle')
-  }, [open])
+  const calculateCommissions = async (appointmentId?: string) => {
+    if (!professionalId) return
 
-  useEffect(() => {
-    if (status === 'waiting' && method === 'pix') {
-      const t = setTimeout(() => {
-        setStatus('success')
-        toast.success('Pagamento PIX Confirmado', { description: 'Valor recebido na conta.' })
-        simulateWhatsApp('Pós-atendimento')
-      }, 3000)
-      return () => clearTimeout(t)
-    }
-  }, [status, method])
+    // Fetch rules for this professional
+    const { data: rules } = await supabase
+      .from('commission_rules')
+      .select('*')
+      .eq('professional_id', professionalId)
 
-  const simulateWhatsApp = async (type: string) => {
-    setTimeout(() => {
-      toast.success(`WhatsApp Enviado: ${type}`, { icon: <MessageSquare className="w-4 h-4" /> })
-    }, 1000)
-  }
+    for (const item of items) {
+      if (item.type === 'service') {
+        const rule = rules?.find((r) => r.service_id === item.id)
+        const pct = rule?.percentage || 0
+        const amount = (item.price * pct) / 100
 
-  const handleFinish = () => {
-    if (method === 'pix') {
-      setStatus('waiting')
-      simulateWhatsApp('Cobrança PIX')
-    } else {
-      setStatus('success')
-      toast.success('Atendimento Finalizado', { description: 'Lançamento de caixa gerado.' })
-      simulateWhatsApp('Pós-atendimento')
+        if (amount > 0) {
+          await supabase.from('commissions').insert([
+            {
+              company_id: company?.id,
+              professional_id: professionalId,
+              appointment_id: appointmentId || null,
+              amount,
+              status: 'pending',
+            },
+          ])
+        }
+      }
     }
   }
 
-  const copyPix = () => toast.success('Chave PIX copiada!')
+  const handleFinish = async () => {
+    setStatus('waiting')
+
+    // Create transaction
+    const { data: tx } = await supabase
+      .from('transactions')
+      .insert([
+        {
+          company_id: company?.id,
+          type: 'entrada',
+          amount: finalTotal,
+          description: `Checkout PDV - ${items.length} itens`,
+          payment_method: method,
+          status: method === 'pix_agendado' || method === 'convenio' ? 'pending' : 'completed',
+        },
+      ])
+      .select()
+      .single()
+
+    // If PIX Agendado / Convenio, create Receivable
+    if (method === 'pix_agendado' || method === 'convenio') {
+      await supabase.from('financial_accounts').insert([
+        {
+          company_id: company?.id,
+          type: 'receivable',
+          description: `Recebível - ${method}`,
+          amount: finalTotal,
+          due_date: new Date(Date.now() + 86400000).toISOString(),
+          transaction_id: tx?.id,
+          status: 'pending',
+        },
+      ])
+    }
+
+    // Decrement inventory for products
+    for (const item of items) {
+      if (item.type === 'product') {
+        const { data: inv } = await supabase
+          .from('inventory')
+          .select('id, quantity')
+          .eq('service_id', item.id)
+          .single()
+        if (inv) {
+          if (inv.quantity < 1) toast.warning(`Estoque insuficiente para ${item.name}`)
+          await supabase
+            .from('inventory')
+            .update({ quantity: inv.quantity - 1 })
+            .eq('id', inv.id)
+          await supabase
+            .from('inventory_movements')
+            .insert([
+              {
+                company_id: company?.id,
+                inventory_id: inv.id,
+                type: 'out',
+                quantity: 1,
+                reason: 'Venda PDV',
+              },
+            ])
+        }
+      }
+    }
+
+    // Calculate Commissions
+    await calculateCommissions()
+
+    setStatus('success')
+    toast.success('Atendimento Finalizado')
+    if (onComplete) onComplete()
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-[560px] w-full flex flex-col h-full p-0">
         <div className="p-6 pb-2 border-b">
           <SheetHeader>
-            <SheetTitle className="text-2xl">Finalizar Cobrança</SheetTitle>
-            <SheetDescription>Selecione a forma de pagamento.</SheetDescription>
+            <SheetTitle>Finalizar Cobrança</SheetTitle>
           </SheetHeader>
         </div>
-
         {status === 'success' ? (
-          <div className="flex-1 flex flex-col items-center justify-center space-y-6 p-6 animate-fade-in-up">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center animate-pulse">
-              <CheckCircle2 className="w-12 h-12 text-green-600" />
-            </div>
-            <h3 className="text-3xl font-bold text-center">Tudo Certo!</h3>
-            <p className="text-muted-foreground text-center text-lg">
-              Ticket fechado e registrado no caixa.
-            </p>
-            <Button
-              className="mt-8 rounded-full px-8 h-12 text-lg w-full max-w-xs"
-              onClick={() => onOpenChange(false)}
-            >
+          <div className="flex-1 flex flex-col items-center justify-center p-6">
+            <CheckCircle2 className="w-16 h-16 text-green-600 mb-4" />
+            <h3 className="text-2xl font-bold">Tudo Certo!</h3>
+            <Button className="mt-8" onClick={() => onOpenChange(false)}>
               Concluir
             </Button>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6 space-y-8">
-            <div className="bg-muted/30 p-5 rounded-2xl border space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground font-medium">Subtotal</span>
-                <span className="font-semibold">R$ {total.toFixed(2)}</span>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="bg-muted p-4 rounded-xl">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>R$ {total.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground font-medium">Desconto (R$)</span>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-muted-foreground">Desconto (R$)</span>
                 <Input
                   type="number"
-                  className="w-28 h-9 text-right font-semibold"
+                  className="w-24 h-8 text-right"
                   value={discount}
                   onChange={(e) => setDiscount(e.target.value)}
                 />
               </div>
-              <Separator className="my-2" />
-              <div className="flex justify-between items-end">
-                <span className="text-lg font-bold">Total a Pagar</span>
-                <span className="text-3xl font-extrabold text-primary">
-                  R$ {Math.max(0, finalTotal).toFixed(2)}
-                </span>
+              <Separator className="my-3" />
+              <div className="flex justify-between text-xl font-bold">
+                <span>Total</span>
+                <span className="text-primary">R$ {finalTotal.toFixed(2)}</span>
               </div>
             </div>
-
-            <div className="space-y-4">
-              <Label className="text-base font-semibold">Método de Pagamento</Label>
-              <RadioGroup
-                value={method}
-                onValueChange={setMethod}
-                className="grid grid-cols-2 md:grid-cols-3 gap-3"
-              >
-                {[
-                  { id: 'pix', label: 'PIX' },
-                  { id: 'credit', label: 'Crédito' },
-                  { id: 'debit', label: 'Débito' },
-                  { id: 'cash', label: 'Dinheiro' },
-                  { id: 'convenio', label: 'Convênio' },
-                ].map((opt) => (
-                  <div
-                    key={opt.id}
-                    className={cn(
-                      'flex flex-col items-center justify-center space-y-2 border-2 rounded-xl p-4 cursor-pointer transition-all text-center',
-                      method === opt.id
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border hover:bg-muted/50',
-                    )}
-                    onClick={() => setMethod(opt.id)}
-                  >
-                    <RadioGroupItem value={opt.id} id={opt.id} className="sr-only" />
-                    <Label htmlFor={opt.id} className="cursor-pointer font-semibold">
-                      {opt.label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-
-            {method === 'pix' && status === 'waiting' && (
-              <div className="flex flex-col items-center justify-center p-8 bg-card border-2 border-primary/20 rounded-2xl animate-fade-in relative overflow-hidden">
-                <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
-                <div className="relative z-10 bg-white p-4 rounded-xl shadow-sm mb-4">
-                  <QrCode className="w-32 h-32 text-black" />
-                </div>
-                <Badge variant="outline" className="relative z-10 bg-primary/10 text-primary mb-2">
-                  Aguardando pagamento...
-                </Badge>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={copyPix}
-                  className="relative z-10 mt-2"
+            <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'pix', l: 'PIX' },
+                { id: 'credit', l: 'Crédito' },
+                { id: 'debit', l: 'Débito' },
+                { id: 'cash', l: 'Dinheiro' },
+                { id: 'pix_agendado', l: 'PIX Agendado' },
+                { id: 'convenio', l: 'Convênio' },
+              ].map((o) => (
+                <div
+                  key={o.id}
+                  className={cn(
+                    'border-2 rounded-xl p-3 text-center cursor-pointer',
+                    method === o.id ? 'border-primary bg-primary/10 text-primary' : '',
+                  )}
+                  onClick={() => setMethod(o.id)}
                 >
-                  <Copy className="w-4 h-4 mr-2" /> Copiar Chave
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {status !== 'success' && (
-          <div className="p-6 border-t bg-background">
+                  <RadioGroupItem value={o.id} id={o.id} className="sr-only" />
+                  <Label className="cursor-pointer">{o.l}</Label>
+                </div>
+              ))}
+            </RadioGroup>
             <Button
               onClick={handleFinish}
               disabled={status === 'waiting'}
-              className="w-full rounded-full h-14 text-lg font-bold shadow-xl transition-transform hover:scale-[1.01]"
+              className="w-full h-12 text-lg rounded-full mt-4"
             >
-              {status === 'waiting' ? 'Verificando PIX...' : 'Confirmar Pagamento'}
+              Confirmar
             </Button>
           </div>
         )}
