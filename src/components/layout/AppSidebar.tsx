@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -10,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   LayoutDashboard,
@@ -30,8 +32,27 @@ import {
 export function AppSidebar() {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const { setOpenMobile, isMobile } = useSidebar()
 
   const isAtendimento = user?.role === 'atendimento'
+
+  const handleLinkClick = () => {
+    if (isMobile) setOpenMobile(false)
+  }
+
+  const mainMenu = useMemo(
+    () => [{ to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' }],
+    [],
+  )
+
+  const atendimentoMenu = useMemo(
+    () => [
+      { to: '/agenda', icon: Calendar, label: 'Agenda' },
+      { to: '/atendimento/novo', icon: PlayCircle, label: 'Novo Checkout' },
+      { to: '/atendimento/historico', icon: History, label: 'Histórico' },
+    ],
+    [],
+  )
 
   return (
     <Sidebar variant="inset" collapsible="icon">
@@ -39,60 +60,40 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Principal</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === '/dashboard'}
-                tooltip="Dashboard"
-              >
-                <Link to="/dashboard">
-                  <LayoutDashboard />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {mainMenu.map((item) => (
+              <SidebarMenuItem key={item.to}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === item.to}
+                  tooltip={item.label}
+                >
+                  <Link to={item.to} onClick={handleLinkClick}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel>Atendimento</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === '/agenda'}
-                tooltip="Agenda"
-              >
-                <Link to="/agenda">
-                  <Calendar />
-                  <span>Agenda</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === '/atendimento/novo'}
-                tooltip="Novo Checkout"
-              >
-                <Link to="/atendimento/novo">
-                  <PlayCircle />
-                  <span>Novo Checkout</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={location.pathname === '/atendimento/historico'}
-                tooltip="Histórico"
-              >
-                <Link to="/atendimento/historico">
-                  <History />
-                  <span>Histórico</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {atendimentoMenu.map((item) => (
+              <SidebarMenuItem key={item.to}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === item.to}
+                  tooltip={item.label}
+                >
+                  <Link to={item.to} onClick={handleLinkClick}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
 
@@ -105,7 +106,7 @@ export function AppSidebar() {
                 isActive={location.pathname.startsWith('/clientes')}
                 tooltip="Clientes"
               >
-                <Link to="/clientes">
+                <Link to="/clientes" onClick={handleLinkClick}>
                   <Users />
                   <span>Clientes</span>
                 </Link>
@@ -115,9 +116,9 @@ export function AppSidebar() {
               <SidebarMenuButton
                 asChild
                 isActive={location.pathname.startsWith('/servicos')}
-                tooltip="Serviços & Produtos"
+                tooltip="Serviços"
               >
-                <Link to="/servicos">
+                <Link to="/servicos" onClick={handleLinkClick}>
                   <Scissors />
                   <span>Serviços</span>
                 </Link>
@@ -135,7 +136,7 @@ export function AppSidebar() {
                 isActive={location.pathname === '/financeiro/caixa'}
                 tooltip="Caixa"
               >
-                <Link to="/financeiro/caixa">
+                <Link to="/financeiro/caixa" onClick={handleLinkClick}>
                   <DollarSign />
                   <span>Caixa</span>
                 </Link>
@@ -149,7 +150,7 @@ export function AppSidebar() {
                     isActive={location.pathname === '/financeiro/contas-pagar'}
                     tooltip="A Pagar"
                   >
-                    <Link to="/financeiro/contas-pagar">
+                    <Link to="/financeiro/contas-pagar" onClick={handleLinkClick}>
                       <ArrowUpCircle />
                       <span>Contas a Pagar</span>
                     </Link>
@@ -161,7 +162,7 @@ export function AppSidebar() {
                     isActive={location.pathname === '/financeiro/contas-receber'}
                     tooltip="A Receber"
                   >
-                    <Link to="/financeiro/contas-receber">
+                    <Link to="/financeiro/contas-receber" onClick={handleLinkClick}>
                       <ArrowDownCircle />
                       <span>Contas a Receber</span>
                     </Link>
@@ -182,7 +183,7 @@ export function AppSidebar() {
                   isActive={location.pathname === '/usuarios'}
                   tooltip="Usuários"
                 >
-                  <Link to="/usuarios">
+                  <Link to="/usuarios" onClick={handleLinkClick}>
                     <UserCog />
                     <span>Usuários</span>
                   </Link>
@@ -194,26 +195,12 @@ export function AppSidebar() {
                   isActive={location.pathname === '/configuracoes'}
                   tooltip="Configurações"
                 >
-                  <Link to="/configuracoes">
+                  <Link to="/configuracoes" onClick={handleLinkClick}>
                     <Settings />
                     <span>Configurações</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {user?.role === 'root' && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === '/saldo-inicial'}
-                    tooltip="Saldo Inicial"
-                  >
-                    <Link to="/saldo-inicial">
-                      <Wallet />
-                      <span>Saldo Inicial</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
             </SidebarMenu>
           </SidebarGroup>
         )}
@@ -222,7 +209,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={logout} tooltip="Sair da Conta">
+            <SidebarMenuButton onClick={logout} tooltip="Sair da Conta" aria-label="Sair da conta">
               <LogOut className="text-destructive" />
               <span className="text-destructive font-medium">Sair</span>
             </SidebarMenuButton>

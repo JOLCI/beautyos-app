@@ -122,11 +122,30 @@
       opacity: 1;
     }
   }
+  @keyframes page-transition {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
   .animate-fade-in {
     animation: fade-in 0.3s ease-out forwards;
   }
   .animate-fade-in-up {
     animation: fade-in-up 0.4s ease-out forwards;
+  }
+  .animate-page-transition {
+    opacity: 0;
+    animation: page-transition 200ms ease-out forwards;
   }
   .shadow-elevation {
     box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);

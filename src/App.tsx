@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
-import { Toaster as Sonner } from '@/components/ui/sonner'
+import { Toaster as Sonner } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ColorProvider } from '@/components/ColorProvider'
 
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -25,85 +26,78 @@ import NotFound from './pages/NotFound'
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-
-              <Route path="/agenda" element={<AgendaPage />} />
-
-              <Route path="/clientes" element={<ClientesPage />} />
-              <Route path="/clientes/:id" element={<ClienteDetailPage />} />
-
-              <Route path="/servicos" element={<ServicosPage />} />
-
-              <Route path="/atendimento/novo" element={<AtendimentoNovoPage />} />
-              <Route path="/atendimento/historico" element={<AtendimentoHistoricoPage />} />
-
-              <Route path="/financeiro/caixa" element={<CaixaPage />} />
-              <Route
-                path="/financeiro/contas-pagar"
-                element={
-                  <ProtectedRoute allowedRoles={['root', 'admin']}>
-                    <ContasPagarPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/financeiro/contas-receber"
-                element={
-                  <ProtectedRoute allowedRoles={['root', 'admin']}>
-                    <ContasReceberPage />
-                  </ProtectedRoute>
-                }
-              />
+    <ColorProvider>
+      <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner position="bottom-right" richColors duration={4000} />
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
 
               <Route
-                path="/usuarios"
                 element={
-                  <ProtectedRoute allowedRoles={['root', 'admin']}>
-                    <UsuariosPage />
+                  <ProtectedRoute>
+                    <AppLayout />
                   </ProtectedRoute>
                 }
-              />
-
-              <Route
-                path="/configuracoes"
-                element={
-                  <ProtectedRoute allowedRoles={['root', 'admin']}>
-                    <ConfiguracoesPage />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/saldo-inicial"
-                element={
-                  <ProtectedRoute allowedRoles={['root']}>
-                    <SaldoInicialPage />
-                  </ProtectedRoute>
-                }
-              />
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </TooltipProvider>
-      </AuthProvider>
-    </BrowserRouter>
+              >
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/agenda" element={<AgendaPage />} />
+                <Route path="/clientes" element={<ClientesPage />} />
+                <Route path="/clientes/:id" element={<ClienteDetailPage />} />
+                <Route path="/servicos" element={<ServicosPage />} />
+                <Route path="/atendimento/novo" element={<AtendimentoNovoPage />} />
+                <Route path="/atendimento/historico" element={<AtendimentoHistoricoPage />} />
+                <Route path="/financeiro/caixa" element={<CaixaPage />} />
+                <Route
+                  path="/financeiro/contas-pagar"
+                  element={
+                    <ProtectedRoute allowedRoles={['root', 'admin']}>
+                      <ContasPagarPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/financeiro/contas-receber"
+                  element={
+                    <ProtectedRoute allowedRoles={['root', 'admin']}>
+                      <ContasReceberPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/usuarios"
+                  element={
+                    <ProtectedRoute allowedRoles={['root', 'admin']}>
+                      <UsuariosPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/configuracoes"
+                  element={
+                    <ProtectedRoute allowedRoles={['root', 'admin']}>
+                      <ConfiguracoesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/saldo-inicial"
+                  element={
+                    <ProtectedRoute allowedRoles={['root']}>
+                      <SaldoInicialPage />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ColorProvider>
   </ThemeProvider>
 )
 

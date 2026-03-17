@@ -1,31 +1,26 @@
 import { useState } from 'react'
-import { mockAppointments, mockClients, mockProfessionals, mockServices } from '@/lib/mock'
+import { mockAppointments, mockClients, mockServices } from '@/lib/mock'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar as CalendarIcon, Plus } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, XCircle } from 'lucide-react'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
+import { toast } from 'sonner'
 
 export default function AgendaPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedTime, setSelectedTime] = useState('')
 
-  const hours = Array.from({ length: 11 }, (_, i) => i + 8) // 8 to 18
+  const hours = Array.from({ length: 11 }, (_, i) => i + 8)
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmado':
-      case 'finalizado':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-      case 'em_atendimento':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-      case 'cancelado':
-      case 'faltou':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-      default:
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-    }
+  const handleCancel = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    toast.success('Agendamento Cancelado')
+    // Simulate WhatsApp trigger asynchronously
+    setTimeout(() => {
+      toast.info('Mensagem de cancelamento enviada via WhatsApp.')
+    }, 1000)
   }
 
   const openSheet = (time: string) => {
@@ -71,7 +66,7 @@ export default function AgendaPage() {
                 className="flex flex-col sm:flex-row border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
               >
                 <div
-                  className="w-full sm:w-20 py-3 px-2 text-sm text-muted-foreground font-medium cursor-pointer hover:text-primary transition-colors"
+                  className="w-full sm:w-20 py-3 px-2 text-sm text-muted-foreground font-medium cursor-pointer"
                   onClick={() => openSheet(timeStr)}
                 >
                   {timeStr}
@@ -91,27 +86,30 @@ export default function AgendaPage() {
                       return (
                         <div
                           key={a.id}
-                          className="flex-1 bg-card border border-border shadow-sm rounded-lg p-3 hover:shadow-md transition-all cursor-pointer relative overflow-hidden group"
+                          className="flex-1 bg-card border shadow-sm rounded-lg p-3 relative overflow-hidden group"
                         >
-                          <div
-                            className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(a.status)}`}
-                          ></div>
-                          <div className="pl-2">
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-semibold text-sm">{cli?.name}</span>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] border-0 ${getStatusColor(a.status)}`}
-                              >
-                                {a.status}
-                              </Badge>
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 bg-primary`}></div>
+                          <div className="pl-2 flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm">{cli?.name}</span>
+                                <Badge variant="outline" className="text-[10px] uppercase">
+                                  {a.status}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {srv?.name} • {a.startTime} - {a.endTime}
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground flex justify-between">
-                              <span>{srv?.name}</span>
-                              <span>
-                                {a.startTime} - {a.endTime}
-                              </span>
-                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive"
+                              onClick={(e) => handleCancel(e, a.id)}
+                              aria-label="Cancelar agendamento"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
                       )

@@ -5,16 +5,16 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle2, QrCode, Copy } from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
+import { CheckCircle2, QrCode, Copy, MessageSquare } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 
 interface Props {
   open: boolean
@@ -37,27 +37,31 @@ export function CheckoutSheet({ open, onOpenChange, total }: Props) {
     if (status === 'waiting' && method === 'pix') {
       const t = setTimeout(() => {
         setStatus('success')
-        toast({ title: 'Pagamento Confirmado', description: 'PIX recebido com sucesso na conta.' })
-      }, 4000)
+        toast.success('Pagamento PIX Confirmado', { description: 'Valor recebido na conta.' })
+        simulateWhatsApp('Pós-atendimento')
+      }, 3000)
       return () => clearTimeout(t)
     }
   }, [status, method])
 
+  const simulateWhatsApp = async (type: string) => {
+    setTimeout(() => {
+      toast.success(`WhatsApp Enviado: ${type}`, { icon: <MessageSquare className="w-4 h-4" /> })
+    }, 1000)
+  }
+
   const handleFinish = () => {
     if (method === 'pix') {
       setStatus('waiting')
+      simulateWhatsApp('Cobrança PIX')
     } else {
       setStatus('success')
-      toast({ title: 'Atendimento Finalizado', description: 'Lançamento de caixa gerado.' })
+      toast.success('Atendimento Finalizado', { description: 'Lançamento de caixa gerado.' })
+      simulateWhatsApp('Pós-atendimento')
     }
   }
 
-  const copyPix = () => {
-    toast({
-      title: 'Chave Copiada',
-      description: 'Chave PIX Copia e Cola enviada para área de transferência.',
-    })
-  }
+  const copyPix = () => toast.success('Chave PIX copiada!')
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -74,9 +78,9 @@ export function CheckoutSheet({ open, onOpenChange, total }: Props) {
             <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center animate-pulse">
               <CheckCircle2 className="w-12 h-12 text-green-600" />
             </div>
-            <h3 className="text-3xl font-bold text-center">Pagamento Confirmado!</h3>
+            <h3 className="text-3xl font-bold text-center">Tudo Certo!</h3>
             <p className="text-muted-foreground text-center text-lg">
-              O ticket foi fechado e registrado no fluxo de caixa de hoje.
+              Ticket fechado e registrado no caixa.
             </p>
             <Button
               className="mt-8 rounded-full px-8 h-12 text-lg w-full max-w-xs"
@@ -118,11 +122,11 @@ export function CheckoutSheet({ open, onOpenChange, total }: Props) {
                 className="grid grid-cols-2 md:grid-cols-3 gap-3"
               >
                 {[
-                  { id: 'pix', label: 'PIX Dinâmico' },
+                  { id: 'pix', label: 'PIX' },
                   { id: 'credit', label: 'Crédito' },
                   { id: 'debit', label: 'Débito' },
                   { id: 'cash', label: 'Dinheiro' },
-                  { id: 'convenio', label: 'Convênio / Fiado' },
+                  { id: 'convenio', label: 'Convênio' },
                 ].map((opt) => (
                   <div
                     key={opt.id}
@@ -135,7 +139,7 @@ export function CheckoutSheet({ open, onOpenChange, total }: Props) {
                     onClick={() => setMethod(opt.id)}
                   >
                     <RadioGroupItem value={opt.id} id={opt.id} className="sr-only" />
-                    <Label htmlFor={opt.id} className="cursor-pointer font-semibold leading-tight">
+                    <Label htmlFor={opt.id} className="cursor-pointer font-semibold">
                       {opt.label}
                     </Label>
                   </div>
@@ -144,30 +148,22 @@ export function CheckoutSheet({ open, onOpenChange, total }: Props) {
             </div>
 
             {method === 'pix' && status === 'waiting' && (
-              <div className="flex flex-col items-center justify-center p-8 bg-card border-2 border-primary/20 rounded-2xl animate-fade-in shadow-inner relative overflow-hidden">
-                <div className="absolute inset-0 bg-primary/5 animate-pulse rounded-2xl"></div>
-                <div className="relative z-10 bg-white p-4 rounded-xl shadow-sm border mb-6">
-                  <QrCode className="w-40 h-40 text-black" />
+              <div className="flex flex-col items-center justify-center p-8 bg-card border-2 border-primary/20 rounded-2xl animate-fade-in relative overflow-hidden">
+                <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
+                <div className="relative z-10 bg-white p-4 rounded-xl shadow-sm mb-4">
+                  <QrCode className="w-32 h-32 text-black" />
                 </div>
-                <div className="relative z-10 text-center space-y-2 w-full">
-                  <Badge
-                    variant="outline"
-                    className="bg-primary/10 text-primary border-primary/30 px-3 py-1 text-sm font-semibold mb-2"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-primary animate-ping mr-2 inline-block"></span>{' '}
-                    Aguardando pagamento
-                  </Badge>
-                  <div className="flex w-full items-center gap-2 mt-4">
-                    <Input
-                      readOnly
-                      value="0002012636br.gov.bcb.pix0114+5511999999999..."
-                      className="h-10 text-xs text-muted-foreground bg-muted/50 border-0"
-                    />
-                    <Button size="icon" variant="secondary" onClick={copyPix} className="shrink-0">
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+                <Badge variant="outline" className="relative z-10 bg-primary/10 text-primary mb-2">
+                  Aguardando pagamento...
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={copyPix}
+                  className="relative z-10 mt-2"
+                >
+                  <Copy className="w-4 h-4 mr-2" /> Copiar Chave
+                </Button>
               </div>
             )}
           </div>

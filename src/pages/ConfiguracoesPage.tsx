@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { toast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
+import { applyTheme } from '@/lib/colorUtils'
 import {
   Save,
   Smartphone,
@@ -18,18 +19,28 @@ import {
 } from 'lucide-react'
 
 export default function ConfiguracoesPage() {
-  const [primaryColor, setPrimaryColor] = useState('#e11d48') // var(--primary) hex approx
+  const [primaryColor, setPrimaryColor] = useState('#e11d48')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('@beautyos:colors')
+    if (saved) {
+      try {
+        const { primary } = JSON.parse(saved)
+        if (primary) setPrimaryColor(primary)
+      } catch (e) {}
+    }
+  }, [])
 
   const saveSettings = () => {
-    document.documentElement.style.setProperty('--primary', '340 60% 55%') // Mock setting color
-    toast({ title: 'Configurações Salvas', description: 'Suas preferências foram atualizadas.' })
+    applyTheme(primaryColor)
+    localStorage.setItem('@beautyos:colors', JSON.stringify({ primary: primaryColor }))
+    toast.success('Configurações Salvas', {
+      description: 'Suas preferências e cores foram atualizadas.',
+    })
   }
 
   const testConnection = () => {
-    toast({
-      title: 'Conexão Bem Sucedida',
-      description: 'A API do WhatsApp está respondendo corretamente.',
-    })
+    toast.success('Conexão Bem Sucedida', { description: 'A API do WhatsApp está respondendo.' })
   }
 
   return (
@@ -71,12 +82,12 @@ export default function ConfiguracoesPage() {
                 <CardContent className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Nome do Salão</Label>
-                      <Input defaultValue="Studio Beauty" />
+                      <Label htmlFor="companyName">Nome do Salão</Label>
+                      <Input id="companyName" defaultValue="Studio Beauty" />
                     </div>
                     <div className="space-y-2">
-                      <Label>CNPJ</Label>
-                      <Input defaultValue="00.000.000/0001-00" />
+                      <Label htmlFor="cnpj">CNPJ</Label>
+                      <Input id="cnpj" defaultValue="00.000.000/0001-00" />
                     </div>
                   </div>
                   <Button onClick={saveSettings} className="mt-4">
@@ -89,10 +100,8 @@ export default function ConfiguracoesPage() {
             <TabsContent value="whatsapp" className="mt-0 outline-none">
               <Card>
                 <CardHeader>
-                  <CardTitle>Integração WhatsApp Business</CardTitle>
-                  <CardDescription>
-                    Configure a API Oficial da Meta para mensagens automáticas.
-                  </CardDescription>
+                  <CardTitle>Integração WhatsApp</CardTitle>
+                  <CardDescription>Envios automáticos via API Oficial.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4 bg-muted/30 p-4 rounded-xl border">
@@ -100,26 +109,13 @@ export default function ConfiguracoesPage() {
                       <div className="space-y-0.5">
                         <Label>Ativar Automações Edge</Label>
                         <p className="text-xs text-muted-foreground">
-                          Envio de lembretes 24h e cobranças PIX.
+                          Lembretes 24h, Pós-atendimento e Cobranças.
                         </p>
                       </div>
                       <Switch defaultChecked />
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Access Token (Meta Graph API)</Label>
-                      <Input type="password" value="EAAGm0PX4ZC...mocked" readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Phone Number ID</Label>
-                      <Input value="1234567890" readOnly />
-                    </div>
-                  </div>
                   <div className="flex gap-2">
-                    <Button onClick={saveSettings}>
-                      <Save className="w-4 h-4 mr-2" /> Salvar Credenciais
-                    </Button>
                     <Button variant="secondary" onClick={testConnection}>
                       <LinkIcon className="w-4 h-4 mr-2" /> Testar Conexão
                     </Button>
@@ -132,13 +128,14 @@ export default function ConfiguracoesPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Aparência e Marca</CardTitle>
-                  <CardDescription>Personalize as cores do sistema.</CardDescription>
+                  <CardDescription>Personalize as cores do sistema em tempo real.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-2 max-w-xs">
-                    <Label>Cor Primária</Label>
+                    <Label htmlFor="colorPicker">Cor Primária da Marca</Label>
                     <div className="flex gap-2 items-center">
                       <Input
+                        id="colorPicker"
                         type="color"
                         value={primaryColor}
                         onChange={(e) => setPrimaryColor(e.target.value)}
@@ -154,18 +151,17 @@ export default function ConfiguracoesPage() {
               </Card>
             </TabsContent>
 
-            {/* Other tabs omitted for brevity, fallback content */}
             <TabsContent value="horarios" className="mt-0">
               <Card>
                 <CardContent className="p-6 text-muted-foreground">
-                  Configuração de horários de funcionamento em construção.
+                  Configuração de horários em construção.
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="pix" className="mt-0">
               <Card>
                 <CardContent className="p-6 text-muted-foreground">
-                  Configuração de tokens do Mercado Pago/Infinity Pay em construção.
+                  Tokens PIX em construção.
                 </CardContent>
               </Card>
             </TabsContent>
