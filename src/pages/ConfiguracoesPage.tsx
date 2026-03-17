@@ -27,7 +27,9 @@ export default function ConfiguracoesPage() {
       try {
         const { primary } = JSON.parse(saved)
         if (primary) setPrimaryColor(primary)
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Failed to parse colors', e)
+      }
     }
   }, [])
 
