@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -15,16 +15,24 @@ import {
 } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
+import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const { company } = usePasskey()
-  const { signIn } = useAuth()
+  const { signIn, user, profile, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const { passkey } = useParams()
 
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Redirect to dashboard if already logged in and context loaded
+  useEffect(() => {
+    if (user && profile && !authLoading) {
+      navigate(`/${passkey}/dashboard`, { replace: true })
+    }
+  }, [user, profile, authLoading, navigate, passkey])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,6 +64,14 @@ export default function LoginPage() {
     } else {
       navigate(`/${passkey}/dashboard`)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
