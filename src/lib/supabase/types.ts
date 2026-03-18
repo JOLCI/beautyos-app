@@ -1301,7 +1301,7 @@ export const Constants = {
 //     USING: true
 // Table: financial_accounts
 //   Policy "company_financials" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (company_id = auth_company_id())
+//     USING: ((company_id = auth_company_id()) OR (((auth.jwt() -> 'user_metadata'::text) ->> 'role'::text) = 'root'::text))
 // Table: financial_audit_logs
 //   Policy "company_financial_audit_logs" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
@@ -1316,9 +1316,7 @@ export const Constants = {
 //     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 // Table: profiles
 //   Policy "auth_all_profiles" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (((company_id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text)) OR (id = auth.uid()))
-//   Policy "auth_select_profiles" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (((company_id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text)) OR (id = auth.uid()))
+//     USING: ((company_id = auth_company_id()) OR (id = auth.uid()) OR (((auth.jwt() -> 'user_metadata'::text) ->> 'role'::text) = 'root'::text))
 // Table: purchases
 //   Policy "company_purchases" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
@@ -1330,7 +1328,7 @@ export const Constants = {
 //     USING: (company_id = auth_company_id())
 // Table: transactions
 //   Policy "company_transactions" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (company_id = auth_company_id())
+//     USING: ((company_id = auth_company_id()) OR (((auth.jwt() -> 'user_metadata'::text) ->> 'role'::text) = 'root'::text))
 // Table: whatsapp_templates
 //   Policy "company_whatsapp_templates" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))

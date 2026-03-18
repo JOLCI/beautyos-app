@@ -4,7 +4,7 @@ import { useQuery } from '@/hooks/use-query'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Calendar as CalendarIcon, Plus, Loader2, CheckCircle2 } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
 
 export default function AgendaPage() {
@@ -28,6 +28,12 @@ export default function AgendaPage() {
   }
 
   const hours = Array.from({ length: 12 }, (_, i) => i + 8)
+
+  const getTodayStr = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const todayStr = getTodayStr()
 
   return (
     <div className="space-y-6">
@@ -85,17 +91,39 @@ export default function AgendaPage() {
                         )
                         const srvNames = srvs.map((s: any) => s.name).join(', ')
 
+                        const isOverdue =
+                          a.date < todayStr && a.status !== 'finalizado' && a.status !== 'cancelado'
+                        const isCanceled = a.status === 'cancelado'
+
+                        let cardClass = 'border-l-primary bg-card hover:-translate-y-1'
+                        if (isCanceled)
+                          cardClass =
+                            'border-l-muted bg-muted/40 opacity-70 line-through text-muted-foreground'
+                        else if (isOverdue)
+                          cardClass =
+                            'border-l-destructive bg-destructive/10 border-destructive shadow-sm'
+
                         return (
                           <div
                             key={a.id}
                             onClick={() => openSheet(a)}
-                            className={`flex-1 flex flex-col justify-between border shadow-sm rounded-lg p-3 cursor-pointer transition-all hover:shadow-md border-l-4 ${a.status === 'cancelado' ? 'border-l-destructive bg-destructive/5 opacity-60' : 'border-l-primary bg-card hover:-translate-y-1'}`}
+                            className={`flex-1 flex flex-col justify-between border shadow-sm rounded-lg p-3 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass}`}
                           >
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="font-semibold text-sm">{cli?.name}</span>
-                                <Badge variant="outline" className="text-[10px] uppercase">
-                                  {a.status}
+                                <span className="font-semibold text-sm flex items-center gap-2">
+                                  {cli?.name}
+                                  {isOverdue && (
+                                    <AlertTriangle className="w-3 h-3 text-destructive" />
+                                  )}
+                                </span>
+                                <Badge
+                                  variant={
+                                    isCanceled ? 'secondary' : isOverdue ? 'destructive' : 'outline'
+                                  }
+                                  className="text-[10px] uppercase"
+                                >
+                                  {isOverdue ? 'Atrasado' : a.status}
                                 </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground line-clamp-2">
@@ -103,7 +131,7 @@ export default function AgendaPage() {
                                 {a.end_time.slice(0, 5)}
                               </div>
                             </div>
-                            {a.status !== 'cancelado' && a.status !== 'finalizado' && (
+                            {!isCanceled && a.status !== 'finalizado' && (
                               <div className="mt-3 flex justify-end">
                                 <Button
                                   size="sm"

@@ -4,7 +4,15 @@ import { useQuery } from '@/hooks/use-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, ShoppingCart, User, Calendar as CalendarIcon, Clock, Trash2 } from 'lucide-react'
+import {
+  Search,
+  ShoppingCart,
+  User,
+  Calendar as CalendarIcon,
+  Clock,
+  Trash2,
+  XCircle,
+} from 'lucide-react'
 import { CheckoutSheet } from '@/components/atendimento/CheckoutSheet'
 
 export default function AtendimentoNovoPage() {
@@ -38,6 +46,11 @@ export default function AtendimentoNovoPage() {
       .map((id: string) => services.find((s: any) => s.id === id))
       .filter(Boolean)
     setCart(items)
+  }
+
+  const handleClear = () => {
+    setSelectedApp(null)
+    setCart([])
   }
 
   const filteredApps = useMemo(() => {
@@ -143,20 +156,32 @@ export default function AtendimentoNovoPage() {
 
         <div>
           <Card className="sticky top-6">
-            <div className="p-6 border-b border-border bg-muted/10 flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                <ShoppingCart className="w-5 h-5 text-primary" />
+            <div className="p-6 border-b border-border bg-muted/10 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                  <ShoppingCart className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Resumo do Atendimento</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedApp ? (
+                      <span className="text-primary font-medium">Vinculado a um agendamento</span>
+                    ) : (
+                      'Atendimento Avulso'
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-lg">Resumo do Atendimento</h3>
-                <p className="text-sm text-muted-foreground">
-                  {selectedApp ? (
-                    <span className="text-primary font-medium">Vinculado a um agendamento</span>
-                  ) : (
-                    'Atendimento Avulso'
-                  )}
-                </p>
-              </div>
+              {(cart.length > 0 || selectedApp) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClear}
+                  className="text-muted-foreground hover:text-destructive shrink-0"
+                >
+                  <XCircle className="w-4 h-4 mr-2" /> Limpar
+                </Button>
+              )}
             </div>
             <CardContent className="p-6">
               {cart.length === 0 ? (

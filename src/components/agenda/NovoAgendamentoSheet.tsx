@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -22,7 +23,7 @@ import { useQuery } from '@/hooks/use-query'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
-import { Loader2, X, Clock } from 'lucide-react'
+import { Loader2, X, Clock, AlertCircle } from 'lucide-react'
 
 export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointment }: any) {
   const { company } = usePasskey()
@@ -39,6 +40,10 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
   const [endTime, setEndTime] = useState('09:30')
   const [saving, setSaving] = useState(false)
   const [manualOverride, setManualOverride] = useState(false)
+
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [canceledByClient, setCanceledByClient] = useState(false)
 
   const availableProfessionals = useMemo(() => {
     return professionals?.filter((p: any) => p.role !== 'root') || []
@@ -59,6 +64,9 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
       setStartTime(appointment.start_time.slice(0, 5))
       setEndTime(appointment.end_time.slice(0, 5))
       setManualOverride(true)
+      setShowCancelConfirm(false)
+      setCancelReason('')
+      setCanceledByClient(false)
     } else if (open) {
       setClientId('')
       setSelectedServices([])
@@ -67,6 +75,9 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
       setStartTime('09:00')
       setEndTime('09:30')
       setManualOverride(false)
+      setShowCancelConfirm(false)
+      setCancelReason('')
+      setCanceledByClient(false)
     }
   }, [appointment, open])
 
@@ -189,10 +200,18 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     onOpenChange(false)
   }
 
-  const handleCancel = async () => {
+  const handleConfirmCancel = async () => {
     if (!appointment) return
-    if (!confirm('Deseja cancelar este agendamento?')) return
-    await supabase.from('appointments').update({ status: 'cancelado' }).eq('id', appointment.id)
+    setSaving(true)
+    await supabase
+      .from('appointments')
+      .update({
+        status: 'cancelado',
+        cancellation_reason: cancelReason,
+        canceled_by_client: canceledByClient,
+      })
+      .eq('id', appointment.id)
+    setSaving(false)
     toast.success('Agendamento Cancelado')
     supabase.functions.invoke('google-calendar-sync')
     if (onSuccess) onSuccess()
@@ -206,7 +225,8 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
           <SheetTitle>{appointment ? 'Editar Agendamento' : 'Novo Agendamento'}</SheetTitle>
           <SheetDescription>Reserve múltiplos serviços em um único horário.</SheetDescription>
         </SheetHeader>
-        <div className="space-y-4">
+
+        <div className={`space-y-4 ${showCancelConfirm ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="space-y-2">
             <Label>Cliente</Label>
             <Select value={clientId} onValueChange={setClientId}>
@@ -321,20 +341,73 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
             </div>
           </div>
         </div>
-        <SheetFooter className="mt-8 flex flex-col gap-2 sm:flex-col">
-          <Button
-            onClick={() => handleSave(false)}
-            disabled={!clientId || selectedServices.length === 0 || !profId || saving}
-            className="w-full"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Salvar
-          </Button>
-          {appointment && appointment.status !== 'cancelado' && (
-            <Button variant="destructive" onClick={handleCancel} className="w-full">
-              Cancelar Agendamento
+
+        {showCancelConfirm && (
+          <div className="mt-6 p-4 border border-destructive/30 bg-destructive/5 rounded-xl space-y-4 animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex items-center gap-2 text-destructive font-bold">
+              <AlertCircle className="w-5 h-5" /> Confirmar Cancelamento
+            </div>
+            <div className="space-y-2">
+              <Label>Motivo (opcional)</Label>
+              <Input
+                placeholder="Ex: Imprevisto pessoal..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center justify-between border p-3 rounded-lg bg-background">
+              <Label className="cursor-pointer" htmlFor="canceledByClient">
+                Cancelado pelo cliente?
+              </Label>
+              <Switch
+                id="canceledByClient"
+                checked={canceledByClient}
+                onCheckedChange={setCanceledByClient}
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowCancelConfirm(false)}
+                className="flex-1"
+                disabled={saving}
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmCancel}
+                className="flex-1"
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Confirmar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!showCancelConfirm && (
+          <SheetFooter className="mt-8 flex flex-col gap-2 sm:flex-col">
+            <Button
+              onClick={() => handleSave(false)}
+              disabled={!clientId || selectedServices.length === 0 || !profId || saving}
+              className="w-full"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Salvar
             </Button>
-          )}
-        </SheetFooter>
+            {appointment &&
+              appointment.status !== 'cancelado' &&
+              appointment.status !== 'finalizado' && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="w-full"
+                >
+                  Cancelar Agendamento
+                </Button>
+              )}
+          </SheetFooter>
+        )}
       </SheetContent>
     </Sheet>
   )

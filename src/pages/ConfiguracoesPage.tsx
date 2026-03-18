@@ -39,6 +39,8 @@ import {
   QrCode,
   Loader2,
   Trash2,
+  Edit2,
+  X,
 } from 'lucide-react'
 
 export default function ConfiguracoesPage() {
@@ -80,13 +82,17 @@ export default function ConfiguracoesPage() {
     checkWaStatus()
   }, [])
 
-  const [pixForm, setPixForm] = useState({
+  const defaultPixForm = {
     name: '',
     provider: 'mercadopago',
     pix_key: '',
     pix_key_type: 'cpf',
+    notes: '',
     is_active: false,
-  })
+  }
+  const [pixForm, setPixForm] = useState(defaultPixForm)
+  const [editingPixId, setEditingPixId] = useState<string | null>(null)
+
   const [tplForm, setTplForm] = useState({ template_key: '', body: '' })
 
   const updateSetting = (key: string, value: any) => setSettings({ ...settings, [key]: value })
@@ -141,6 +147,43 @@ export default function ConfiguracoesPage() {
       }
     }, 5000)
     setTimeout(() => clearInterval(interval), 180000)
+  }
+
+  const handleEditPix = (g: any) => {
+    setEditingPixId(g.id)
+    setPixForm({
+      name: g.name,
+      provider: g.provider,
+      pix_key: g.pix_key,
+      pix_key_type: g.pix_key_type,
+      notes: g.notes || '',
+      is_active: g.is_active || false,
+    })
+  }
+
+  const handleDeletePix = async (id: string) => {
+    if (!confirm('Deseja realmente remover este gateway?')) return
+    await supabase.from('pix_gateways').delete().eq('id', id)
+    toast.success('Gateway removido')
+    refetchPix()
+  }
+
+  const handleSavePix = async () => {
+    if (editingPixId) {
+      await supabase.from('pix_gateways').update(pixForm).eq('id', editingPixId)
+      toast.success('Gateway atualizado')
+    } else {
+      await supabase.from('pix_gateways').insert([{ ...pixForm, company_id: company?.id }])
+      toast.success('Gateway adicionado')
+    }
+    setEditingPixId(null)
+    setPixForm(defaultPixForm)
+    refetchPix()
+  }
+
+  const cancelPixEdit = () => {
+    setEditingPixId(null)
+    setPixForm(defaultPixForm)
   }
 
   return (
@@ -314,16 +357,31 @@ export default function ConfiguracoesPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Gateways PIX</CardTitle>
+                <CardDescription>
+                  Configure os provedores de recebimento PIX e chaves simples.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-4 border p-4 rounded-xl bg-muted/20">
-                  <h4 className="font-semibold text-sm">Adicionar Novo Gateway / Chave Simples</h4>
+                <div
+                  className={`space-y-4 border p-4 rounded-xl ${editingPixId ? 'bg-primary/5 border-primary/20' : 'bg-muted/20'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">
+                      {editingPixId ? 'Editar Gateway' : 'Adicionar Novo Gateway / Chave Simples'}
+                    </h4>
+                    {editingPixId && (
+                      <Button variant="ghost" size="sm" onClick={cancelPixEdit}>
+                        <X className="w-4 h-4 mr-2" /> Cancelar
+                      </Button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Nome</Label>
                       <Input
                         value={pixForm.name}
                         onChange={(e) => setPixForm({ ...pixForm, name: e.target.value })}
+                        placeholder="Ex: Banco Itaú Principal"
                       />
                     </div>
                     <div className="space-y-2">
@@ -336,7 +394,7 @@ export default function ConfiguracoesPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mercadopago">Mercado Pago (Auto)</SelectItem>
+                          <SelectItem value="mercadopago">Mercado Pago (Automático)</SelectItem>
                           <SelectItem value="simples">PIX Simples (Manual)</SelectItem>
                         </SelectContent>
                       </Select>
@@ -346,6 +404,7 @@ export default function ConfiguracoesPage() {
                       <Input
                         value={pixForm.pix_key}
                         onChange={(e) => setPixForm({ ...pixForm, pix_key: e.target.value })}
+                        placeholder="Chave PIX (E-mail, CPF, Telefone...)"
                       />
                     </div>
                     <div className="space-y-2">
@@ -365,19 +424,21 @@ export default function ConfiguracoesPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Notas Adicionais (opcional)</Label>
+                      <Input
+                        value={pixForm.notes}
+                        onChange={(e) => setPixForm({ ...pixForm, notes: e.target.value })}
+                        placeholder="Informações para uso interno"
+                      />
+                    </div>
                   </div>
-                  <Button
-                    onClick={async () => {
-                      await supabase
-                        .from('pix_gateways')
-                        .insert([{ ...pixForm, company_id: company?.id }])
-                      toast.success('Gateway adicionado')
-                      refetchPix()
-                    }}
-                  >
-                    <Save className="w-4 h-4 mr-2" /> Salvar
+                  <Button onClick={handleSavePix} disabled={!pixForm.name || !pixForm.pix_key}>
+                    <Save className="w-4 h-4 mr-2" />{' '}
+                    {editingPixId ? 'Salvar Alterações' : 'Adicionar Gateway'}
                   </Button>
                 </div>
+
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -385,13 +446,18 @@ export default function ConfiguracoesPage() {
                       <TableHead>Provedor</TableHead>
                       <TableHead>Chave</TableHead>
                       <TableHead>Ativo</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pixGateways.map((g: any) => (
                       <TableRow key={g.id}>
-                        <TableCell className="font-medium">{g.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {g.name}
+                          {g.notes && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{g.notes}</p>
+                          )}
+                        </TableCell>
                         <TableCell className="capitalize">{g.provider}</TableCell>
                         <TableCell className="font-mono text-xs">{g.pix_key}</TableCell>
                         <TableCell>
@@ -406,13 +472,28 @@ export default function ConfiguracoesPage() {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="text-destructive">
+                        <TableCell className="text-right space-x-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditPix(g)}>
+                            <Edit2 className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                            onClick={() => handleDeletePix(g.id)}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
                     ))}
+                    {pixGateways.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          Nenhum gateway PIX cadastrado.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

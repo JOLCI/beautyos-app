@@ -15,7 +15,10 @@ export default function ClienteDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { data: clients, loading, refetch } = useQuery<any>('clients', { match: { id } })
-  const { data: appointments } = useQuery<any>('appointments', { match: { client_id: id } })
+  const { data: appointments } = useQuery<any>('appointments', {
+    match: { client_id: id },
+    order: { column: 'date', ascending: false },
+  })
   const { data: services } = useQuery<any>('services', { match: { type: 'service' } })
 
   const client = clients?.[0]
@@ -145,22 +148,42 @@ export default function ClienteDetailPage() {
                     {appointments.map((a: any) => (
                       <div
                         key={a.id}
-                        className="p-3 border rounded-lg flex justify-between items-center"
+                        className="p-4 border rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2"
                       >
                         <div>
-                          <p className="font-medium">{new Date(a.date).toLocaleDateString()}</p>
+                          <p className="font-medium text-lg">
+                            {new Date(a.date).toLocaleDateString()}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {a.start_time.slice(0, 5)} - {a.end_time.slice(0, 5)}
                           </p>
+                          {a.status === 'cancelado' && (
+                            <div className="mt-2 text-sm text-muted-foreground bg-destructive/10 text-destructive px-3 py-2 rounded-md">
+                              <strong>Motivo:</strong> {a.cancellation_reason || 'Não informado'}
+                              {a.canceled_by_client && (
+                                <span className="ml-2 font-medium">(Solicitado pelo cliente)</span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-xs uppercase px-2 py-1 bg-muted rounded-md font-semibold">
+                        <div
+                          className={`text-xs uppercase px-3 py-1.5 rounded-md font-bold ${
+                            a.status === 'cancelado'
+                              ? 'bg-destructive/10 text-destructive'
+                              : a.status === 'finalizado'
+                                ? 'bg-green-500/10 text-green-700'
+                                : 'bg-muted text-foreground'
+                          }`}
+                        >
                           {a.status}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">Nenhum histórico.</p>
+                  <p className="text-muted-foreground text-center py-8">
+                    Nenhum histórico encontrado.
+                  </p>
                 )}
               </CardContent>
             </Card>
