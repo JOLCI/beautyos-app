@@ -17,9 +17,11 @@ import { toast } from 'sonner'
 import { useQuery } from '@/hooks/use-query'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function RelatoriosPage() {
   const { company } = usePasskey()
+  const { profile } = useAuth()
   const [dateStart, setDateStart] = useState(() => {
     const d = new Date()
     d.setDate(1)
@@ -39,7 +41,7 @@ export default function RelatoriosPage() {
   const filteredTx = useMemo(
     () =>
       transactions.filter((t: any) => {
-        const d = t.created_at.split('T')[0]
+        const d = t.settled_at ? t.settled_at.split('T')[0] : t.created_at.split('T')[0]
         return d >= dateStart && d <= dateEnd
       }),
     [transactions, dateStart, dateEnd],
@@ -78,6 +80,7 @@ export default function RelatoriosPage() {
         amount: total,
         description: 'Pagamento de Comissões em Lote',
         status: 'completed',
+        settled_at: new Date().toISOString(),
       },
     ])
     for (const c of pending)
@@ -85,6 +88,17 @@ export default function RelatoriosPage() {
     toast.success('Comissões pagas e baixadas no caixa')
     refetchComm()
   }
+
+  const isAdminOrRoot = profile?.role === 'admin' || profile?.role === 'root'
+  const totalIn = filteredTx.reduce(
+    (acc: number, t: any) => (t.type === 'entrada' ? acc + t.amount : acc),
+    0,
+  )
+  const totalOut = filteredTx.reduce(
+    (acc: number, t: any) => (t.type === 'saida' ? acc + t.amount : acc),
+    0,
+  )
+  const bal = totalIn - totalOut
 
   return (
     <div className="space-y-6">
@@ -110,6 +124,29 @@ export default function RelatoriosPage() {
           />
         </div>
       </div>
+
+      {isAdminOrRoot && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 printable-hide">
+          <Card className="bg-green-500/5 border-green-500/20">
+            <CardContent className="p-4">
+              <div className="text-sm text-green-700 mb-1 font-medium">Entradas Totais</div>
+              <div className="text-2xl font-bold text-green-700">R$ {totalIn.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-destructive/5 border-destructive/20">
+            <CardContent className="p-4">
+              <div className="text-sm text-destructive mb-1 font-medium">Saídas Totais</div>
+              <div className="text-2xl font-bold text-destructive">R$ {totalOut.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-4">
+              <div className="text-sm text-primary mb-1 font-medium">Saldo do Período</div>
+              <div className="text-2xl font-bold text-primary">R$ {bal.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Tabs defaultValue="fluxo" className="flex flex-col md:flex-row gap-6">
         <TabsList className="flex md:flex-col h-auto bg-transparent p-0 gap-2 w-full md:w-56 justify-start overflow-x-auto border-r-0 md:border-r pr-2 printable-hide">
@@ -155,15 +192,22 @@ export default function RelatoriosPage() {
                   <TableBody>
                     {filteredTx.map((t: any) => (
                       <TableRow key={t.id}>
-                        <TableCell>{new Date(t.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell
-                          className={
-                            t.type === 'entrada'
-                              ? 'text-green-600 font-medium'
-                              : 'text-destructive font-medium'
-                          }
-                        >
-                          {t.type}
+                        <TableCell>
+                          {t.settled_at
+                            ? new Date(t.settled_at).toLocaleDateString()
+                            : new Date(t.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              t.type === 'entrada'
+                                ? 'text-green-600 border-green-600/30'
+                                : 'text-destructive border-destructive/30'
+                            }
+                          >
+                            {t.type}
+                          </Badge>
                         </TableCell>
                         <TableCell>{t.description}</TableCell>
                         <TableCell className="text-right font-medium">

@@ -13,29 +13,31 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { CheckCircle2, QrCode, Loader2, Copy, MessageSquare } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useQuery } from '@/hooks/use-query'
+import { useAuth } from '@/hooks/use-auth'
 
 export function CheckoutSheet({
   open,
   onOpenChange,
   items,
-  professionalId,
   initialClientId,
   appointmentId,
   onComplete,
 }: any) {
   const { company } = usePasskey()
+  const { profile } = useAuth()
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
   const { data: gateways } = useQuery<any>('pix_gateways', { match: { is_active: true } })
 
   const [clientId, setClientId] = useState('')
   const [method, setMethod] = useState('pix')
   const [discount, setDiscount] = useState('0')
+
+  const [installments, setInstallments] = useState('1')
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() + 1)
@@ -70,7 +72,6 @@ export function CheckoutSheet({
   const totalOriginal = pricedItems.reduce((acc: any, i: any) => acc + i.originalPrice, 0)
   const total = pricedItems.reduce((acc: any, i: any) => acc + i.finalPrice, 0)
   const finalTotal = total - Number(discount || 0)
-  const totalDiscount = totalOriginal - total + Number(discount || 0)
 
   const deductStock = async (serviceId: string, quantity: number) => {
     const { data: inv } = await supabase
@@ -97,6 +98,15 @@ export function CheckoutSheet({
   }
 
   const finalizeTransaction = async (methodUsed: string, isPending: boolean) => {
+    const now = new Date().toISOString()
+    const isImmediate = ['cash', 'debit', 'pix', 'pix_simples'].includes(methodUsed)
+    const settledAt = isImmediate ? now : null
+
+    let finalDesc = `Checkout PDV - ${items.length} itens`
+    if (methodUsed === 'credit' && Number(installments) > 1) {
+      finalDesc += ` (${installments}x)`
+    }
+
     const { data: tx } = await supabase
       .from('transactions')
       .insert([
@@ -104,10 +114,11 @@ export function CheckoutSheet({
           company_id: company?.id,
           type: 'entrada',
           amount: finalTotal,
-          description: `Checkout PDV - ${items.length} itens`,
+          description: finalDesc,
           payment_method: methodUsed,
           status: isPending ? 'pending' : 'completed',
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: profile?.id,
+          settled_at: settledAt,
         },
       ])
       .select()
@@ -119,7 +130,7 @@ export function CheckoutSheet({
           company_id: company?.id,
           type: 'receivable',
           origin: 'pdv',
-          description: `Recebível Automático (${methodUsed.toUpperCase()})`,
+          description: `Recebível Automático (${methodUsed.toUpperCase()}) - ${activeClient?.name || 'Cliente Avulso'}`,
           amount: finalTotal,
           due_date: dueDate,
           transaction_id: tx?.id,
@@ -174,7 +185,24 @@ export function CheckoutSheet({
   const handleSendWhatsAppPix = async () => {
     if (!activeClient?.phone) return toast.error('Selecione um cliente com telefone cadastrado.')
     setSendingWa(true)
-    const msg = `Olá ${activeClient.name}, o valor do seu atendimento é R$ ${finalTotal.toFixed(2)}. Nossa chave PIX é: ${gateways?.[0]?.pix_key || 'não cadastrada'}. Por favor envie o comprovante.`
+
+    const { data: tpls } = await supabase
+      .from('whatsapp_templates')
+      .select('*')
+      .eq('template_key', 'pix_simples')
+      .eq('company_id', company?.id)
+      .maybeSingle()
+
+    let msg =
+      tpls?.body ||
+      `Olá [NOME_CLIENTE], o valor do seu atendimento é R$ [VALOR]. Nossa chave PIX é: [CHAVE_PIX]. Por favor envie o comprovante.`
+
+    msg = msg.replace(/\[NOME_CLIENTE\]/g, activeClient.name)
+    msg = msg.replace(/\[VALOR\]/g, finalTotal.toFixed(2))
+    msg = msg.replace(/\[CHAVE_PIX\]/g, gateways?.[0]?.pix_key || 'não cadastrada')
+    msg = msg.replace(/\[DATA_HORA\]/g, new Date().toLocaleString())
+    msg = msg.replace(/\[DATA\]/g, new Date().toLocaleDateString())
+
     await supabase.functions.invoke('send-whatsapp', {
       body: { to: activeClient.phone, message: msg },
     })
@@ -296,6 +324,24 @@ export function CheckoutSheet({
                 </div>
               ))}
             </RadioGroup>
+
+            {method === 'credit' && (
+              <div className="space-y-2 p-4 border rounded-xl bg-muted/20 animate-fade-in mt-3">
+                <Label>Número de Parcelas</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={installments}
+                  onChange={(e) => setInstallments(e.target.value)}
+                />
+              </div>
+            )}
+            {(method === 'pix_agendado' || method === 'convenio') && (
+              <div className="space-y-2 p-4 border rounded-xl bg-muted/20 animate-fade-in mt-3">
+                <Label>Data de Vencimento</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </div>
+            )}
 
             {method === 'pix_simples' && (
               <div className="space-y-3 p-5 border rounded-xl bg-primary/5 text-center animate-fade-in">

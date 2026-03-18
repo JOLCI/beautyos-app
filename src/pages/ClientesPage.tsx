@@ -33,7 +33,13 @@ export default function ClientesPage() {
   const [search, setSearch] = useState('')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
-  const [form, setForm] = useState({ name: '', phone: '', email: '' })
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    birthday_day: '',
+    birthday_month: '',
+  })
 
   const filtered = clients.filter(
     (c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search),
@@ -42,10 +48,16 @@ export default function ClientesPage() {
   const openSheet = (c: any = null) => {
     if (c) {
       setEditing(c)
-      setForm({ name: c.name, phone: c.phone, email: c.email || '' })
+      setForm({
+        name: c.name,
+        phone: c.phone,
+        email: c.email || '',
+        birthday_day: c.birthday_day?.toString() || '',
+        birthday_month: c.birthday_month?.toString() || '',
+      })
     } else {
       setEditing(null)
-      setForm({ name: '', phone: '', email: '' })
+      setForm({ name: '', phone: '', email: '', birthday_day: '', birthday_month: '' })
     }
     setSheetOpen(true)
   }
@@ -53,14 +65,20 @@ export default function ClientesPage() {
   const handleSave = async () => {
     if (!form.name || !form.phone) return toast.error('Nome e telefone são obrigatórios')
 
+    const payload = {
+      ...form,
+      birthday_day: form.birthday_day ? parseInt(form.birthday_day) : null,
+      birthday_month: form.birthday_month ? parseInt(form.birthday_month) : null,
+    }
+
     if (editing) {
-      const { error } = await supabase.from('clients').update(form).eq('id', editing.id)
+      const { error } = await supabase.from('clients').update(payload).eq('id', editing.id)
       if (error) return toast.error(error.message)
       toast.success('Cliente atualizado')
     } else {
       const { error } = await supabase
         .from('clients')
-        .insert([{ ...form, company_id: company?.id }])
+        .insert([{ ...payload, company_id: company?.id }])
       if (error) return toast.error(error.message)
       toast.success('Cliente cadastrado')
     }
@@ -115,6 +133,7 @@ export default function ClientesPage() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>E-mail</TableHead>
+                  <TableHead>Aniversário</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -138,6 +157,11 @@ export default function ClientesPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{c.phone}</TableCell>
                     <TableCell className="text-muted-foreground">{c.email || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {c.birthday_day && c.birthday_month
+                        ? `${String(c.birthday_day).padStart(2, '0')}/${String(c.birthday_month).padStart(2, '0')}`
+                        : '-'}
+                    </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button
                         variant="ghost"
@@ -193,6 +217,30 @@ export default function ClientesPage() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Dia Aniv.</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={form.birthday_day}
+                  onChange={(e) => setForm({ ...form, birthday_day: e.target.value })}
+                  placeholder="Ex: 15"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Mês Aniv.</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={form.birthday_month}
+                  onChange={(e) => setForm({ ...form, birthday_month: e.target.value })}
+                  placeholder="Ex: 08"
+                />
+              </div>
             </div>
           </div>
           <SheetFooter className="mt-8">

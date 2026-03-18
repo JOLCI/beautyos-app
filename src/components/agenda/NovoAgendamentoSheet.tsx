@@ -40,6 +40,10 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
   const [saving, setSaving] = useState(false)
   const [manualOverride, setManualOverride] = useState(false)
 
+  const availableProfessionals = useMemo(() => {
+    return professionals?.filter((p: any) => p.role !== 'root') || []
+  }, [professionals])
+
   useEffect(() => {
     if (appointment && open) {
       setClientId(appointment.client_id)
@@ -66,7 +70,6 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     }
   }, [appointment, open])
 
-  // Smart Start Time Suggestion
   useEffect(() => {
     if (!manualOverride && profId && date && !appointment) {
       const profApps =
@@ -94,7 +97,6 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     }, 0)
   }, [selectedServices, services])
 
-  // Smart End Time Suggestion
   useEffect(() => {
     if (!manualOverride && selectedServices.length > 0 && startTime) {
       const [h, m] = startTime.split(':').map(Number)
@@ -117,12 +119,45 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     setManualOverride(false)
   }
 
+  const checkConflicts = () => {
+    if (!profId || !date || !startTime || !endTime) return false
+    const existing = appointments.filter(
+      (a: any) =>
+        a.professional_id === profId &&
+        a.date === date &&
+        a.status !== 'cancelado' &&
+        a.id !== appointment?.id,
+    )
+
+    for (const a of existing) {
+      const s1 = startTime
+      const e1 = endTime
+      const s2 = a.start_time.slice(0, 5)
+      const e2 = a.end_time.slice(0, 5)
+
+      if ((s1 >= s2 && s1 < e2) || (e1 > s2 && e1 <= e2) || (s1 <= s2 && e1 >= e2)) {
+        return true
+      }
+    }
+    return false
+  }
+
   const handleSave = async () => {
+    if (checkConflicts()) {
+      if (
+        !confirm(
+          'Já existe um agendamento nessa data/horário para este profissional. Deseja prosseguir?',
+        )
+      ) {
+        return
+      }
+    }
+
     setSaving(true)
     const payload = {
       company_id: company?.id,
       client_id: clientId,
-      service_id: selectedServices[0] || null, // fallback
+      service_id: selectedServices[0] || null,
       service_ids: selectedServices,
       professional_id: profId,
       date,
@@ -193,7 +228,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
                 <SelectValue placeholder="Quem vai atender?" />
               </SelectTrigger>
               <SelectContent>
-                {professionals.map((p: any) => (
+                {availableProfessionals.map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
                   </SelectItem>

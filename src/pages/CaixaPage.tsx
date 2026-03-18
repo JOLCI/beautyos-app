@@ -32,12 +32,27 @@ export default function CaixaPage() {
   const [editForm, setEditForm] = useState({ description: '', amount: '' })
 
   const filtered = useMemo(() => {
-    return txs.filter((t: any) => t.created_at.startsWith(dateFilter))
+    return txs.filter((t: any) => {
+      const d = t.settled_at ? t.settled_at.split('T')[0] : t.created_at.split('T')[0]
+      return d === dateFilter
+    })
   }, [txs, dateFilter])
 
   const saldo = filtered.reduce(
     (acc: number, t: any) =>
       t.status === 'completed' ? (t.type === 'entrada' ? acc + t.amount : acc - t.amount) : acc,
+    0,
+  )
+
+  const totalEntradas = filtered.reduce(
+    (acc: number, t: any) =>
+      t.status === 'completed' && t.type === 'entrada' ? acc + t.amount : acc,
+    0,
+  )
+
+  const totalSaidas = filtered.reduce(
+    (acc: number, t: any) =>
+      t.status === 'completed' && t.type === 'saida' ? acc + t.amount : acc,
     0,
   )
 
@@ -52,6 +67,7 @@ export default function CaixaPage() {
         payment_method: t.payment_method,
         status: 'completed',
         user_id: profile?.id,
+        settled_at: new Date().toISOString(),
       },
     ])
     await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', t.id)
@@ -85,6 +101,8 @@ export default function CaixaPage() {
     refetch()
   }
 
+  const isAdminOrRoot = profile?.role === 'admin' || profile?.role === 'root'
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -106,11 +124,32 @@ export default function CaixaPage() {
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 text-primary mb-2">
-              <Wallet className="w-4 h-4" /> Saldo do Dia Selecionado
+              <Wallet className="w-4 h-4" /> Saldo Líquido do Dia
             </div>
             <div className="text-3xl font-bold">R$ {saldo.toFixed(2)}</div>
           </CardContent>
         </Card>
+
+        {isAdminOrRoot && (
+          <>
+            <Card className="bg-green-500/5 border-green-500/20">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 text-green-700 mb-2">Entradas</div>
+                <div className="text-3xl font-bold text-green-700">
+                  R$ {totalEntradas.toFixed(2)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-destructive/5 border-destructive/20">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 text-destructive mb-2">Saídas</div>
+                <div className="text-3xl font-bold text-destructive">
+                  R$ {totalSaidas.toFixed(2)}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {loading ? (
@@ -135,13 +174,14 @@ export default function CaixaPage() {
               <TableBody>
                 {filtered.map((t: any) => {
                   const isEditing = inlineEditing === t.id
+                  const time = t.settled_at ? new Date(t.settled_at) : new Date(t.created_at)
                   return (
                     <TableRow
                       key={t.id}
                       className={t.status === 'cancelled' ? 'opacity-50 line-through' : ''}
                     >
                       <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                        {new Date(t.created_at).toLocaleTimeString()}
+                        {time.toLocaleTimeString()}
                       </TableCell>
                       <TableCell className="font-medium max-w-[200px]">
                         {isEditing ? (
@@ -224,7 +264,7 @@ export default function CaixaPage() {
                                   <Edit2 className="w-4 h-4" />
                                 </Button>
                               )}
-                              {profile?.role !== 'atendimento' && (
+                              {isAdminOrRoot && (
                                 <Button
                                   variant="ghost"
                                   size="icon"

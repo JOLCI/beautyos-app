@@ -168,9 +168,9 @@ export default function ConfiguracoesPage() {
                 {days.map((d) => (
                   <div
                     key={d}
-                    className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border"
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border"
                   >
-                    <div className="flex items-center gap-3 w-32 shrink-0">
+                    <div className="flex items-center gap-3 w-full sm:w-32 shrink-0">
                       <Switch
                         checked={hours[d]?.open}
                         onCheckedChange={(v) =>
@@ -180,13 +180,14 @@ export default function ConfiguracoesPage() {
                       <Label>{d}</Label>
                     </div>
                     {hours[d]?.open ? (
-                      <div className="flex items-center gap-2 flex-1 max-w-[250px]">
+                      <div className="flex items-center gap-2 w-full sm:flex-1 sm:max-w-[250px]">
                         <Input
                           type="time"
                           value={hours[d]?.start}
                           onChange={(e) =>
                             setHours({ ...hours, [d]: { ...hours[d], start: e.target.value } })
                           }
+                          className="flex-1"
                         />
                         <span className="text-muted-foreground text-xs">até</span>
                         <Input
@@ -195,10 +196,13 @@ export default function ConfiguracoesPage() {
                           onChange={(e) =>
                             setHours({ ...hours, [d]: { ...hours[d], end: e.target.value } })
                           }
+                          className="flex-1"
                         />
                       </div>
                     ) : (
-                      <div className="flex-1 text-muted-foreground text-sm pl-2">Fechado</div>
+                      <div className="w-full sm:flex-1 text-muted-foreground text-sm pl-0 sm:pl-2">
+                        Fechado
+                      </div>
                     )}
                   </div>
                 ))}
@@ -396,6 +400,7 @@ export default function ConfiguracoesPage() {
                         </SelectItem>
                         <SelectItem value="pix_simples">PIX Simples (Manual via Caixa)</SelectItem>
                         <SelectItem value="pos_atendimento">Pós-Atendimento / Avaliação</SelectItem>
+                        <SelectItem value="aniversario">Aniversário (08:00 AM)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -445,7 +450,7 @@ export default function ConfiguracoesPage() {
               <CardContent className="space-y-6">
                 <div className="flex gap-8">
                   <div className="space-y-2">
-                    <Label>Cor Primária</Label>
+                    <Label>Cor Primária (Destaques)</Label>
                     <div className="flex gap-2">
                       <Input
                         type="color"

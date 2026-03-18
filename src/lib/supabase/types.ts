@@ -136,6 +136,8 @@ export type Database = {
         Row: {
           anamnesis: Json | null
           birthday: string | null
+          birthday_day: number | null
+          birthday_month: number | null
           company_id: string | null
           created_at: string
           email: string | null
@@ -149,6 +151,8 @@ export type Database = {
         Insert: {
           anamnesis?: Json | null
           birthday?: string | null
+          birthday_day?: number | null
+          birthday_month?: number | null
           company_id?: string | null
           created_at?: string
           email?: string | null
@@ -162,6 +166,8 @@ export type Database = {
         Update: {
           anamnesis?: Json | null
           birthday?: string | null
+          birthday_day?: number | null
+          birthday_month?: number | null
           company_id?: string | null
           created_at?: string
           email?: string | null
@@ -734,6 +740,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          notes: string | null
           phone: string | null
         }
         Insert: {
@@ -744,6 +751,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          notes?: string | null
           phone?: string | null
         }
         Update: {
@@ -754,6 +762,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          notes?: string | null
           phone?: string | null
         }
         Relationships: [
@@ -1040,7 +1049,9 @@ export const Constants = {
 //   is_active: boolean (nullable, default: true)
 //   created_at: timestamp with time zone (not null, default: now())
 //   birthday: date (nullable)
-//   notes: text (nullable)
+//   notes: character varying (nullable)
+//   birthday_day: integer (nullable)
+//   birthday_month: integer (nullable)
 // Table: commission_rules
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1159,6 +1170,7 @@ export const Constants = {
 //   email: text (nullable)
 //   is_active: boolean (nullable, default: true)
 //   created_at: timestamp with time zone (not null, default: now())
+//   notes: character varying (nullable)
 // Table: transactions
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1257,6 +1269,8 @@ export const Constants = {
 //   Policy "company_appointments" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
 // Table: client_custom_prices
+//   Policy "company_custom_prices_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 //   Policy "company_custom_prices_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
 //   Policy "company_custom_prices_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -1289,13 +1303,13 @@ export const Constants = {
 //     USING: (company_id = auth_company_id())
 // Table: inventory
 //   Policy "company_inventory" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (company_id = auth_company_id())
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 // Table: inventory_movements
 //   Policy "company_inventory_movements" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
 // Table: pix_gateways
 //   Policy "company_pix_gateways" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (company_id = auth_company_id())
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 // Table: profiles
 //   Policy "auth_all_profiles" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (((company_id)::text = ((auth.jwt() -> 'user_metadata'::text) ->> 'company_id'::text)) OR (id = auth.uid()))
@@ -1315,7 +1329,7 @@ export const Constants = {
 //     USING: (company_id = auth_company_id())
 // Table: whatsapp_templates
 //   Policy "company_whatsapp_templates" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (company_id = auth_company_id())
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 
 // --- DATABASE FUNCTIONS ---
 // FUNCTION auth_company_id()

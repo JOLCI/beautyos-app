@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Plus, Edit2, Trash2, Truck } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
@@ -23,11 +24,11 @@ export default function FornecedoresPage() {
   const { data: suppliers, refetch } = useQuery<any>('suppliers', { match: { is_active: true } })
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
-  const [form, setForm] = useState({ name: '', document: '', phone: '', email: '' })
+  const [form, setForm] = useState({ name: '', document: '', phone: '', email: '', notes: '' })
 
   const openSheet = (s: any = null) => {
     setEditing(s)
-    setForm(s || { name: '', document: '', phone: '', email: '' })
+    setForm(s || { name: '', document: '', phone: '', email: '', notes: '' })
     setSheetOpen(true)
   }
 
@@ -135,6 +136,14 @@ export default function FornecedoresPage() {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Observações Internas</Label>
+              <Textarea
+                value={form.notes || ''}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Ex: Entrega apenas às terças..."
               />
             </div>
           </div>

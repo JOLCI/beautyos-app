@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@/hooks/use-query'
+import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -29,6 +30,7 @@ import { toast } from 'sonner'
 
 export default function UsuariosPage() {
   const { company } = usePasskey()
+  const { profile } = useAuth()
   const {
     data: users,
     loading,
@@ -40,7 +42,8 @@ export default function UsuariosPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'atendimento' })
   const [saving, setSaving] = useState(false)
 
-  const filteredUsers = users.filter((u) => u.role !== 'root')
+  // Hide root users from non-root profiles
+  const filteredUsers = profile?.role === 'root' ? users : users.filter((u) => u.role !== 'root')
 
   const openSheet = (u: any = null) => {
     setEditing(u)
@@ -198,6 +201,9 @@ export default function UsuariosPage() {
                 <SelectContent>
                   <SelectItem value="atendimento">Atendimento (PDV/Agenda)</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
+                  {profile?.role === 'root' && (
+                    <SelectItem value="root">Root (Super Admin)</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

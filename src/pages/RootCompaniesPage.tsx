@@ -42,12 +42,19 @@ export default function RootCompaniesPage() {
   const handleSave = async () => {
     if (!form.name || !form.passkey) return toast.error('Preencha os campos obrigatórios')
 
+    const formattedPasskey = form.passkey.toUpperCase().replace(/\s+/g, '')
+
     if (editing) {
-      const { error } = await supabase.from('companies').update(form).eq('id', editing.id)
+      const { error } = await supabase
+        .from('companies')
+        .update({ ...form, passkey: formattedPasskey })
+        .eq('id', editing.id)
       if (error) return toast.error(error.message)
       toast.success('Empresa atualizada')
     } else {
-      const { error } = await supabase.from('companies').insert([form])
+      const { error } = await supabase
+        .from('companies')
+        .insert([{ ...form, passkey: formattedPasskey }])
       if (error) return toast.error(error.message)
       toast.success('Empresa criada')
     }
@@ -75,7 +82,7 @@ export default function RootCompaniesPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Gestão de Empresas (Root)</h1>
             <p className="text-muted-foreground text-sm">
-              Administração global de tenants do sistema.
+              Administração global de tenants do sistema. Apenas usuários root têm acesso.
             </p>
           </div>
         </div>
@@ -95,8 +102,8 @@ export default function RootCompaniesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Passkey</TableHead>
-                  <TableHead>Cor</TableHead>
+                  <TableHead>Passkey (Chave Única)</TableHead>
+                  <TableHead>Cor Primária</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -104,7 +111,7 @@ export default function RootCompaniesPage() {
                 {companies.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-semibold">{c.name}</TableCell>
-                    <TableCell className="font-mono">{c.passkey}</TableCell>
+                    <TableCell className="font-mono bg-muted/30">{c.passkey}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div
@@ -153,10 +160,15 @@ export default function RootCompaniesPage() {
               <Label>Passkey (Identificador na URL)</Label>
               <Input
                 value={form.passkey}
-                onChange={(e) => setForm({ ...form, passkey: e.target.value.toUpperCase() })}
+                onChange={(e) =>
+                  setForm({ ...form, passkey: e.target.value.toUpperCase().replace(/\s+/g, '') })
+                }
                 placeholder="Ex: BEAUTY01"
-                className="uppercase"
+                className="uppercase font-mono"
               />
+              <p className="text-[10px] text-muted-foreground">
+                O Passkey deve ser único e não conter espaços.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Cor Primária</Label>
