@@ -61,7 +61,7 @@ export function formatTransactionLabel(record: any, clientNameOverride?: string)
 
   let clientName = ''
 
-  if (clientNameOverride) {
+  if (clientNameOverride && clientNameOverride.trim() !== '') {
     clientName = clientNameOverride
   } else if (parsed.isStandard) {
     clientName = parsed.clientName

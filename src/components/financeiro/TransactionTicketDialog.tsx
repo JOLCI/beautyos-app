@@ -26,7 +26,10 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
     clients?.find((c: any) => c.id === transaction.client_id) ||
     clients?.find((c: any) => c.id === transaction.metadata?.client_id)
 
-  const label = formatTransactionLabel(transaction, transaction.clients?.name || client?.name)
+  const clientNameFromJoin = Array.isArray(transaction.clients)
+    ? transaction.clients[0]?.name
+    : transaction.clients?.name
+  const label = formatTransactionLabel(transaction, clientNameFromJoin || client?.name)
   const { isStandard, clientName, origin } = parseFinancialDescription(label)
 
   const resolvedClientName = isStandard

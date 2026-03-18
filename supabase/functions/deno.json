@@ -3,7 +3,7 @@
     "test-whatsapp": 1,
     "generate-pix": 2,
     "check-pix-status": 2,
-    "send-whatsapp": 8,
+    "send-whatsapp": 9,
     "create-user": 1,
     "google-calendar-sync": 4,
     "save-integration-secrets": 4,

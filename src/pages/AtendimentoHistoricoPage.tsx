@@ -1,85 +1,144 @@
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useQuery } from '@/hooks/use-query'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Receipt, Loader2, Calendar } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
-import { toast } from 'sonner'
+import { Search, Receipt, Loader2 } from 'lucide-react'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 
 export default function AtendimentoHistoricoPage() {
   const { company } = usePasskey()
   const [searchTerm, setSearchTerm] = useState('')
-  const [searching, setSearching] = useState(false)
   const [ticketTx, setTicketTx] = useState<any>(null)
 
-  const handleSearch = async () => {
-    if (!searchTerm) return
-    setSearching(true)
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*, profiles!transactions_user_id_fkey(name)')
-      .eq('id', searchTerm)
-      .eq('company_id', company?.id)
-      .maybeSingle()
+  const { data: transactions, loading } = useQuery<any>('transactions', {
+    order: { column: 'created_at', ascending: false },
+    select: '*, clients(name)',
+  })
 
-    setSearching(false)
-    if (error || !data) {
-      toast.error('Ticket não encontrado')
-      return
-    }
-    setTicketTx(data)
-  }
+  const filtered = transactions.filter((t: any) => {
+    if (!searchTerm) return true
+    const term = searchTerm.toLowerCase()
+    const clientName = (Array.isArray(t.clients) ? t.clients[0]?.name : t.clients?.name) || ''
+    return (
+      t.id.toLowerCase().includes(term) ||
+      t.description.toLowerCase().includes(term) ||
+      clientName.toLowerCase().includes(term) ||
+      t.payment_method?.toLowerCase().includes(term)
+    )
+  })
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Histórico e Tickets</h1>
-        <p className="text-muted-foreground">Consulte os atendimentos e vendas finalizadas.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Histórico de Transações</h1>
+          <p className="text-muted-foreground">Consulte os tickets de vendas e atendimentos.</p>
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Receipt className="w-5 h-5" /> Consulta Avançada de Ticket
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Utilize o ID do Ticket gerado na conclusão do atendimento para consultar o histórico
-              detalhado.
-            </p>
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Ex: 550e8400-e29b-41d4-a716-446655440000"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="font-mono text-xs"
-              />
-              <Button onClick={handleSearch} disabled={searching} className="shrink-0">
-                {searching ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Search className="w-4 h-4" />
+      <Card>
+        <div className="p-4 border-b border-border bg-muted/20">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por ID, cliente, descrição..."
+              className="pl-9 bg-background"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="p-12 flex justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data / Hora</TableHead>
+                  <TableHead>ID Ticket</TableHead>
+                  <TableHead>Descrição / Cliente</TableHead>
+                  <TableHead>Método</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.slice(0, 100).map((t: any) => (
+                  <TableRow
+                    key={t.id}
+                    className={t.status === 'cancelled' ? 'opacity-50 line-through' : ''}
+                  >
+                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                      {t.settled_at
+                        ? new Date(t.settled_at).toLocaleString()
+                        : new Date(t.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {t.id.split('-')[0].toUpperCase()}
+                    </TableCell>
+                    <TableCell className="font-medium max-w-[250px]">
+                      <FinancialDescription record={t} />
+                    </TableCell>
+                    <TableCell className="uppercase text-[10px] tracking-wider font-semibold">
+                      {t.payment_method || '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={t.status === 'completed' ? 'default' : 'secondary'}
+                        className={
+                          t.status === 'completed'
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : ''
+                        }
+                      >
+                        {t.status === 'completed' ? 'Concluído' : t.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-bold">R$ {t.amount.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      {t.status === 'completed' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary"
+                          onClick={() => setTicketTx(t)}
+                          title="Ver Ticket"
+                        >
+                          <Receipt className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Nenhuma transação encontrada.
+                    </TableCell>
+                  </TableRow>
                 )}
-              </Button>
-            </div>
+              </TableBody>
+            </Table>
           </CardContent>
-        </Card>
-
-        <Card className="max-w-md border-dashed bg-muted/20">
-          <CardContent className="p-8 text-center flex flex-col items-center justify-center space-y-2 h-full text-muted-foreground">
-            <Calendar className="w-8 h-8 opacity-50" />
-            <p className="text-sm">
-              Para visualizar o histórico completo de clientes e agendamentos passados, acesse a
-              guia de <strong>Caixa</strong> ou <strong>Relatórios</strong>.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        )}
+      </Card>
 
       <TransactionTicketDialog
         transaction={ticketTx}

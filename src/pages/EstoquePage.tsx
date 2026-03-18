@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@/hooks/use-query'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -21,12 +22,22 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 export default function EstoquePage() {
   const { company } = usePasskey()
   const { profile } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filterParam = searchParams.get('filter')
+
   const { data: inventory, refetch: refetchInv } = useQuery<any>('inventory')
   const { data: movements } = useQuery<any>('inventory_movements', {
     order: { column: 'created_at', ascending: false },
   })
   const { data: products } = useQuery<any>('services', {
     match: { type: 'product', is_active: true },
+  })
+
+  const filteredProducts = products.filter((p: any) => {
+    if (filterParam !== 'low_stock') return true
+    const inv = inventory.find((i: any) => i.service_id === p.id)
+    if (!inv) return true // not initialized is considered zero/low stock
+    return inv.quantity <= inv.min_quantity
   })
 
   const adjustStock = async (invId: string, type: 'in' | 'out', currentQty: number) => {
@@ -68,11 +79,30 @@ export default function EstoquePage() {
       </div>
 
       <Tabs defaultValue="posicao">
-        <TabsList>
-          <TabsTrigger value="posicao">Posição de Estoque</TabsTrigger>
-          <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="posicao">Posição de Estoque</TabsTrigger>
+            <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
+          </TabsList>
+        </div>
+
         <TabsContent value="posicao" className="mt-4">
+          {filterParam === 'low_stock' && (
+            <div className="flex justify-between items-center bg-amber-500/10 text-amber-600 p-3 rounded-lg border border-amber-500/20 mb-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertTriangle className="w-4 h-4" />
+                Exibindo apenas produtos com estoque baixo ou zerado.
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSearchParams({})}
+                className="bg-transparent border-amber-500/50 hover:bg-amber-500/20 text-amber-700"
+              >
+                Limpar Filtro
+              </Button>
+            </div>
+          )}
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -86,7 +116,7 @@ export default function EstoquePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((p: any) => {
+                  {filteredProducts.map((p: any) => {
                     const inv = inventory.find((i: any) => i.service_id === p.id)
                     if (!inv)
                       return (
@@ -119,11 +149,11 @@ export default function EstoquePage() {
                           {isZero ? (
                             <Badge variant="destructive">Zerado</Badge>
                           ) : isLow ? (
-                            <Badge className="bg-amber-500 text-white flex w-fit items-center gap-1">
+                            <Badge className="bg-amber-500 text-white flex w-fit items-center gap-1 hover:bg-amber-600">
                               <AlertTriangle className="w-3 h-3" /> Baixo
                             </Badge>
                           ) : (
-                            <Badge className="bg-green-500">Normal</Badge>
+                            <Badge className="bg-green-500 hover:bg-green-600">Normal</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-right space-x-2">
@@ -147,6 +177,13 @@ export default function EstoquePage() {
                       </TableRow>
                     )
                   })}
+                  {filteredProducts.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Nenhum produto encontrado.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -178,7 +215,11 @@ export default function EstoquePage() {
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={m.type === 'in' ? 'text-green-600' : 'text-destructive'}
+                            className={
+                              m.type === 'in'
+                                ? 'text-green-600 border-green-600/30'
+                                : 'text-destructive border-destructive/30'
+                            }
                           >
                             {m.type === 'in' ? 'Entrada' : 'Saída'}
                           </Badge>

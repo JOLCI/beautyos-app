@@ -1322,6 +1322,8 @@ export const Constants = {
 // Table: clients
 //   Policy "company_clients" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
+//   Policy "company_clients_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 // Table: commission_rules
 //   Policy "company_comm_rules" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
@@ -1365,8 +1367,12 @@ export const Constants = {
 // Table: transactions
 //   Policy "company_transactions" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: ((company_id = auth_company_id()) OR (((auth.jwt() -> 'user_metadata'::text) ->> 'role'::text) = 'root'::text))
+//   Policy "company_transactions_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 // Table: whatsapp_templates
 //   Policy "company_whatsapp_templates" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
+//   Policy "company_whatsapp_templates_select" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 
 // --- DATABASE FUNCTIONS ---
@@ -1555,3 +1561,4 @@ export const Constants = {
 //   CREATE UNIQUE INDEX profiles_username_key ON public.profiles USING btree (username)
 // Table: transactions
 //   CREATE INDEX idx_transactions_client_id ON public.transactions USING btree (client_id)
+//   CREATE INDEX idx_transactions_client_id_perf ON public.transactions USING btree (client_id)

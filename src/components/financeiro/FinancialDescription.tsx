@@ -7,9 +7,16 @@ interface FinancialDescriptionProps {
 }
 
 export function FinancialDescription({ record, description }: FinancialDescriptionProps) {
+  let clientNameOverride = undefined
+  if (record?.clients) {
+    clientNameOverride = Array.isArray(record.clients)
+      ? record.clients[0]?.name
+      : record.clients.name
+  }
+
   // Backwards compatibility if only description is passed, but prefers record
   const descToParse = record
-    ? formatTransactionLabel(record, record.clients?.name)
+    ? formatTransactionLabel(record, clientNameOverride)
     : description || ''
 
   const { isStandard, clientName, origin } = parseFinancialDescription(descToParse)

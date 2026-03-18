@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -25,6 +26,8 @@ import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@/hooks/use-query'
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
+  const { passkey } = useParams()
   const { data: transactions } = useQuery<any>('transactions', { match: { status: 'completed' } })
   const { data: payables } = useQuery<any>('financial_accounts', {
     match: { type: 'payable', status: 'pending' },
@@ -72,21 +75,26 @@ export default function DashboardPage() {
         {stats.overdue.length > 0 && (
           <Alert
             variant="destructive"
-            className="bg-destructive/10 text-destructive border-destructive/20"
+            className="bg-destructive/10 text-destructive border-destructive/20 cursor-pointer hover:bg-destructive/20 transition-colors"
+            onClick={() => navigate(`/${passkey}/financeiro/contas-pagar`)}
           >
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Alerta Financeiro</AlertTitle>
             <AlertDescription>
-              Existem {stats.overdue.length} contas a pagar vencidas.
+              Existem {stats.overdue.length} contas a pagar vencidas. Clique para visualizar.
             </AlertDescription>
           </Alert>
         )}
         {stats.lowStock.length > 0 && (
-          <Alert className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+          <Alert
+            className="bg-amber-500/10 text-amber-600 border-amber-500/20 cursor-pointer hover:bg-amber-500/20 transition-colors"
+            onClick={() => navigate(`/${passkey}/estoque?filter=low_stock`)}
+          >
             <Package className="h-4 w-4" />
             <AlertTitle>Alerta de Estoque</AlertTitle>
             <AlertDescription>
-              {stats.lowStock.length} produtos estão com estoque baixo ou zerado.
+              {stats.lowStock.length} produtos estão com estoque baixo ou zerado. Clique para
+              visualizar.
             </AlertDescription>
           </Alert>
         )}

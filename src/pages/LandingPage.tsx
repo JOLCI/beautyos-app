@@ -60,8 +60,9 @@ export default function LandingPage() {
   // if they are already logged in.
   if (authLoading || user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground animate-pulse text-sm">Carregando sua sessão...</p>
       </div>
     )
   }
