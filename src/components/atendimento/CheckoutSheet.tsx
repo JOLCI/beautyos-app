@@ -104,9 +104,12 @@ export function CheckoutSheet({
     const finStatus = isImmediate ? 'paid' : 'pending'
     const settledAt = isImmediate ? now : null
 
-    let finalDesc = `Checkout PDV - ${items.length} itens`
+    const clientName = activeClient?.name || 'Cliente Avulso'
+    const finalDesc = `(${methodUsed}) - ${clientName} (AUTOMATICO)`
+
+    let notes = `Checkout PDV - ${items.length} itens`
     if (methodUsed === 'CREDITO' && Number(installments) > 1) {
-      finalDesc += ` (${installments}x)`
+      notes += ` (Parcelado em ${installments}x)`
     }
 
     const { data: tx } = await supabase
@@ -126,18 +129,18 @@ export function CheckoutSheet({
       .select()
       .single()
 
-    // Always create a financial_accounts record to accurately track receivables (paid or pending)
     await supabase.from('financial_accounts').insert([
       {
         company_id: company?.id,
         type: 'receivable',
         origin: 'pdv',
-        description: `Recebível Automático (${methodUsed}) - ${activeClient?.name || 'Cliente Avulso'}`,
+        description: finalDesc,
         amount: finalTotal,
         due_date: isImmediate ? now.split('T')[0] : dueDate,
         settled_at: settledAt,
         transaction_id: tx?.id,
         status: finStatus,
+        notes: notes,
       },
     ])
 

@@ -11,6 +11,8 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
+          canceled_by_client: boolean | null
+          cancellation_reason: string | null
           client_id: string | null
           company_id: string | null
           created_at: string
@@ -25,6 +27,8 @@ export type Database = {
           status: string
         }
         Insert: {
+          canceled_by_client?: boolean | null
+          cancellation_reason?: string | null
           client_id?: string | null
           company_id?: string | null
           created_at?: string
@@ -39,6 +43,8 @@ export type Database = {
           status?: string
         }
         Update: {
+          canceled_by_client?: boolean | null
+          cancellation_reason?: string | null
           client_id?: string | null
           company_id?: string | null
           created_at?: string
@@ -1034,6 +1040,8 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 //   service_ids: _uuid (nullable, default: '{}'::uuid[])
 //   duration_minutes: integer (nullable, default: 0)
+//   cancellation_reason: text (nullable)
+//   canceled_by_client: boolean (nullable, default: false)
 // Table: client_custom_prices
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
