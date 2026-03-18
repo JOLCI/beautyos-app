@@ -6,7 +6,18 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  return new Response(JSON.stringify({ message: 'Hello from functions!' }), {
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
-  })
+  try {
+    return new Response(JSON.stringify({ message: 'Functions endpoint active' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      },
+    )
+  }
 })
