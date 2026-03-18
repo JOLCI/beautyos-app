@@ -1,38 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Flower, Loader2 } from 'lucide-react'
+import { Flower } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { useAuth } from '@/hooks/use-auth'
 
 export default function LandingPage() {
   const [passkey, setPasskey] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const { user, profile, loading: authLoading } = useAuth()
-
-  useEffect(() => {
-    let mounted = true
-    if (!authLoading && user && profile) {
-      const fetchCompany = async () => {
-        let q = supabase.from('companies').select('passkey')
-        if (profile.role !== 'root') {
-          q = q.eq('id', profile.company_id)
-        }
-        const { data } = await q.limit(1).maybeSingle()
-        if (mounted && data?.passkey) {
-          navigate(`/${data.passkey}/dashboard`, { replace: true })
-        }
-      }
-      fetchCompany()
-    }
-    return () => {
-      mounted = false
-    }
-  }, [user, profile, authLoading, navigate])
 
   const handleAccess = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,17 +32,6 @@ export default function LandingPage() {
     } else {
       navigate(`/${data.passkey}/login`)
     }
-  }
-
-  // Prevents unauthenticated users from seeing the landing page shortly before redirection
-  // if they are already logged in.
-  if (authLoading || user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground animate-pulse text-sm">Carregando sua sessão...</p>
-      </div>
-    )
   }
 
   return (

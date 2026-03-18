@@ -61,9 +61,22 @@ export function formatTransactionLabel(record: any, clientNameOverride?: string)
 
   let clientName = ''
 
-  if (clientNameOverride && clientNameOverride.trim() !== '') {
-    clientName = clientNameOverride
-  } else if (parsed.isStandard) {
+  // Attempt to find a joined client name if override wasn't explicitly passed
+  let actualClientNameOverride = clientNameOverride
+  if (!actualClientNameOverride && record?.clients) {
+    actualClientNameOverride = Array.isArray(record.clients)
+      ? record.clients[0]?.name
+      : record.clients?.name
+  }
+
+  if (actualClientNameOverride && actualClientNameOverride.trim() !== '') {
+    clientName = actualClientNameOverride
+  } else if (
+    parsed.isStandard &&
+    parsed.clientName &&
+    !parsed.clientName.toLowerCase().includes('não identificado') &&
+    !parsed.clientName.toLowerCase().includes('nao identificado')
+  ) {
     clientName = parsed.clientName
   } else if (
     desc &&

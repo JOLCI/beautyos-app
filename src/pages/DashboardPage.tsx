@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   DollarSign,
@@ -8,12 +8,9 @@ import {
   TrendingUp,
   Calendar,
   AlertTriangle,
-  Clock,
   Package,
 } from 'lucide-react'
 import {
-  Bar,
-  BarChart,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -24,10 +21,15 @@ import {
 } from 'recharts'
 import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@/hooks/use-query'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { passkey } = useParams()
+  const { profile } = useAuth()
+
+  const isAdminOrRoot = profile?.role === 'admin' || profile?.role === 'root'
+
   const { data: transactions } = useQuery<any>('transactions', { match: { status: 'completed' } })
   const { data: payables } = useQuery<any>('financial_accounts', {
     match: { type: 'payable', status: 'pending' },
@@ -35,7 +37,6 @@ export default function DashboardPage() {
   const { data: appointments } = useQuery<any>('appointments')
   const { data: clients } = useQuery<any>('clients')
   const { data: inventory } = useQuery<any>('inventory')
-  const { data: products } = useQuery<any>('services', { match: { type: 'product' } })
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]
@@ -72,11 +73,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {stats.overdue.length > 0 && (
+        {stats.overdue.length > 0 && isAdminOrRoot && (
           <Alert
             variant="destructive"
             className="bg-destructive/10 text-destructive border-destructive/20 cursor-pointer hover:bg-destructive/20 transition-colors"
-            onClick={() => navigate(`/${passkey}/financeiro/contas-pagar`)}
+            onClick={() => navigate(`/${passkey}/financeiro/contas-pagar?filter=overdue`)}
           >
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Alerta Financeiro</AlertTitle>
@@ -101,7 +102,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm">
+        <Card
+          className={`shadow-sm transition-colors ${isAdminOrRoot ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+          onClick={() => isAdminOrRoot && navigate(`/${passkey}/financeiro/relatorios`)}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Saldo Atual</CardTitle>
             <DollarSign className="h-4 w-4 text-primary" />
@@ -110,7 +114,10 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold">R$ {stats.saldo.toFixed(2)}</div>
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
+        <Card
+          className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => navigate(`/${passkey}/financeiro/caixa`)}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Receita Hoje</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
@@ -119,7 +126,12 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold">R$ {stats.entradasHoje.toFixed(2)}</div>
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
+        <Card
+          className={`shadow-sm transition-colors ${isAdminOrRoot ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+          onClick={() =>
+            isAdminOrRoot && navigate(`/${passkey}/financeiro/contas-pagar?filter=overdue`)
+          }
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Contas Vencidas</CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
@@ -128,7 +140,10 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-destructive">{stats.overdue.length}</div>
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
+        <Card
+          className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => navigate(`/${passkey}/agenda`)}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
             <Calendar className="h-4 w-4 text-blue-500" />

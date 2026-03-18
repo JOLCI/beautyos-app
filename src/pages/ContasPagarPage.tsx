@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@/hooks/use-query'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -14,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Undo2, CheckCircle2, Plus, Edit2, Trash2 } from 'lucide-react'
+import { Undo2, CheckCircle2, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -25,6 +26,9 @@ export default function ContasPagarPage() {
   const { data: payables, refetch } = useQuery<any>('financial_accounts', {
     match: { type: 'payable' },
   })
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filterParam = searchParams.get('filter')
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
@@ -116,6 +120,13 @@ export default function ContasPagarPage() {
     refetch()
   }
 
+  const filteredPayables = payables.filter((p) => {
+    if (filterParam === 'overdue') {
+      return p.status === 'pending' && new Date(p.due_date) < new Date()
+    }
+    return true
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -124,6 +135,24 @@ export default function ContasPagarPage() {
           <Plus className="w-4 h-4 mr-2" /> Novo Registro
         </Button>
       </div>
+
+      {filterParam === 'overdue' && (
+        <div className="flex justify-between items-center bg-destructive/10 text-destructive p-3 rounded-lg border border-destructive/20 mb-4 animate-in fade-in zoom-in-95">
+          <div className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="w-4 h-4" />
+            Exibindo apenas contas vencidas.
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSearchParams({})}
+            className="bg-transparent border-destructive/50 hover:bg-destructive/20 text-destructive"
+          >
+            Limpar Filtro
+          </Button>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -138,7 +167,7 @@ export default function ContasPagarPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payables.map((p) => (
+              {filteredPayables.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.description}</TableCell>
                   <TableCell className="uppercase text-xs text-muted-foreground">
@@ -189,6 +218,13 @@ export default function ContasPagarPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredPayables.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Nenhum registro encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -7,19 +7,10 @@ interface FinancialDescriptionProps {
 }
 
 export function FinancialDescription({ record, description }: FinancialDescriptionProps) {
-  let clientNameOverride = undefined
-  if (record?.clients) {
-    clientNameOverride = Array.isArray(record.clients)
-      ? record.clients[0]?.name
-      : record.clients.name
-  }
+  // formatTransactionLabel implicitly handles resolving record.clients if present
+  const descToParse = record ? formatTransactionLabel(record) : description || ''
 
-  // Backwards compatibility if only description is passed, but prefers record
-  const descToParse = record
-    ? formatTransactionLabel(record, clientNameOverride)
-    : description || ''
-
-  const { isStandard, clientName, origin } = parseFinancialDescription(descToParse)
+  const { isStandard, clientName, origin, method } = parseFinancialDescription(descToParse)
 
   if (!isStandard) {
     return (
@@ -33,11 +24,11 @@ export function FinancialDescription({ record, description }: FinancialDescripti
     <div className="flex items-center gap-2" title={descToParse}>
       <span className="truncate font-medium max-w-[160px]">{clientName}</span>
       {origin === 'A' ? (
-        <div className="bg-blue-100 p-1 rounded-md" title="Origem Automática (PDV)">
+        <div className="bg-blue-100 p-1 rounded-md" title={`Origem Automática (PDV) - ${method}`}>
           <Bot className="w-3.5 h-3.5 text-blue-600 shrink-0" />
         </div>
       ) : (
-        <div className="bg-orange-100 p-1 rounded-md" title="Origem Manual">
+        <div className="bg-orange-100 p-1 rounded-md" title={`Lançamento Manual - ${method}`}>
           <UserIcon className="w-3.5 h-3.5 text-orange-600 shrink-0" />
         </div>
       )}

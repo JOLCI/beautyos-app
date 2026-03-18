@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 import { AuthProvider } from '@/hooks/use-auth'
 import { PasskeyProvider } from '@/contexts/PasskeyContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { PublicRoute } from '@/components/PublicRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
 
 import LandingPage from './pages/LandingPage'
@@ -38,7 +39,14 @@ const App = () => (
           <ShadcnToaster />
           <Sonner position="bottom-right" richColors duration={4000} />
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <LandingPage />
+                </PublicRoute>
+              }
+            />
             <Route
               path="/:passkey"
               element={
@@ -47,7 +55,14 @@ const App = () => (
                 </PasskeyProvider>
               }
             >
-              <Route path="login" element={<LoginPage />} />
+              <Route
+                path="login"
+                element={
+                  <PublicRoute>
+                    <LoginPage />
+                  </PublicRoute>
+                }
+              />
               <Route
                 element={
                   <ProtectedRoute>
