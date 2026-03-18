@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CheckCircle2, QrCode, Loader2, Copy, MessageSquare } from 'lucide-react'
+import { CheckCircle2, QrCode, Loader2, Copy, MessageSquare, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
@@ -34,7 +34,7 @@ export function CheckoutSheet({
   const { data: gateways } = useQuery<any>('pix_gateways', { match: { is_active: true } })
 
   const [clientId, setClientId] = useState('')
-  const [method, setMethod] = useState('pix')
+  const [method, setMethod] = useState('PIX')
   const [discount, setDiscount] = useState('0')
 
   const [installments, setInstallments] = useState('1')
@@ -99,11 +99,13 @@ export function CheckoutSheet({
 
   const finalizeTransaction = async (methodUsed: string, isPending: boolean) => {
     const now = new Date().toISOString()
-    const isImmediate = ['cash', 'debit', 'pix', 'pix_simples'].includes(methodUsed)
+    const isImmediate = ['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO'].includes(methodUsed)
+    const txStatus = isImmediate ? 'completed' : 'pending'
+    const finStatus = isImmediate ? 'paid' : 'pending'
     const settledAt = isImmediate ? now : null
 
     let finalDesc = `Checkout PDV - ${items.length} itens`
-    if (methodUsed === 'credit' && Number(installments) > 1) {
+    if (methodUsed === 'CREDITO' && Number(installments) > 1) {
       finalDesc += ` (${installments}x)`
     }
 
@@ -116,7 +118,7 @@ export function CheckoutSheet({
           amount: finalTotal,
           description: finalDesc,
           payment_method: methodUsed,
-          status: isPending ? 'pending' : 'completed',
+          status: txStatus,
           user_id: profile?.id,
           settled_at: settledAt,
         },
@@ -124,20 +126,20 @@ export function CheckoutSheet({
       .select()
       .single()
 
-    if (isPending) {
-      await supabase.from('financial_accounts').insert([
-        {
-          company_id: company?.id,
-          type: 'receivable',
-          origin: 'pdv',
-          description: `Recebível Automático (${methodUsed.toUpperCase()}) - ${activeClient?.name || 'Cliente Avulso'}`,
-          amount: finalTotal,
-          due_date: dueDate,
-          transaction_id: tx?.id,
-          status: 'pending',
-        },
-      ])
-    }
+    // Always create a financial_accounts record to accurately track receivables (paid or pending)
+    await supabase.from('financial_accounts').insert([
+      {
+        company_id: company?.id,
+        type: 'receivable',
+        origin: 'pdv',
+        description: `Recebível Automático (${methodUsed}) - ${activeClient?.name || 'Cliente Avulso'}`,
+        amount: finalTotal,
+        due_date: isImmediate ? now.split('T')[0] : dueDate,
+        settled_at: settledAt,
+        transaction_id: tx?.id,
+        status: finStatus,
+      },
+    ])
 
     if (appointmentId) {
       await supabase.from('appointments').update({ status: 'finalizado' }).eq('id', appointmentId)
@@ -154,9 +156,9 @@ export function CheckoutSheet({
     if (onComplete) onComplete()
   }
 
-  const handleFinish = async () => {
+  const handleFinish = async (forceManual = false) => {
     setStatus('waiting')
-    if (method === 'pix') {
+    if (method === 'PIX' && !forceManual) {
       const { data } = await supabase.functions.invoke('generate-pix', {
         body: { amount: finalTotal },
       })
@@ -168,17 +170,17 @@ export function CheckoutSheet({
           })
           if (checkData?.status === 'paid') await finalizeTransaction(method, false)
           else {
-            toast.error('PIX não confirmado pelo gateway')
+            toast.error('PIX não confirmado automaticamente pelo gateway.')
             setStatus('idle')
             setPixPayload('')
           }
         }, 3000)
       } else {
-        toast.error('Erro ao gerar PIX')
+        toast.error('Erro ao gerar PIX dinâmico.')
         setStatus('idle')
       }
     } else {
-      await finalizeTransaction(method, method === 'pix_agendado' || method === 'convenio')
+      await finalizeTransaction(method, method === 'PIX AGENDADO' || method === 'CONVENIO')
     }
   }
 
@@ -186,22 +188,11 @@ export function CheckoutSheet({
     if (!activeClient?.phone) return toast.error('Selecione um cliente com telefone cadastrado.')
     setSendingWa(true)
 
-    const { data: tpls } = await supabase
-      .from('whatsapp_templates')
-      .select('*')
-      .eq('template_key', 'pix_simples')
-      .eq('company_id', company?.id)
-      .maybeSingle()
-
-    let msg =
-      tpls?.body ||
-      `Olá [NOME_CLIENTE], o valor do seu atendimento é R$ [VALOR]. Nossa chave PIX é: [CHAVE_PIX]. Por favor envie o comprovante.`
+    let msg = `Olá [NOME_CLIENTE], o valor do seu atendimento é R$ [VALOR]. Nossa chave PIX é: [CHAVE_PIX]. Por favor envie o comprovante.`
 
     msg = msg.replace(/\[NOME_CLIENTE\]/g, activeClient.name)
     msg = msg.replace(/\[VALOR\]/g, finalTotal.toFixed(2))
     msg = msg.replace(/\[CHAVE_PIX\]/g, gateways?.[0]?.pix_key || 'não cadastrada')
-    msg = msg.replace(/\[DATA_HORA\]/g, new Date().toLocaleString())
-    msg = msg.replace(/\[DATA\]/g, new Date().toLocaleDateString())
 
     await supabase.functions.invoke('send-whatsapp', {
       body: { to: activeClient.phone, message: msg },
@@ -223,13 +214,13 @@ export function CheckoutSheet({
             <CheckCircle2 className="w-16 h-16 text-green-600 mb-4 animate-in zoom-in" />
             <h3 className="text-2xl font-bold">Transação Finalizada!</h3>
             <p className="text-muted-foreground mt-2">
-              Os registros foram atualizados com sucesso.
+              Os registros financeiros foram atualizados com sucesso.
             </p>
             <Button className="mt-8 rounded-full px-8" onClick={() => onOpenChange(false)}>
               Concluir e Voltar
             </Button>
           </div>
-        ) : status === 'waiting' && method === 'pix' && pixPayload ? (
+        ) : status === 'waiting' && method === 'PIX' && pixPayload ? (
           <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6">
             <h3 className="text-xl font-bold">Aguardando Pagamento PIX</h3>
             <div className="p-4 bg-white rounded-xl shadow-sm border">
@@ -239,6 +230,13 @@ export function CheckoutSheet({
               {pixPayload}
               <Copy className="w-4 h-4 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
+            <Button
+              variant="outline"
+              onClick={() => handleFinish(true)}
+              className="mt-4 text-muted-foreground"
+            >
+              <AlertCircle className="w-4 h-4 mr-2" /> Forçar Conclusão (Pago Manualmente)
+            </Button>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -301,13 +299,12 @@ export function CheckoutSheet({
 
             <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-3 gap-3">
               {[
-                { id: 'pix', l: 'PIX Auto' },
-                { id: 'pix_simples', l: 'PIX Simples' },
-                { id: 'credit', l: 'Crédito' },
-                { id: 'debit', l: 'Débito' },
-                { id: 'cash', l: 'Dinheiro' },
-                { id: 'pix_agendado', l: 'Agendado' },
-                { id: 'convenio', l: 'Convênio' },
+                { id: 'PIX', l: 'PIX' },
+                { id: 'PIX AGENDADO', l: 'PIX AGENDADO' },
+                { id: 'DINHEIRO', l: 'DINHEIRO' },
+                { id: 'DEBITO', l: 'DÉBITO' },
+                { id: 'CREDITO', l: 'CRÉDITO' },
+                { id: 'CONVENIO', l: 'CONVÊNIO' },
               ].map((o) => (
                 <div
                   key={o.id}
@@ -318,14 +315,14 @@ export function CheckoutSheet({
                   )}
                 >
                   <RadioGroupItem value={o.id} id={o.id} className="sr-only" />
-                  <Label className="cursor-pointer font-medium text-xs text-center leading-tight">
+                  <Label className="cursor-pointer font-bold text-[11px] sm:text-xs text-center leading-tight">
                     {o.l}
                   </Label>
                 </div>
               ))}
             </RadioGroup>
 
-            {method === 'credit' && (
+            {method === 'CREDITO' && (
               <div className="space-y-2 p-4 border rounded-xl bg-muted/20 animate-fade-in mt-3">
                 <Label>Número de Parcelas</Label>
                 <Input
@@ -336,24 +333,24 @@ export function CheckoutSheet({
                 />
               </div>
             )}
-            {(method === 'pix_agendado' || method === 'convenio') && (
+            {(method === 'PIX AGENDADO' || method === 'CONVENIO') && (
               <div className="space-y-2 p-4 border rounded-xl bg-muted/20 animate-fade-in mt-3">
                 <Label>Data de Vencimento</Label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
             )}
 
-            {method === 'pix_simples' && (
-              <div className="space-y-3 p-5 border rounded-xl bg-primary/5 text-center animate-fade-in">
+            {method === 'PIX' && (
+              <div className="space-y-3 p-4 border rounded-xl bg-primary/5 text-center animate-fade-in mt-3">
                 <Label className="text-primary font-semibold text-xs uppercase tracking-wider">
-                  Chave PIX da Empresa
+                  Chave PIX Manual
                 </Label>
-                <div className="font-mono font-bold text-xl select-all bg-background py-2 rounded border">
+                <div className="font-mono font-bold text-sm sm:text-base select-all bg-background py-2 rounded border">
                   {gateways?.[0]?.pix_key || 'Não cadastrada'}
                 </div>
                 <Button
                   variant="outline"
-                  className="w-full bg-white"
+                  className="w-full bg-white h-10"
                   onClick={handleSendWhatsAppPix}
                   disabled={sendingWa}
                 >
@@ -362,21 +359,25 @@ export function CheckoutSheet({
                   ) : (
                     <MessageSquare className="w-4 h-4 mr-2 text-green-600" />
                   )}
-                  Enviar Cobrança por WhatsApp
+                  Enviar Chave por WhatsApp
                 </Button>
-                <p className="text-[10px] text-muted-foreground mt-2">
-                  Valide o recebimento no app do seu banco.
-                </p>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleFinish(true)}
+                  className="w-full h-8 text-xs text-muted-foreground mt-2"
+                >
+                  Pular Gateway e Concluir Venda
+                </Button>
               </div>
             )}
 
             <Button
-              onClick={handleFinish}
+              onClick={() => handleFinish(false)}
               disabled={status === 'waiting'}
-              className="w-full h-14 text-lg rounded-full shadow-elevation"
+              className="w-full h-14 text-lg rounded-full shadow-elevation mt-4"
             >
-              {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}{' '}
-              Finalizar Atendimento
+              {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+              {method === 'PIX' ? 'Gerar PIX Automático' : 'Finalizar Atendimento'}
             </Button>
           </div>
         )}

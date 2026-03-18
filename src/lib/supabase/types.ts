@@ -784,6 +784,7 @@ export type Database = {
           id: string
           payment_method: string | null
           ref_id: string | null
+          settled_at: string | null
           status: string
           type: string
           user_id: string | null
@@ -796,6 +797,7 @@ export type Database = {
           id?: string
           payment_method?: string | null
           ref_id?: string | null
+          settled_at?: string | null
           status?: string
           type: string
           user_id?: string | null
@@ -808,6 +810,7 @@ export type Database = {
           id?: string
           payment_method?: string | null
           ref_id?: string | null
+          settled_at?: string | null
           status?: string
           type?: string
           user_id?: string | null
@@ -1182,6 +1185,7 @@ export const Constants = {
 //   ref_id: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   user_id: uuid (nullable)
+//   settled_at: timestamp with time zone (nullable)
 // Table: whatsapp_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)

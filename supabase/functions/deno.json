@@ -10,7 +10,7 @@
     "delete-user": 1,
     "test-pix": 1,
     "whatsapp-generate-qr": 3,
-    "whatsapp-check-status": 2,
+    "whatsapp-check-status": 3,
     "functions": 2,
     "cron-triggers": 1
   }

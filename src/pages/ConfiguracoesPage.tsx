@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import { applyTheme } from '@/lib/colorUtils'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { useAuth } from '@/hooks/use-auth'
 import { useQuery } from '@/hooks/use-query'
 import {
   Save,
@@ -42,16 +43,40 @@ import {
 
 export default function ConfiguracoesPage() {
   const { company } = usePasskey()
+  const { profile } = useAuth()
   const { data: pixGateways, refetch: refetchPix } = useQuery<any>('pix_gateways')
   const { data: waTemplates, refetch: refetchWa } = useQuery<any>('whatsapp_templates')
 
-  const [primaryColor, setPrimaryColor] = useState(company?.primary_color || '#e11d48')
-  const [secondaryColor, setSecondaryColor] = useState(company?.secondary_color || '#ffffff')
-  const [name, setName] = useState(company?.name || '')
-  const [settings, setSettings] = useState<any>(company?.settings || {})
+  const [primaryColor, setPrimaryColor] = useState('#e11d48')
+  const [secondaryColor, setSecondaryColor] = useState('#ffffff')
+  const [name, setName] = useState('')
+  const [passkey, setPasskey] = useState('')
+  const [settings, setSettings] = useState<any>({})
 
   const [waStatus, setWaStatus] = useState<'disconnected' | 'waiting' | 'connected'>('disconnected')
   const [waQrCode, setWaQrCode] = useState('')
+
+  useEffect(() => {
+    if (company) {
+      setPrimaryColor(company.primary_color || '#e11d48')
+      setSecondaryColor(company.secondary_color || '#ffffff')
+      setName(company.name || '')
+      setPasskey(company.passkey || '')
+      setSettings(company.settings || {})
+    }
+  }, [company])
+
+  useEffect(() => {
+    const checkWaStatus = async () => {
+      try {
+        const { data } = await supabase.functions.invoke('whatsapp-check-status')
+        if (data?.status === 'connected') {
+          setWaStatus('connected')
+        }
+      } catch (e) {}
+    }
+    checkWaStatus()
+  }, [])
 
   const [pixForm, setPixForm] = useState({
     name: '',
@@ -67,10 +92,19 @@ export default function ConfiguracoesPage() {
   const saveSettings = async () => {
     if (!company) return
     applyTheme(primaryColor, secondaryColor)
-    await supabase
-      .from('companies')
-      .update({ name, primary_color: primaryColor, secondary_color: secondaryColor, settings })
-      .eq('id', company.id)
+
+    const payload: any = {
+      name,
+      primary_color: primaryColor,
+      secondary_color: secondaryColor,
+      settings,
+    }
+
+    if (profile?.role === 'root') {
+      payload.passkey = passkey.toUpperCase().replace(/\s+/g, '')
+    }
+
+    await supabase.from('companies').update(payload).eq('id', company.id)
     toast.success('Configurações salvas')
   }
 
@@ -152,7 +186,21 @@ export default function ConfiguracoesPage() {
                     onChange={(e) => updateSetting('cnpj', e.target.value)}
                   />
                 </div>
-                <Button onClick={saveSettings} className="w-full sm:w-auto">
+                <div className="space-y-2">
+                  <Label>Passkey de Acesso</Label>
+                  <Input
+                    value={passkey}
+                    onChange={(e) => setPasskey(e.target.value)}
+                    disabled={profile?.role !== 'root'}
+                    className="font-mono uppercase"
+                  />
+                  {profile?.role !== 'root' && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Apenas administradores globais (root) podem alterar a chave de acesso.
+                    </p>
+                  )}
+                </div>
+                <Button onClick={saveSettings} className="w-full sm:w-auto mt-4">
                   <Save className="w-4 h-4 mr-2" /> Salvar
                 </Button>
               </CardContent>
@@ -398,7 +446,6 @@ export default function ConfiguracoesPage() {
                         <SelectItem value="cobranca_pix_agendado">
                           Cobrança (Vencimento PIX)
                         </SelectItem>
-                        <SelectItem value="pix_simples">PIX Simples (Manual via Caixa)</SelectItem>
                         <SelectItem value="pos_atendimento">Pós-Atendimento / Avaliação</SelectItem>
                         <SelectItem value="aniversario">Aniversário (08:00 AM)</SelectItem>
                       </SelectContent>

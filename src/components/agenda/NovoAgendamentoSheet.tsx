@@ -142,15 +142,17 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     return false
   }
 
-  const handleSave = async () => {
-    if (checkConflicts()) {
-      if (
-        !confirm(
-          'Já existe um agendamento nessa data/horário para este profissional. Deseja prosseguir?',
-        )
-      ) {
-        return
-      }
+  const handleSave = async (forceSave = false) => {
+    if (!forceSave && checkConflicts()) {
+      toast('Conflito de Horário', {
+        description: 'Já existe um agendamento nessa data/horário para este profissional.',
+        action: {
+          label: 'Confirmar mesmo assim',
+          onClick: () => handleSave(true),
+        },
+        duration: 8000,
+      })
+      return
     }
 
     setSaving(true)
@@ -178,7 +180,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     }
 
     setSaving(false)
-    if (err) return toast.error('Erro ao salvar')
+    if (err) return toast.error('Erro ao salvar agendamento')
 
     toast.success(appointment ? 'Agendamento Atualizado' : 'Horário Reservado')
     supabase.functions.invoke('google-calendar-sync')
@@ -321,7 +323,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
         </div>
         <SheetFooter className="mt-8 flex flex-col gap-2 sm:flex-col">
           <Button
-            onClick={handleSave}
+            onClick={() => handleSave(false)}
             disabled={!clientId || selectedServices.length === 0 || !profId || saving}
             className="w-full"
           >

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@/hooks/use-query'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -30,6 +30,29 @@ export default function CaixaPage() {
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
   const [inlineEditing, setInlineEditing] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ description: '', amount: '' })
+
+  useEffect(() => {
+    if (!company?.id) return
+    const channel = supabase
+      .channel('realtime_transactions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transactions',
+          filter: `company_id=eq.${company.id}`,
+        },
+        () => {
+          refetch()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [company?.id, refetch])
 
   const filtered = useMemo(() => {
     return txs.filter((t: any) => {
@@ -72,7 +95,6 @@ export default function CaixaPage() {
     ])
     await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', t.id)
     toast.success('Estorno realizado e auditado')
-    refetch()
   }
 
   const canEdit = (t: any) => {
@@ -98,7 +120,6 @@ export default function CaixaPage() {
       .eq('id', t.id)
     toast.success('Lançamento atualizado e auditado')
     setInlineEditing(null)
-    refetch()
   }
 
   const isAdminOrRoot = profile?.role === 'admin' || profile?.role === 'root'
@@ -108,7 +129,7 @@ export default function CaixaPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Caixa Diário</h1>
-          <p className="text-muted-foreground">Edição inline e auditoria avançada.</p>
+          <p className="text-muted-foreground">Edição inline e auditoria avançada em tempo real.</p>
         </div>
         <div className="flex items-center gap-2">
           <Input
