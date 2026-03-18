@@ -102,10 +102,8 @@ export default function CaixaPage() {
 
     const label = formatTransactionLabel(t, t.clients?.name)
     const parsed = parseFinancialDescription(label)
-    const estornoName = parsed.isStandard
-      ? `Estorno: ${parsed.clientName}`
-      : `Estorno: ${t.description}`
-    const method = parsed.isStandard ? parsed.method : t.payment_method || 'OUTROS'
+    const estornoName = `Estorno: ${parsed.clientName}`
+    const method = parsed.method
     const desc = formatFinancialDescription(method, estornoName, false)
 
     await supabase.from('transactions').insert([
@@ -137,9 +135,9 @@ export default function CaixaPage() {
     const parsed = parseFinancialDescription(label)
     setInlineEditing(t.id)
     setEditForm({
-      clientName: parsed.isStandard ? parsed.clientName : t.description,
-      method: parsed.isStandard ? parsed.method : t.payment_method || 'OUTROS',
-      origin: parsed.isStandard ? parsed.origin : 'M',
+      clientName: parsed.clientName === 'Cliente Não Identificado' ? '' : parsed.clientName,
+      method: parsed.method,
+      origin: parsed.origin,
       amount: t.amount.toString(),
     })
   }
@@ -147,7 +145,7 @@ export default function CaixaPage() {
   const saveInlineEdit = async (t: any) => {
     const newDesc = formatFinancialDescription(
       editForm.method,
-      editForm.clientName,
+      editForm.clientName || 'Cliente Não Identificado',
       editForm.origin === 'A',
     )
     await supabase
@@ -224,7 +222,7 @@ export default function CaixaPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Hora</TableHead>
-                  <TableHead>Descrição do Cliente</TableHead>
+                  <TableHead>Descrição / Cliente</TableHead>
                   <TableHead>Método</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>

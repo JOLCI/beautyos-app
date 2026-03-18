@@ -28,7 +28,7 @@ export function parseFinancialDescription(desc: string) {
     const origin = originStr.startsWith('A') ? 'A' : 'M'
     return {
       method: match[1],
-      clientName: match[2],
+      clientName: match[2].trim(),
       origin: origin as 'A' | 'M',
       isStandard: true,
     }
@@ -36,7 +36,7 @@ export function parseFinancialDescription(desc: string) {
 
   return {
     method: '',
-    clientName: desc || '',
+    clientName: desc?.trim() || '',
     origin: 'M' as const,
     isStandard: false,
   }
@@ -59,12 +59,23 @@ export function formatTransactionLabel(record: any, clientNameOverride?: string)
 
   const method = parsed.isStandard ? parsed.method : record.payment_method || 'OUTROS'
 
-  let clientName = parsed.isStandard ? parsed.clientName : desc
+  let clientName = ''
 
   if (clientNameOverride) {
     clientName = clientNameOverride
+  } else if (parsed.isStandard) {
+    clientName = parsed.clientName
   } else if (
-    clientName === '' ||
+    desc &&
+    !desc.toLowerCase().includes('não identificado') &&
+    !desc.toLowerCase().includes('nao identificado')
+  ) {
+    clientName = desc
+  }
+
+  if (
+    !clientName ||
+    clientName.trim() === '' ||
     clientName.toLowerCase().includes('não identificado') ||
     clientName.toLowerCase().includes('nao identificado')
   ) {

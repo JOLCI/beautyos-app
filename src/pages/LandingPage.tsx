@@ -16,13 +16,13 @@ export default function LandingPage() {
 
   useEffect(() => {
     let mounted = true
-    if (!authLoading && user && profile?.company_id) {
+    if (!authLoading && user && profile) {
       const fetchCompany = async () => {
-        const { data } = await supabase
-          .from('companies')
-          .select('passkey')
-          .eq('id', profile.company_id)
-          .single()
+        let q = supabase.from('companies').select('passkey')
+        if (profile.role !== 'root') {
+          q = q.eq('id', profile.company_id)
+        }
+        const { data } = await q.limit(1).maybeSingle()
         if (mounted && data?.passkey) {
           navigate(`/${data.passkey}/dashboard`, { replace: true })
         }
