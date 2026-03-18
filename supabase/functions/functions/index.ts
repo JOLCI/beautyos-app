@@ -6,14 +6,7 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  return new Response(
-    JSON.stringify({
-      success: true,
-      message: 'Placeholder function to resolve missing entrypoint error',
-    }),
-    {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 200,
-    },
-  )
+  return new Response(JSON.stringify({ message: 'Hello from functions!' }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  })
 })

@@ -3,7 +3,7 @@
     "test-whatsapp": 1,
     "generate-pix": 2,
     "check-pix-status": 2,
-    "send-whatsapp": 6,
+    "send-whatsapp": 7,
     "create-user": 1,
     "google-calendar-sync": 4,
     "save-integration-secrets": 4,
@@ -11,7 +11,7 @@
     "test-pix": 1,
     "whatsapp-generate-qr": 3,
     "whatsapp-check-status": 2,
-    "functions": 1,
+    "functions": 2,
     "cron-triggers": 1
   }
 }
