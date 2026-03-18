@@ -73,7 +73,9 @@ export default function ConfiguracoesPage() {
         if (data?.status === 'connected') {
           setWaStatus('connected')
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Error checking WhatsApp status:', e)
+      }
     }
     checkWaStatus()
   }, [])
