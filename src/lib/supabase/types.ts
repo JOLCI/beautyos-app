@@ -788,6 +788,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          metadata: Json | null
           payment_method: string | null
           ref_id: string | null
           settled_at: string | null
@@ -801,6 +802,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          metadata?: Json | null
           payment_method?: string | null
           ref_id?: string | null
           settled_at?: string | null
@@ -814,6 +816,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          metadata?: Json | null
           payment_method?: string | null
           ref_id?: string | null
           settled_at?: string | null
@@ -1194,6 +1197,7 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 //   user_id: uuid (nullable)
 //   settled_at: timestamp with time zone (nullable)
+//   metadata: jsonb (nullable, default: '{}'::jsonb)
 // Table: whatsapp_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)

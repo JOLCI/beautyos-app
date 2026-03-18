@@ -20,12 +20,12 @@ export function formatFinancialDescription(method: string, clientName: string, i
  * @returns Object with parsed components and whether it matches the standard format
  */
 export function parseFinancialDescription(desc: string) {
-  // Matches: (METHOD) - Client Name (A or M or AUTOMATICO or MANUAL)
-  const match = desc?.match(/^\((.*?)\) - (.*?) \((A|M|AUTOMATICO|MANUAL)\)$/)
+  // Matches both legacy and new standardized descriptions
+  const match = desc?.match(/^\((.*?)\) - (.*?) \((A|M|AUTOMATICO|MANUAL)\)$/i)
 
   if (match) {
-    const originStr = match[3]
-    const origin = originStr === 'A' || originStr === 'AUTOMATICO' ? 'A' : 'M'
+    const originStr = match[3].toUpperCase()
+    const origin = originStr.startsWith('A') ? 'A' : 'M'
     return {
       method: match[1],
       clientName: match[2],

@@ -18,15 +18,15 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[420px] w-[95vw] p-0 flex flex-col gap-0 max-h-[90vh] overflow-hidden">
+        <DialogHeader className="p-6 pb-4 border-b shrink-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Receipt className="w-5 h-5 text-primary" />
             Ticket da Transação
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 mt-2">
+        <div className="overflow-y-auto p-6 pt-4 space-y-6 flex-1 bg-background relative">
           {/* Header Info */}
           <div className="flex justify-between items-start text-sm">
             <div className="space-y-1.5">
@@ -52,15 +52,15 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
           <div className="bg-primary/5 border border-primary/10 p-4 rounded-xl space-y-3 text-sm">
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Cliente</span>
-              <span className="font-semibold text-foreground">
+              <span className="font-semibold text-foreground text-right max-w-[180px] truncate">
                 {isStandard ? clientName : 'Não Identificado'}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Profissional</span>
-              <span className="font-medium flex items-center gap-1.5">
-                <User className="w-4 h-4 text-muted-foreground" />
-                {professional?.name || 'Sistema'}
+              <span className="font-medium flex items-center gap-1.5 text-right max-w-[180px] truncate">
+                <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="truncate">{professional?.name || 'Sistema'}</span>
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -89,10 +89,12 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
               <div className="space-y-2 bg-muted/40 p-3 rounded-lg border">
                 {items.map((it: any, idx: number) => (
                   <div key={idx} className="flex justify-between text-sm">
-                    <span className="font-medium">
+                    <span className="font-medium max-w-[200px] truncate" title={it.name}>
                       {it.quantity}x {it.name}
                     </span>
-                    <span className="text-muted-foreground">R$ {it.price.toFixed(2)}</span>
+                    <span className="text-muted-foreground whitespace-nowrap">
+                      R$ {it.price.toFixed(2)}
+                    </span>
                   </div>
                 ))}
                 {discount > 0 && (
@@ -105,8 +107,8 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
             </div>
           ) : (
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/40 p-3 rounded-lg border">
-              <AlertCircle className="w-4 h-4" />
-              Sem itens detalhados associados.
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>Sem itens detalhados associados.</span>
             </div>
           )}
 
@@ -122,7 +124,7 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
             </span>
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-2">
             <Badge
               variant="outline"
               className={`gap-1.5 py-1 px-3 ${
