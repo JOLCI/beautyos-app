@@ -55,7 +55,7 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px] w-[95vw] p-0 flex flex-col gap-0 max-h-[90vh] overflow-hidden rounded-xl shadow-2xl">
+      <DialogContent className="sm:max-w-[420px] w-[95vw] p-0 flex flex-col gap-0 max-h-[90dvh] overflow-hidden rounded-xl shadow-2xl">
         <DialogHeader className="p-6 pb-4 border-b shrink-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Receipt className="w-5 h-5 text-primary" />

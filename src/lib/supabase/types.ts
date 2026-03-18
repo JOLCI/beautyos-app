@@ -334,6 +334,7 @@ export type Database = {
       financial_accounts: {
         Row: {
           amount: number
+          client_id: string | null
           company_id: string | null
           created_at: string
           description: string
@@ -349,6 +350,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          client_id?: string | null
           company_id?: string | null
           created_at?: string
           description: string
@@ -364,6 +366,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          client_id?: string | null
           company_id?: string | null
           created_at?: string
           description?: string
@@ -378,6 +381,13 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'financial_accounts_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'financial_accounts_company_id_fkey'
             columns: ['company_id']
@@ -784,6 +794,7 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
+          client_id: string | null
           company_id: string | null
           created_at: string
           description: string
@@ -798,6 +809,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          client_id?: string | null
           company_id?: string | null
           created_at?: string
           description: string
@@ -812,6 +824,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          client_id?: string | null
           company_id?: string | null
           created_at?: string
           description?: string
@@ -825,6 +838,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: 'transactions_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'transactions_company_id_fkey'
             columns: ['company_id']
@@ -1105,6 +1125,7 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 //   origin: text (nullable, default: 'manual'::text)
 //   notes: text (nullable)
+//   client_id: uuid (nullable)
 // Table: financial_audit_logs
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1198,6 +1219,7 @@ export const Constants = {
 //   user_id: uuid (nullable)
 //   settled_at: timestamp with time zone (nullable)
 //   metadata: jsonb (nullable, default: '{}'::jsonb)
+//   client_id: uuid (nullable)
 // Table: whatsapp_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1237,6 +1259,7 @@ export const Constants = {
 //   UNIQUE companies_passkey_key: UNIQUE (passkey)
 //   PRIMARY KEY companies_pkey: PRIMARY KEY (id)
 // Table: financial_accounts
+//   FOREIGN KEY financial_accounts_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
 //   FOREIGN KEY financial_accounts_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY financial_accounts_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY financial_accounts_transaction_id_fkey: FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
@@ -1273,6 +1296,7 @@ export const Constants = {
 //   FOREIGN KEY suppliers_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY suppliers_pkey: PRIMARY KEY (id)
 // Table: transactions
+//   FOREIGN KEY transactions_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
 //   FOREIGN KEY transactions_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY transactions_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY transactions_user_id_fkey: FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL
@@ -1525,5 +1549,9 @@ export const Constants = {
 //   CREATE UNIQUE INDEX client_custom_prices_client_id_service_id_key ON public.client_custom_prices USING btree (client_id, service_id)
 // Table: companies
 //   CREATE UNIQUE INDEX companies_passkey_key ON public.companies USING btree (passkey)
+// Table: financial_accounts
+//   CREATE INDEX idx_financial_accounts_client_id ON public.financial_accounts USING btree (client_id)
 // Table: profiles
 //   CREATE UNIQUE INDEX profiles_username_key ON public.profiles USING btree (username)
+// Table: transactions
+//   CREATE INDEX idx_transactions_client_id ON public.transactions USING btree (client_id)

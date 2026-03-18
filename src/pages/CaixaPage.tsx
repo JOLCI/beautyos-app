@@ -92,12 +92,20 @@ export default function CaixaPage() {
 
   const handleEstorno = async (t: any) => {
     if (!confirm('Confirmar estorno desta transação?')) return
+
+    const parsed = parseFinancialDescription(t.description)
+    const estornoName = parsed.isStandard
+      ? `Estorno: ${parsed.clientName}`
+      : `Estorno: ${t.description}`
+    const method = parsed.isStandard ? parsed.method : t.payment_method || 'OUTROS'
+    const desc = formatFinancialDescription(method, estornoName, false)
+
     await supabase.from('transactions').insert([
       {
         company_id: company?.id,
         type: t.type === 'entrada' ? 'saida' : 'entrada',
         amount: t.amount,
-        description: `Estorno: ${t.description}`,
+        description: desc,
         payment_method: t.payment_method,
         status: 'completed',
         user_id: profile?.id,
@@ -328,7 +336,33 @@ export default function CaixaPage() {
                                 <Receipt className="w-4 h-4" />
                               </Button>
                             )}
-                            {t.status === 'completed' && !t.description.startsWith('Estorno') && (
+                            {t.status === 'completed' &&
+                              !t.description.startsWith('(') &&
+                              !t.description.includes('Estorno') && (
+                                <>
+                                  {canEdit(t) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => startInlineEdit(t)}
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  {isAdminOrRoot && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-amber-600 h-8 w-8"
+                                      onClick={() => handleEstorno(t)}
+                                    >
+                                      <Undo2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                            {t.status === 'completed' && t.description.startsWith('(') && (
                               <>
                                 {canEdit(t) && (
                                   <Button

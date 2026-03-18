@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { formatFinancialDescription } from '@/lib/financial'
 
 export default function SaldoInicialPage() {
   const { company } = usePasskey()
@@ -17,13 +18,16 @@ export default function SaldoInicialPage() {
   const handleAdjust = async () => {
     if (!amount || !reason) return toast.error('Preencha os campos obrigatórios.')
 
+    const desc = formatFinancialDescription('OUTROS', `Ajuste: ${reason}`, false)
+
     await supabase.from('transactions').insert([
       {
         company_id: company?.id,
         type,
         amount: Number(amount),
-        description: `Ajuste: ${reason}`,
+        description: desc,
         status: 'completed',
+        payment_method: 'OUTROS',
       },
     ])
 

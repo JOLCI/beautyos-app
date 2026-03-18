@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,11 +6,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Flower } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function LandingPage() {
   const [passkey, setPasskey] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { user, profile, loading: authLoading } = useAuth()
+
+  useEffect(() => {
+    if (!authLoading && user && profile?.company_id) {
+      const fetchCompany = async () => {
+        const { data } = await supabase
+          .from('companies')
+          .select('passkey')
+          .eq('id', profile.company_id)
+          .single()
+        if (data?.passkey) {
+          navigate(`/${data.passkey}/dashboard`, { replace: true })
+        }
+      }
+      fetchCompany()
+    }
+  }, [user, profile, authLoading, navigate])
 
   const handleAccess = async (e: React.FormEvent) => {
     e.preventDefault()

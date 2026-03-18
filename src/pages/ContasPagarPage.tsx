@@ -18,6 +18,7 @@ import { Undo2, CheckCircle2, Plus, Edit2, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { formatFinancialDescription } from '@/lib/financial'
 
 export default function ContasPagarPage() {
   const { company } = usePasskey()
@@ -81,6 +82,7 @@ export default function ContasPagarPage() {
   }
 
   const pay = async (id: string, amount: number, desc: string) => {
+    const txDesc = formatFinancialDescription('OUTROS', `Pgto: ${desc}`, false)
     const { data: tx } = await supabase
       .from('transactions')
       .insert([
@@ -88,8 +90,9 @@ export default function ContasPagarPage() {
           company_id: company?.id,
           type: 'saida',
           amount,
-          description: `Pgto: ${desc}`,
+          description: txDesc,
           status: 'completed',
+          payment_method: 'OUTROS',
         },
       ])
       .select()

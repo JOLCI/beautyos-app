@@ -28,6 +28,7 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 import { useAuth } from '@/hooks/use-auth'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
+import { formatFinancialDescription } from '@/lib/financial'
 
 export default function RelatoriosPage() {
   const { company } = usePasskey()
@@ -84,13 +85,17 @@ export default function RelatoriosPage() {
     const pending = commissions.filter((c: any) => c.status === 'pending')
     if (pending.length === 0) return toast.info('Nenhuma comissão pendente')
     const total = pending.reduce((a: any, b: any) => a + b.amount, 0)
+
+    const desc = formatFinancialDescription('OUTROS', 'Pagamento de Comissões em Lote', false)
+
     await supabase.from('transactions').insert([
       {
         company_id: company?.id,
         type: 'saida',
         amount: total,
-        description: 'Pagamento de Comissões em Lote',
+        description: desc,
         status: 'completed',
+        payment_method: 'OUTROS',
         settled_at: new Date().toISOString(),
       },
     ])
