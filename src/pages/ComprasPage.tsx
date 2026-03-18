@@ -77,17 +77,15 @@ export default function ComprasPage() {
         .from('inventory')
         .update({ quantity: inv.quantity + Number(form.quantity) })
         .eq('id', inv.id)
-      await supabase
-        .from('inventory_movements')
-        .insert([
-          {
-            company_id: company?.id,
-            inventory_id: inv.id,
-            type: 'in',
-            quantity: Number(form.quantity),
-            reason: 'Compra de Fornecedor',
-          },
-        ])
+      await supabase.from('inventory_movements').insert([
+        {
+          company_id: company?.id,
+          inventory_id: inv.id,
+          type: 'in',
+          quantity: Number(form.quantity),
+          reason: 'Compra de Fornecedor',
+        },
+      ])
     }
 
     // Gera Título a Pagar se solicitado

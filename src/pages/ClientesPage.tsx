@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
-import { Search, UserPlus, Loader2, Edit2, Trash2 } from 'lucide-react'
+import { Search, UserPlus, Loader2, Edit2, Trash2, Camera } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -33,12 +33,14 @@ export default function ClientesPage() {
   const [search, setSearch] = useState('')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
+  const [uploading, setUploading] = useState(false)
   const [form, setForm] = useState({
     name: '',
     phone: '',
     email: '',
     birthday_day: '',
     birthday_month: '',
+    avatar_url: '',
   })
 
   const filtered = clients.filter(
@@ -54,12 +56,37 @@ export default function ClientesPage() {
         email: c.email || '',
         birthday_day: c.birthday_day?.toString() || '',
         birthday_month: c.birthday_month?.toString() || '',
+        avatar_url: c.avatar_url || '',
       })
     } else {
       setEditing(null)
-      setForm({ name: '', phone: '', email: '', birthday_day: '', birthday_month: '' })
+      setForm({
+        name: '',
+        phone: '',
+        email: '',
+        birthday_day: '',
+        birthday_month: '',
+        avatar_url: '',
+      })
     }
     setSheetOpen(true)
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `${company?.id}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('client_avatars').upload(path, file)
+    if (error) {
+      toast.error('Erro ao subir foto')
+      setUploading(false)
+      return
+    }
+    const { data: urlData } = supabase.storage.from('client_avatars').getPublicUrl(path)
+    setForm({ ...form, avatar_url: urlData.publicUrl })
+    setUploading(false)
   }
 
   const handleSave = async () => {
@@ -146,9 +173,12 @@ export default function ClientesPage() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
+                        <Avatar className="h-9 w-9 border">
                           <AvatarImage
-                            src={`https://img.usecurling.com/ppl/thumbnail?seed=${c.id}`}
+                            src={
+                              c.avatar_url ||
+                              `https://img.usecurling.com/ppl/thumbnail?seed=${c.id}`
+                            }
                           />
                           <AvatarFallback>{c.name.charAt(0)}</AvatarFallback>
                         </Avatar>
@@ -196,6 +226,33 @@ export default function ClientesPage() {
             <SheetTitle>{editing ? 'Editar Cliente' : 'Novo Cliente'}</SheetTitle>
           </SheetHeader>
           <div className="space-y-4">
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <Avatar className="h-24 w-24 border-2 border-border shadow-sm">
+                  <AvatarImage src={form.avatar_url || ''} />
+                  <AvatarFallback className="text-2xl">{form.name.charAt(0) || '?'}</AvatarFallback>
+                </Avatar>
+                <Label
+                  htmlFor="avatar-upload"
+                  className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full cursor-pointer hover:bg-primary/90 transition-colors shadow-md"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
+                </Label>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                  disabled={uploading}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input
@@ -244,7 +301,7 @@ export default function ClientesPage() {
             </div>
           </div>
           <SheetFooter className="mt-8">
-            <Button className="w-full" onClick={handleSave}>
+            <Button className="w-full" onClick={handleSave} disabled={uploading}>
               Salvar Cliente
             </Button>
           </SheetFooter>

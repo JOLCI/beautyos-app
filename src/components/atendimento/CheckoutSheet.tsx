@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CheckCircle2, QrCode, Loader2, Copy, MessageSquare, AlertCircle } from 'lucide-react'
+import { CheckCircle2, QrCode, Loader2, Copy, AlertCircle, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
@@ -31,7 +31,6 @@ export function CheckoutSheet({
   const { company } = usePasskey()
   const { profile } = useAuth()
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
-  const { data: gateways } = useQuery<any>('pix_gateways', { match: { is_active: true } })
 
   const [clientId, setClientId] = useState('')
   const [method, setMethod] = useState('PIX')
@@ -46,10 +45,15 @@ export function CheckoutSheet({
 
   const [status, setStatus] = useState<'idle' | 'waiting' | 'success'>('idle')
   const [pixPayload, setPixPayload] = useState('')
-  const [sendingWa, setSendingWa] = useState(false)
 
   useEffect(() => {
     if (initialClientId && open && !clientId) setClientId(initialClientId)
+    if (!open) {
+      setStatus('idle')
+      setMethod('PIX')
+      setClientId('')
+      setDiscount('0')
+    }
   }, [initialClientId, open])
 
   const activeClient = useMemo(
@@ -73,6 +77,9 @@ export function CheckoutSheet({
 
   const total = pricedItems.reduce((acc: any, i: any) => acc + i.finalPrice, 0)
   const finalTotal = total - Number(discount || 0)
+
+  const isScheduled = method === 'PIX AGENDADO' || method === 'CONVENIO'
+  const canFinish = pricedItems.length > 0 && (!isScheduled || clientId)
 
   const deductStock = async (serviceId: string, quantity: number) => {
     const { data: inv } = await supabase
@@ -103,54 +110,86 @@ export function CheckoutSheet({
     const now = new Date().toISOString()
     const isImmediate = ['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO'].includes(methodUsed)
 
-    // 1. Create Title (Accounts Receivable)
-    const { data: title } = await supabase
-      .from('financial_titles')
-      .insert([
-        {
-          company_id: company?.id,
-          type: 'receivable',
-          status: isImmediate ? 'paid' : 'open',
-          original_amount: finalTotal,
-          paid_amount: isImmediate ? finalTotal : 0,
-          due_date: isImmediate ? now.split('T')[0] : dueDate,
-          description: `Checkout PDV - ${items.length} itens`,
-          client_id: clientId || null,
-        },
-      ])
-      .select()
-      .single()
+    let titleId = null
 
-    // 2. Create Transaction (Cash Flow)
-    if (title) {
-      await supabase.from('transactions').insert([
-        {
-          company_id: company?.id,
-          type: 'inflow',
-          origin: 'automatic_entry',
-          amount: finalTotal,
-          status: isImmediate ? 'confirmed' : 'pending',
-          payment_method: methodUsed,
-          client_id: clientId || null,
-          financial_title_id: title.id,
-          ref_id: appointmentId || null,
-          confirmed_at: isImmediate ? now : null,
-          description:
-            methodUsed === 'CREDITO' && Number(installments) > 1
-              ? `Parcelado em ${installments}x`
-              : null,
-          metadata: {
-            items: pricedItems.map((i: any) => ({
-              id: i.id,
-              name: i.name,
-              price: i.finalPrice,
-              quantity: 1,
-            })),
-            discount: Number(discount || 0),
+    // Create Title ONLY if client exists (Financial Title constraint requires client_id for receivables)
+    if (clientId) {
+      const { data: title } = await supabase
+        .from('financial_titles')
+        .insert([
+          {
+            company_id: company?.id,
+            type: 'receivable',
+            status: isImmediate ? 'paid' : 'open',
+            original_amount: finalTotal,
+            paid_amount: isImmediate ? finalTotal : 0,
+            due_date: isImmediate ? now.split('T')[0] : dueDate,
+            description: `Checkout PDV - ${items.length} itens`,
+            client_id: clientId,
           },
-        },
-      ])
+        ])
+        .select()
+        .single()
+
+      titleId = title?.id
+
+      // WhatsApp Scheduling
+      if (isScheduled && titleId && activeClient?.phone) {
+        const { data: tpls } = await supabase
+          .from('whatsapp_templates')
+          .select('body')
+          .eq('template_key', 'cobranca_pix_agendado')
+          .eq('company_id', company?.id)
+        const tpl = tpls?.[0]
+        if (tpl) {
+          let msg = tpl.body
+            .replace(/\[NOME_CLIENTE\]/g, activeClient.name)
+            .replace(/\[VALOR\]/g, finalTotal.toFixed(2))
+            .replace(/\[DATA\]/g, new Date(dueDate).toLocaleDateString('pt-BR'))
+
+          const scheduleDate = new Date(dueDate)
+          scheduleDate.setHours(8, 0, 0, 0)
+
+          await supabase.from('whatsapp_message_schedules').insert({
+            company_id: company?.id,
+            client_id: activeClient.id,
+            phone_number: activeClient.phone,
+            rendered_message: msg,
+            scheduled_at_datetime: scheduleDate.toISOString(),
+            related_title_id: titleId,
+          })
+        }
+      }
     }
+
+    // Create Transaction
+    await supabase.from('transactions').insert([
+      {
+        company_id: company?.id,
+        type: 'inflow',
+        origin: 'automatic_entry',
+        amount: finalTotal,
+        status: isImmediate ? 'confirmed' : 'pending',
+        payment_method: methodUsed,
+        client_id: clientId || null,
+        financial_title_id: titleId,
+        ref_id: appointmentId || null,
+        confirmed_at: isImmediate ? now : null,
+        description:
+          methodUsed === 'CREDITO' && Number(installments) > 1
+            ? `Parcelado em ${installments}x`
+            : null,
+        metadata: {
+          items: pricedItems.map((i: any) => ({
+            id: i.id,
+            name: i.name,
+            price: i.finalPrice,
+            quantity: 1,
+          })),
+          discount: Number(discount || 0),
+        },
+      },
+    ])
 
     if (appointmentId)
       await supabase.from('appointments').update({ status: 'finalizado' }).eq('id', appointmentId)
@@ -167,8 +206,10 @@ export function CheckoutSheet({
   }
 
   const handleFinish = async (forceManual = false) => {
-    if (!clientId)
-      return toast.error('Obrigatório selecionar um cliente para vincular ao faturamento.')
+    if (isScheduled && !clientId) {
+      return toast.error('Obrigatório selecionar um cliente para faturamento agendado.')
+    }
+
     setStatus('waiting')
     if (method === 'PIX' && !forceManual) {
       const { data } = await supabase.functions.invoke('generate-pix', {
@@ -192,7 +233,7 @@ export function CheckoutSheet({
         setStatus('idle')
       }
     } else {
-      await finalizeTransaction(method, method === 'PIX AGENDADO' || method === 'CONVENIO')
+      await finalizeTransaction(method, isScheduled)
     }
   }
 
@@ -205,11 +246,13 @@ export function CheckoutSheet({
           </SheetHeader>
         </div>
         {status === 'success' ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
             <CheckCircle2 className="w-16 h-16 text-green-600 mb-4 animate-in zoom-in" />
             <h3 className="text-2xl font-bold">Transação Finalizada!</h3>
             <p className="text-muted-foreground mt-2">
-              Registros financeiros criados com rigor de auditoria.
+              {clientId
+                ? 'Registros financeiros criados com rigor de auditoria.'
+                : 'Venda avulsa registrada no caixa sem vínculo nominal.'}
             </p>
             <Button className="mt-8 rounded-full px-8" onClick={() => onOpenChange(false)}>
               Concluir e Voltar
@@ -236,12 +279,15 @@ export function CheckoutSheet({
         ) : (
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div className="space-y-2">
-              <Label>Vincular Cliente (Obrigatório por Regra Financeira)</Label>
+              <Label>Cliente Vinculado (Opcional para Caixa)</Label>
               <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o cliente" />
+                <SelectTrigger
+                  className={isScheduled && !clientId ? 'border-amber-500 ring-amber-500' : ''}
+                >
+                  <SelectValue placeholder="Venda Avulsa (Anônimo)" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">-- Venda Avulsa --</SelectItem>
                   {clients.map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
@@ -249,6 +295,11 @@ export function CheckoutSheet({
                   ))}
                 </SelectContent>
               </Select>
+              {isScheduled && !clientId && (
+                <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
+                  <Info className="w-3 h-3" /> Obrigatório para faturamento agendado
+                </p>
+              )}
             </div>
             <div className="bg-muted/50 p-4 rounded-xl border">
               <div className="space-y-3 mb-4">
@@ -319,12 +370,15 @@ export function CheckoutSheet({
               <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
                 <Label>Data de Vencimento</Label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Um lembrete via WhatsApp será agendado automaticamente.
+                </p>
               </div>
             )}
 
             <Button
               onClick={() => handleFinish(false)}
-              disabled={status === 'waiting' || !clientId}
+              disabled={status === 'waiting' || !canFinish}
               className="w-full h-14 text-lg rounded-full shadow-elevation mt-4"
             >
               {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}

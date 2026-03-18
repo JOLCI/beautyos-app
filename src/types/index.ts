@@ -15,6 +15,7 @@ export interface Client {
   phone: string
   email?: string
   avatarUrl?: string
+  avatar_url?: string
   createdAt: string
   specialPrices?: Record<string, number>
 }

@@ -2,15 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  TrendingDown,
-  TrendingUp,
-  Calendar,
-  AlertTriangle,
-  History,
-  Clock,
-  XCircle,
-} from 'lucide-react'
+import { TrendingUp, Calendar, AlertTriangle, History, Clock, XCircle } from 'lucide-react'
 import {
   Line,
   LineChart,
@@ -63,10 +55,6 @@ export default function DashboardPage() {
       (t: any) =>
         t.type === 'receivable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
     )
-    const overduePayables = titles.filter(
-      (t: any) =>
-        t.type === 'payable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
-    )
 
     // Agenda Counters
     const appsHoje = appointments.filter((a: any) => a.date === today)
@@ -78,7 +66,6 @@ export default function DashboardPage() {
       saldoPendente,
       entradasHoje,
       overdueReceivables,
-      overduePayables,
       appsHoje,
       totalApps,
       cancelledApps,
@@ -86,7 +73,6 @@ export default function DashboardPage() {
   }, [transactions, titles, appointments, today])
 
   const chartData = useMemo(() => {
-    // Generate simple mock weekly chart based on confirmed inflow transactions
     return [
       { name: 'Seg', total: 400 },
       { name: 'Ter', total: 300 },
@@ -153,14 +139,14 @@ export default function DashboardPage() {
           onClick={() => navigate(`/${passkey}/financeiro/caixa?filter=pending`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Saldo a Confirmar</CardTitle>
+            <CardTitle className="text-sm font-medium">A Confirmar / Receber</CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">
               R$ {stats.saldoPendente.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Transações pendentes</p>
+            <p className="text-xs text-muted-foreground mt-1">Soma de transações pendentes</p>
           </CardContent>
         </Card>
 
@@ -172,11 +158,17 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium">Agenda de Hoje</CardTitle>
             <Calendar className="h-4 w-4 text-blue-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalApps}</div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <XCircle className="w-3 h-3 text-destructive" /> {stats.cancelledApps} Cancelados
-            </p>
+          <CardContent className="flex justify-between items-end">
+            <div>
+              <div className="text-2xl font-bold">{stats.totalApps}</div>
+              <p className="text-xs text-muted-foreground mt-1">Total</p>
+            </div>
+            <div className="text-right border-l pl-4 border-border/50">
+              <div className="text-xl font-bold text-destructive flex items-center justify-end gap-1">
+                <XCircle className="w-3 h-3" /> {stats.cancelledApps}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Cancelados</p>
+            </div>
           </CardContent>
         </Card>
       </div>

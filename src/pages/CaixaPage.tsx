@@ -16,6 +16,7 @@ import { Wallet, Loader2, Filter } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
+import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
 
 export default function CaixaPage() {
   const { company } = usePasskey()
@@ -35,6 +36,7 @@ export default function CaixaPage() {
   const [statusFilter, setStatusFilter] = useState<string>(
     filterParam === 'pending' ? 'pending' : 'all',
   )
+  const [selectedTx, setSelectedTx] = useState<any>(null)
 
   useEffect(() => {
     if (!company?.id) return
@@ -59,7 +61,7 @@ export default function CaixaPage() {
   const filtered = useMemo(() => {
     return txs.filter((t: any) => {
       const d = t.transaction_date
-      if (d !== dateFilter && statusFilter !== 'pending') return false // If searching pending, ignore date
+      if (d !== dateFilter && statusFilter !== 'pending') return false
       if (statusFilter !== 'all' && t.status !== statusFilter) return false
       return true
     })
@@ -155,7 +157,12 @@ export default function CaixaPage() {
                 {filtered.map((t: any) => (
                   <TableRow
                     key={t.id}
-                    className={t.status === 'cancelled' ? 'opacity-50 line-through' : ''}
+                    className={
+                      t.status === 'cancelled'
+                        ? 'opacity-50 line-through cursor-pointer hover:bg-muted/50'
+                        : 'cursor-pointer hover:bg-muted/50'
+                    }
+                    onClick={() => setSelectedTx(t)}
                   >
                     <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                       {new Date(t.created_at).toLocaleString()}
@@ -201,6 +208,16 @@ export default function CaixaPage() {
           </CardContent>
         </Card>
       )}
+
+      <TransactionTicketDialog
+        open={!!selectedTx}
+        onOpenChange={(o: boolean) => !o && setSelectedTx(null)}
+        transaction={selectedTx}
+        onUpdate={() => {
+          refetch()
+          setSelectedTx(null)
+        }}
+      />
     </div>
   )
 }

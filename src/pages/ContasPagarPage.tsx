@@ -26,6 +26,8 @@ import { CheckCircle2, Plus, AlertTriangle, Building2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { TitlePaymentDialog } from '@/components/financeiro/TitlePaymentDialog'
+import { TitleDetailSheet } from '@/components/financeiro/TitleDetailSheet'
 
 export default function ContasPagarPage() {
   const { company } = usePasskey()
@@ -39,6 +41,9 @@ export default function ContasPagarPage() {
   const filterParam = searchParams.get('filter')
 
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [paymentTitle, setPaymentTitle] = useState<any>(null)
+  const [detailTitle, setDetailTitle] = useState<any>(null)
+
   const [form, setForm] = useState({
     supplier_id: '',
     amount: '',
@@ -73,34 +78,6 @@ export default function ContasPagarPage() {
 
     toast.success('Título criado com sucesso')
     setSheetOpen(false)
-    refetch()
-  }
-
-  const pay = async (t: any) => {
-    await supabase.from('transactions').insert([
-      {
-        company_id: company?.id,
-        type: 'outflow',
-        origin: 'payable_settlement',
-        amount: t.open_amount,
-        status: 'confirmed',
-        payment_method: 'OUTROS',
-        supplier_id: t.supplier_id,
-        financial_title_id: t.id,
-        description: 'Baixa integral de título',
-        confirmed_at: new Date().toISOString(),
-      },
-    ])
-
-    await supabase
-      .from('financial_titles')
-      .update({
-        paid_amount: t.original_amount,
-        status: 'paid',
-      })
-      .eq('id', t.id)
-
-    toast.success('Título pago e contabilizado no caixa')
     refetch()
   }
 
@@ -154,7 +131,11 @@ export default function ContasPagarPage() {
             </TableHeader>
             <TableBody>
               {filteredTitles.map((t: any) => (
-                <TableRow key={t.id}>
+                <TableRow
+                  key={t.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setDetailTitle(t)}
+                >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-muted-foreground" />
@@ -181,8 +162,11 @@ export default function ContasPagarPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-green-600"
-                        onClick={() => pay(t)}
+                        className="text-green-600 relative z-10"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setPaymentTitle(t)
+                        }}
                       >
                         <CheckCircle2 className="w-4 h-4 mr-2" /> Pagar
                       </Button>
@@ -248,6 +232,22 @@ export default function ContasPagarPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <TitlePaymentDialog
+        open={!!paymentTitle}
+        onOpenChange={(o: boolean) => !o && setPaymentTitle(null)}
+        title={paymentTitle}
+        onComplete={refetch}
+      />
+      <TitleDetailSheet
+        open={!!detailTitle}
+        onOpenChange={(o: boolean) => !o && setDetailTitle(null)}
+        title={detailTitle}
+        onUpdate={() => {
+          refetch()
+          setDetailTitle(null)
+        }}
+      />
     </div>
   )
 }
