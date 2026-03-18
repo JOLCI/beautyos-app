@@ -8,7 +8,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useQuery } from '@/hooks/use-query'
-import { parseFinancialDescription } from '@/lib/financial'
+import { formatTransactionLabel, parseFinancialDescription } from '@/lib/financial'
 import { Receipt, User, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
 
 export function TransactionTicketDialog({ transaction, open, onOpenChange }: any) {
@@ -19,19 +19,19 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
 
   if (!transaction) return null
 
-  const { isStandard, clientName, origin } = parseFinancialDescription(transaction.description)
   const professional = profiles?.find((p: any) => p.id === transaction.user_id)
 
-  // Robust client matching: ID column > Metadata ID > Parsed Name
+  // Robust client matching: ID column > Metadata ID
   const client =
     clients?.find((c: any) => c.id === transaction.client_id) ||
-    clients?.find((c: any) => c.id === transaction.metadata?.client_id) ||
-    clients?.find((c: any) => c.name === clientName)
+    clients?.find((c: any) => c.id === transaction.metadata?.client_id)
 
-  const resolvedClientName =
-    client?.name ||
-    transaction.metadata?.client_name ||
-    (isStandard ? clientName : 'Não Identificado')
+  const label = formatTransactionLabel(transaction, transaction.clients?.name || client?.name)
+  const { isStandard, clientName, origin } = parseFinancialDescription(label)
+
+  const resolvedClientName = isStandard
+    ? clientName
+    : client?.name || transaction.metadata?.client_name || clientName || 'Não Identificado'
 
   const metadata = transaction.metadata || {}
   let items = metadata.items || []
@@ -55,7 +55,7 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px] w-[95vw] p-0 flex flex-col gap-0 max-h-[90dvh] overflow-hidden rounded-xl shadow-2xl">
+      <DialogContent className="sm:max-w-[420px] w-[95vw] p-0 flex flex-col gap-0 max-h-[90vh] overflow-hidden rounded-xl shadow-2xl">
         <DialogHeader className="p-6 pb-4 border-b shrink-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Receipt className="w-5 h-5 text-primary" />

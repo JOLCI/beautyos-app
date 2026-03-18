@@ -26,7 +26,11 @@ import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
-import { formatFinancialDescription, parseFinancialDescription } from '@/lib/financial'
+import {
+  formatFinancialDescription,
+  formatTransactionLabel,
+  parseFinancialDescription,
+} from '@/lib/financial'
 
 export default function CaixaPage() {
   const { company } = usePasskey()
@@ -35,7 +39,10 @@ export default function CaixaPage() {
     data: txs,
     loading,
     refetch,
-  } = useQuery<any>('transactions', { order: { column: 'created_at', ascending: false } })
+  } = useQuery<any>('transactions', {
+    order: { column: 'created_at', ascending: false },
+    select: '*, clients(name)',
+  })
 
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
   const [inlineEditing, setInlineEditing] = useState<string | null>(null)
@@ -93,7 +100,8 @@ export default function CaixaPage() {
   const handleEstorno = async (t: any) => {
     if (!confirm('Confirmar estorno desta transação?')) return
 
-    const parsed = parseFinancialDescription(t.description)
+    const label = formatTransactionLabel(t, t.clients?.name)
+    const parsed = parseFinancialDescription(label)
     const estornoName = parsed.isStandard
       ? `Estorno: ${parsed.clientName}`
       : `Estorno: ${t.description}`
@@ -125,7 +133,8 @@ export default function CaixaPage() {
   }
 
   const startInlineEdit = (t: any) => {
-    const parsed = parseFinancialDescription(t.description)
+    const label = formatTransactionLabel(t, t.clients?.name)
+    const parsed = parseFinancialDescription(label)
     setInlineEditing(t.id)
     setEditForm({
       clientName: parsed.isStandard ? parsed.clientName : t.description,
@@ -244,11 +253,11 @@ export default function CaixaPage() {
                                 setEditForm({ ...editForm, clientName: e.target.value })
                               }
                               className="h-8 text-sm w-full min-w-[120px]"
-                              placeholder="Nome do Cliente"
+                              placeholder="Nome do Cliente / Descrição"
                             />
                           </div>
                         ) : (
-                          <FinancialDescription description={t.description} />
+                          <FinancialDescription record={t} />
                         )}
                       </TableCell>
                       <TableCell className="uppercase text-[10px] tracking-wider font-semibold">

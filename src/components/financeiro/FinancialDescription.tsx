@@ -1,23 +1,29 @@
 import { Bot, User as UserIcon } from 'lucide-react'
-import { parseFinancialDescription } from '@/lib/financial'
+import { formatTransactionLabel, parseFinancialDescription } from '@/lib/financial'
 
 interface FinancialDescriptionProps {
-  description: string
+  record?: any
+  description?: string
 }
 
-export function FinancialDescription({ description }: FinancialDescriptionProps) {
-  const { isStandard, clientName, origin } = parseFinancialDescription(description)
+export function FinancialDescription({ record, description }: FinancialDescriptionProps) {
+  // Backwards compatibility if only description is passed, but prefers record
+  const descToParse = record
+    ? formatTransactionLabel(record, record.clients?.name)
+    : description || ''
+
+  const { isStandard, clientName, origin } = parseFinancialDescription(descToParse)
 
   if (!isStandard) {
     return (
-      <span className="truncate block max-w-[200px]" title={description}>
-        {description}
+      <span className="truncate block max-w-[200px]" title={descToParse}>
+        {descToParse}
       </span>
     )
   }
 
   return (
-    <div className="flex items-center gap-2" title={description}>
+    <div className="flex items-center gap-2" title={descToParse}>
       <span className="truncate font-medium max-w-[160px]">{clientName}</span>
       {origin === 'A' ? (
         <div className="bg-blue-100 p-1 rounded-md" title="Origem Automática (PDV)">

@@ -48,6 +48,7 @@ export default function RelatoriosPage() {
   const { data: profiles } = useQuery<any>('profiles')
   const { data: transactions } = useQuery<any>('transactions', {
     order: { column: 'created_at', ascending: false },
+    select: '*, clients(name)',
   })
 
   const filteredTx = useMemo(
@@ -227,7 +228,7 @@ export default function RelatoriosPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <FinancialDescription description={t.description} />
+                          <FinancialDescription record={t} />
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           R$ {t.amount.toFixed(2)}

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Flower } from 'lucide-react'
+import { Flower, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
@@ -15,6 +15,7 @@ export default function LandingPage() {
   const { user, profile, loading: authLoading } = useAuth()
 
   useEffect(() => {
+    let mounted = true
     if (!authLoading && user && profile?.company_id) {
       const fetchCompany = async () => {
         const { data } = await supabase
@@ -22,11 +23,14 @@ export default function LandingPage() {
           .select('passkey')
           .eq('id', profile.company_id)
           .single()
-        if (data?.passkey) {
+        if (mounted && data?.passkey) {
           navigate(`/${data.passkey}/dashboard`, { replace: true })
         }
       }
       fetchCompany()
+    }
+    return () => {
+      mounted = false
     }
   }, [user, profile, authLoading, navigate])
 
@@ -50,6 +54,16 @@ export default function LandingPage() {
     } else {
       navigate(`/${data.passkey}/login`)
     }
+  }
+
+  // Prevents unauthenticated users from seeing the landing page shortly before redirection
+  // if they are already logged in.
+  if (authLoading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (

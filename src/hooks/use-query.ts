@@ -4,7 +4,11 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 
 export function useQuery<T>(
   table: string,
-  options?: { match?: Record<string, any>; order?: { column: string; ascending: boolean } },
+  options?: {
+    match?: Record<string, any>
+    order?: { column: string; ascending: boolean }
+    select?: string
+  },
 ) {
   const { company } = usePasskey()
   const [data, setData] = useState<T[]>([])
@@ -12,7 +16,7 @@ export function useQuery<T>(
 
   const fetch = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from(table).select('*')
+    let q = supabase.from(table).select(options?.select || '*')
 
     // Strict isolation on frontend
     if (table !== 'companies' && company?.id) {

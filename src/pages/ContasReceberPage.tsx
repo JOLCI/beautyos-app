@@ -26,7 +26,11 @@ import { Undo2, CheckCircle2, Plus, Edit2, Trash2, Info, Receipt } from 'lucide-
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
-import { formatFinancialDescription, parseFinancialDescription } from '@/lib/financial'
+import {
+  formatFinancialDescription,
+  formatTransactionLabel,
+  parseFinancialDescription,
+} from '@/lib/financial'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
 
@@ -46,6 +50,7 @@ export default function ContasReceberPage() {
   const { company } = usePasskey()
   const { data: receivables, refetch } = useQuery<any>('financial_accounts', {
     match: { type: 'receivable' },
+    select: '*, clients(name)',
   })
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
 
@@ -78,7 +83,8 @@ export default function ContasReceberPage() {
     if (p) {
       setEditing(p)
 
-      const { isStandard, method, clientName } = parseFinancialDescription(p.description)
+      const label = formatTransactionLabel(p, p.clients?.name)
+      const { isStandard, method, clientName } = parseFinancialDescription(label)
 
       if (isStandard) {
         setPaymentMethod(method)
@@ -94,7 +100,7 @@ export default function ContasReceberPage() {
           setCustomClientName(clientName)
         }
       } else {
-        setPaymentMethod('OUTROS')
+        setPaymentMethod(p.payment_method || 'OUTROS')
         setClientMode('custom')
         setCustomClientName(p.description)
         setSelectedClientId('none')
@@ -234,7 +240,7 @@ export default function ContasReceberPage() {
               {receivables.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
-                    <FinancialDescription description={p.description} />
+                    <FinancialDescription record={p} />
                   </TableCell>
                   <TableCell>{new Date(p.due_date).toLocaleDateString()}</TableCell>
                   <TableCell className="font-bold text-primary">R$ {p.amount.toFixed(2)}</TableCell>

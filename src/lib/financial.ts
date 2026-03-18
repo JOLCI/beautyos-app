@@ -41,3 +41,35 @@ export function parseFinancialDescription(desc: string) {
     isStandard: false,
   }
 }
+
+/**
+ * Generates a strictly formatted transaction label based on a record object.
+ * It enforces the (PAYMENT_METHOD) - Client Name (A/M) pattern even for legacy records.
+ * @param record The transaction or financial_account record
+ * @param clientNameOverride Optional client name fetched via JOIN or relation
+ */
+export function formatTransactionLabel(record: any, clientNameOverride?: string) {
+  if (!record) return ''
+  const desc = record.description || ''
+  const parsed = parseFinancialDescription(desc)
+
+  let isAuto = parsed.isStandard ? parsed.origin === 'A' : false
+  if (record.origin && record.origin !== 'manual') isAuto = true
+  if (record.ref_id || record.transaction_id) isAuto = true // Has appointment or related ref
+
+  const method = parsed.isStandard ? parsed.method : record.payment_method || 'OUTROS'
+
+  let clientName = parsed.isStandard ? parsed.clientName : desc
+
+  if (clientNameOverride) {
+    clientName = clientNameOverride
+  } else if (
+    clientName === '' ||
+    clientName.toLowerCase().includes('não identificado') ||
+    clientName.toLowerCase().includes('nao identificado')
+  ) {
+    clientName = 'Cliente Não Identificado'
+  }
+
+  return formatFinancialDescription(method, clientName, isAuto)
+}
