@@ -141,6 +141,7 @@ export type Database = {
       clients: {
         Row: {
           anamnesis: Json | null
+          avatar_url: string | null
           birthday: string | null
           birthday_day: number | null
           birthday_month: number | null
@@ -156,6 +157,7 @@ export type Database = {
         }
         Insert: {
           anamnesis?: Json | null
+          avatar_url?: string | null
           birthday?: string | null
           birthday_day?: number | null
           birthday_month?: number | null
@@ -171,6 +173,7 @@ export type Database = {
         }
         Update: {
           anamnesis?: Json | null
+          avatar_url?: string | null
           birthday?: string | null
           birthday_day?: number | null
           birthday_month?: number | null
@@ -895,6 +898,67 @@ export type Database = {
           },
         ]
       }
+      whatsapp_message_schedules: {
+        Row: {
+          client_id: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          phone_number: string
+          related_title_id: string | null
+          rendered_message: string
+          scheduled_at_datetime: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          phone_number: string
+          related_title_id?: string | null
+          rendered_message: string
+          scheduled_at_datetime: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          phone_number?: string
+          related_title_id?: string | null
+          rendered_message?: string
+          scheduled_at_datetime?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'whatsapp_message_schedules_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'whatsapp_message_schedules_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'whatsapp_message_schedules_related_title_id_fkey'
+            columns: ['related_title_id']
+            isOneToOne: false
+            referencedRelation: 'financial_titles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       whatsapp_templates: {
         Row: {
           body: string
@@ -947,6 +1011,7 @@ export type Database = {
     }
     Functions: {
       auth_company_id: { Args: never; Returns: string }
+      cleanup_inconsistent_financial_data: { Args: never; Returns: undefined }
       get_email_for_login: {
         Args: { p_company_id: string; p_username: string }
         Returns: string
@@ -1128,6 +1193,7 @@ export const Constants = {
 //   notes: character varying (nullable)
 //   birthday_day: integer (nullable)
 //   birthday_month: integer (nullable)
+//   avatar_url: text (nullable)
 // Table: commission_rules
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1276,6 +1342,17 @@ export const Constants = {
 //   id: uuid (nullable)
 //   company_id: uuid (nullable)
 //   error_desc: text (nullable)
+// Table: whatsapp_message_schedules
+//   id: uuid (not null, default: gen_random_uuid())
+//   company_id: uuid (nullable)
+//   client_id: uuid (nullable)
+//   phone_number: text (not null)
+//   rendered_message: text (not null)
+//   scheduled_at_datetime: timestamp with time zone (not null)
+//   status: text (not null, default: 'pending'::text)
+//   related_title_id: uuid (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: whatsapp_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1369,6 +1446,12 @@ export const Constants = {
 //   UNIQUE transactions_ticket_id_key: UNIQUE (ticket_id)
 //   CHECK transactions_type_check: CHECK ((type = ANY (ARRAY['inflow'::text, 'outflow'::text])))
 //   FOREIGN KEY transactions_updated_by_fkey: FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL
+// Table: whatsapp_message_schedules
+//   FOREIGN KEY whatsapp_message_schedules_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+//   FOREIGN KEY whatsapp_message_schedules_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   PRIMARY KEY whatsapp_message_schedules_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY whatsapp_message_schedules_related_title_id_fkey: FOREIGN KEY (related_title_id) REFERENCES financial_titles(id) ON DELETE CASCADE
+//   CHECK whatsapp_message_schedules_status_check: CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'cancelled'::text, 'failed'::text])))
 // Table: whatsapp_templates
 //   FOREIGN KEY whatsapp_templates_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY whatsapp_templates_pkey: PRIMARY KEY (id)
@@ -1436,6 +1519,9 @@ export const Constants = {
 // Table: transactions
 //   Policy "company_transactions_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
+// Table: whatsapp_message_schedules
+//   Policy "company_wa_schedules" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 // Table: whatsapp_templates
 //   Policy "company_whatsapp_templates" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
@@ -1450,6 +1536,46 @@ export const Constants = {
 //    STABLE
 //   AS $function$
 //     SELECT (auth.jwt() -> 'user_metadata' ->> 'company_id')::uuid;
+//   $function$
+//
+// FUNCTION cancel_related_wa_schedules()
+//   CREATE OR REPLACE FUNCTION public.cancel_related_wa_schedules()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//       IF TG_OP = 'UPDATE' AND NEW.status IN ('cancelled', 'paid') AND OLD.status NOT IN ('cancelled', 'paid') THEN
+//           UPDATE public.whatsapp_message_schedules
+//           SET status = 'cancelled', updated_at = NOW()
+//           WHERE related_title_id = NEW.id AND status = 'pending';
+//       ELSIF TG_OP = 'DELETE' THEN
+//           UPDATE public.whatsapp_message_schedules
+//           SET status = 'cancelled', updated_at = NOW()
+//           WHERE related_title_id = OLD.id AND status = 'pending';
+//       END IF;
+//       RETURN NULL;
+//   END;
+//   $function$
+//
+// FUNCTION cleanup_inconsistent_financial_data()
+//   CREATE OR REPLACE FUNCTION public.cleanup_inconsistent_financial_data()
+//    RETURNS void
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//       -- Delete transactions that are settlements but lack client/supplier
+//       DELETE FROM public.transactions
+//       WHERE (origin = 'receivable_settlement' AND client_id IS NULL)
+//          OR (origin = 'payable_settlement' AND supplier_id IS NULL);
+//
+//       -- Mark titles as cancelled if they have no entity
+//       UPDATE public.financial_titles
+//       SET status = 'cancelled', description = COALESCE(description, '') || ' (Auto-cancelado: sem entidade vinculada)'
+//       WHERE (type = 'receivable' AND client_id IS NULL)
+//          OR (type = 'payable' AND supplier_id IS NULL);
+//   END;
 //   $function$
 //
 // FUNCTION enforce_single_active_gateway()
@@ -1644,6 +1770,7 @@ export const Constants = {
 
 // --- TRIGGERS ---
 // Table: financial_titles
+//   trg_cancel_wa_on_title: CREATE TRIGGER trg_cancel_wa_on_title AFTER DELETE OR UPDATE ON public.financial_titles FOR EACH ROW EXECUTE FUNCTION cancel_related_wa_schedules()
 //   trg_titles_audit: CREATE TRIGGER trg_titles_audit BEFORE INSERT OR UPDATE ON public.financial_titles FOR EACH ROW EXECUTE FUNCTION set_financial_audit_v2()
 // Table: pix_gateways
 //   trg_single_active_gateway: CREATE TRIGGER trg_single_active_gateway BEFORE INSERT OR UPDATE ON public.pix_gateways FOR EACH ROW EXECUTE FUNCTION enforce_single_active_gateway()

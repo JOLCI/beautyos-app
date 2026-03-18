@@ -291,13 +291,13 @@ export default function ServicosPage() {
                 {form.is_composite && (
                   <div className="border p-3 rounded-lg space-y-3 bg-card shadow-inner">
                     <Label>Insumos Utilizados</Label>
-                    <Select value="" onValueChange={addCompositeItem}>
+                    <Select value={undefined} onValueChange={addCompositeItem}>
                       <SelectTrigger>
                         <SelectValue placeholder="Adicionar insumo..." />
                       </SelectTrigger>
                       <SelectContent>
                         {services
-                          .filter((x: any) => x.type === 'product')
+                          ?.filter((x: any) => x && x.type === 'product' && x.id)
                           .map((p: any) => (
                             <SelectItem key={p.id} value={p.id}>
                               {p.name}

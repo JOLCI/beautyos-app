@@ -92,17 +92,15 @@ export function CheckoutSheet({
         .from('inventory')
         .update({ quantity: inv.quantity - quantity })
         .eq('id', inv.id)
-      await supabase
-        .from('inventory_movements')
-        .insert([
-          {
-            company_id: company?.id,
-            inventory_id: inv.id,
-            type: 'out',
-            quantity,
-            reason: 'Venda PDV',
-          },
-        ])
+      await supabase.from('inventory_movements').insert([
+        {
+          company_id: company?.id,
+          inventory_id: inv.id,
+          type: 'out',
+          quantity,
+          reason: 'Venda PDV',
+        },
+      ])
     }
   }
 
