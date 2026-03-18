@@ -11,7 +11,7 @@
     "test-pix": 1,
     "whatsapp-generate-qr": 3,
     "whatsapp-check-status": 4,
-    "functions": 2,
+    "functions": 3,
     "cron-triggers": 1
   }
 }
