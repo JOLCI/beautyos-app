@@ -9,6 +9,7 @@ import {
   Calendar,
   AlertTriangle,
   Package,
+  History,
 } from 'lucide-react'
 import {
   Line,
@@ -34,6 +35,9 @@ export default function DashboardPage() {
   const { data: payables } = useQuery<any>('financial_accounts', {
     match: { type: 'payable', status: 'pending' },
   })
+  const { data: receivables } = useQuery<any>('financial_accounts', {
+    match: { type: 'receivable', status: 'pending' },
+  })
   const { data: appointments } = useQuery<any>('appointments')
   const { data: clients } = useQuery<any>('clients')
   const { data: inventory } = useQuery<any>('inventory')
@@ -41,17 +45,24 @@ export default function DashboardPage() {
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]
     const entradasHoje = transactions
-      .filter((t: any) => t.type === 'entrada' && t.created_at.startsWith(today))
+      .filter(
+        (t: any) =>
+          t.type === 'entrada' &&
+          (t.settled_at?.startsWith(today) || t.created_at.startsWith(today)),
+      )
       .reduce((a: any, b: any) => a + b.amount, 0)
     const saldo = transactions.reduce(
       (a: any, b: any) => (b.type === 'entrada' ? a + b.amount : a - b.amount),
       0,
     )
-    const overdue = payables.filter((p: any) => new Date(p.due_date) < new Date())
+
+    const overduePayables = payables.filter((p: any) => p.due_date < today)
+    const overdueReceivables = receivables.filter((r: any) => r.due_date < today)
+
     const appsHoje = appointments.filter((a: any) => a.date === today)
     const lowStock = inventory.filter((i: any) => i.quantity <= i.min_quantity)
-    return { entradasHoje, saldo, overdue, appsHoje, lowStock }
-  }, [transactions, payables, appointments, inventory])
+    return { entradasHoje, saldo, overduePayables, overdueReceivables, appsHoje, lowStock }
+  }, [transactions, payables, receivables, appointments, inventory])
 
   const chartData = useMemo(() => {
     return [
@@ -73,22 +84,37 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {stats.overdue.length > 0 && isAdminOrRoot && (
+        {stats.overdueReceivables.length > 0 && isAdminOrRoot && (
           <Alert
             variant="destructive"
             className="bg-destructive/10 text-destructive border-destructive/20 cursor-pointer hover:bg-destructive/20 transition-colors"
+            onClick={() => navigate(`/${passkey}/financeiro/contas-receber?filter=overdue`)}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Recebimentos Atrasados</AlertTitle>
+            <AlertDescription>
+              Existem {stats.overdueReceivables.length} contas a receber vencidas. Clique para
+              visualizar.
+            </AlertDescription>
+          </Alert>
+        )}
+        {stats.overduePayables.length > 0 && isAdminOrRoot && (
+          <Alert
+            variant="destructive"
+            className="bg-amber-500/10 text-amber-700 border-amber-500/20 cursor-pointer hover:bg-amber-500/20 transition-colors"
             onClick={() => navigate(`/${passkey}/financeiro/contas-pagar?filter=overdue`)}
           >
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Alerta Financeiro</AlertTitle>
+            <AlertTitle>Pagamentos Atrasados</AlertTitle>
             <AlertDescription>
-              Existem {stats.overdue.length} contas a pagar vencidas. Clique para visualizar.
+              Existem {stats.overduePayables.length} contas a pagar vencidas. Clique para
+              visualizar.
             </AlertDescription>
           </Alert>
         )}
         {stats.lowStock.length > 0 && (
           <Alert
-            className="bg-amber-500/10 text-amber-600 border-amber-500/20 cursor-pointer hover:bg-amber-500/20 transition-colors"
+            className="bg-orange-500/10 text-orange-600 border-orange-500/20 cursor-pointer hover:bg-orange-500/20 transition-colors"
             onClick={() => navigate(`/${passkey}/estoque?filter=low_stock`)}
           >
             <Package className="h-4 w-4" />
@@ -104,11 +130,11 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card
           className={`shadow-sm transition-colors ${isAdminOrRoot ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-          onClick={() => isAdminOrRoot && navigate(`/${passkey}/financeiro/relatorios`)}
+          onClick={() => isAdminOrRoot && navigate(`/${passkey}/atendimento/historico`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Saldo Atual</CardTitle>
-            <DollarSign className="h-4 w-4 text-primary" />
+            <History className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">R$ {stats.saldo.toFixed(2)}</div>
@@ -128,16 +154,27 @@ export default function DashboardPage() {
         </Card>
         <Card
           className={`shadow-sm transition-colors ${isAdminOrRoot ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-          onClick={() =>
-            isAdminOrRoot && navigate(`/${passkey}/financeiro/contas-pagar?filter=overdue`)
-          }
+          onClick={() => {
+            if (isAdminOrRoot) {
+              if (stats.overdueReceivables.length > 0) {
+                navigate(`/${passkey}/financeiro/contas-receber?filter=overdue`)
+              } else {
+                navigate(`/${passkey}/financeiro/contas-pagar?filter=overdue`)
+              }
+            }
+          }}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Contas Vencidas</CardTitle>
+            <CardTitle className="text-sm font-medium">Inadimplência</CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{stats.overdue.length}</div>
+            <div className="text-2xl font-bold text-destructive">
+              {stats.overdueReceivables.length}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.overduePayables.length} a pagar vencidas
+            </p>
           </CardContent>
         </Card>
         <Card

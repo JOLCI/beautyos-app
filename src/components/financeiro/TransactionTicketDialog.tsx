@@ -21,12 +21,10 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
 
   const professional = profiles?.find((p: any) => p.id === transaction.user_id)
 
-  // Robust client matching: ID column > Metadata ID
   const client =
     clients?.find((c: any) => c.id === transaction.client_id) ||
     clients?.find((c: any) => c.id === transaction.metadata?.client_id)
 
-  // Use the robust format function that considers joined names or explicit manual ones
   const label = formatTransactionLabel(transaction, client?.name)
   const { clientName: resolvedClientName, origin } = parseFinancialDescription(label)
 
@@ -34,7 +32,6 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
   let items = metadata.items || []
   const discount = metadata.discount || 0
 
-  // Fallback to fetch items from appointment if not in metadata
   if (items.length === 0 && transaction.ref_id && appointments && services) {
     const app = appointments.find((a: any) => a.id === transaction.ref_id)
     if (app) {
@@ -64,7 +61,6 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
         </DialogHeader>
 
         <div className="overflow-y-auto p-6 pt-4 space-y-6 flex-1 bg-background relative">
-          {/* Header Info */}
           <div className="flex justify-between items-start text-sm">
             <div className="space-y-1.5">
               <p className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">
@@ -80,15 +76,14 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
                 ID Transação
               </p>
               <p className="font-mono text-sm bg-muted px-2 py-0.5 rounded text-muted-foreground">
-                {transaction.id.split('-')[0].toUpperCase()}
+                {transaction.ticket_id || transaction.id.split('-')[0].toUpperCase()}
               </p>
             </div>
           </div>
 
-          {/* Main Info Card */}
           <div className="bg-primary/5 border border-primary/10 p-4 rounded-xl space-y-3 text-sm">
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Cliente</span>
+              <span className="text-muted-foreground">Entidade</span>
               <span className="font-semibold text-foreground text-right max-w-[180px] truncate">
                 {resolvedClientName}
               </span>
@@ -117,7 +112,6 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
             </div>
           </div>
 
-          {/* Items Section */}
           {items.length > 0 ? (
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -151,7 +145,6 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
 
           <Separator />
 
-          {/* Footer Total */}
           <div className="flex justify-between items-center text-xl font-black">
             <span>Total Final</span>
             <span

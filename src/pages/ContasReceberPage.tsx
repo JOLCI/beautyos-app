@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@/hooks/use-query'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -22,7 +23,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Undo2, CheckCircle2, Plus, Edit2, Trash2, Info, Receipt } from 'lucide-react'
+import {
+  Undo2,
+  CheckCircle2,
+  Plus,
+  Edit2,
+  Trash2,
+  Info,
+  Receipt,
+  AlertTriangle,
+} from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -53,6 +63,9 @@ export default function ContasReceberPage() {
     select: '*, clients(name)',
   })
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filterParam = searchParams.get('filter')
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
@@ -160,29 +173,39 @@ export default function ContasReceberPage() {
   }
 
   const receive = async (p: any) => {
-    await supabase
-      .from('financial_accounts')
-      .update({ status: 'paid', settled_at: new Date().toISOString() })
-      .eq('id', p.id)
-
     if (p.transaction_id) {
       await supabase.from('transactions').update({ status: 'completed' }).eq('id', p.transaction_id)
+      await supabase
+        .from('financial_accounts')
+        .update({ status: 'paid', settled_at: new Date().toISOString() })
+        .eq('id', p.id)
     } else {
       const { method, isStandard } = parseFinancialDescription(p.description)
       const finalMethod = isStandard ? method : 'OUTROS'
 
-      await supabase.from('transactions').insert([
-        {
-          company_id: company?.id,
-          client_id: p.client_id,
-          type: 'entrada',
-          amount: p.amount,
-          description: p.description,
-          payment_method: finalMethod,
-          status: 'completed',
-          settled_at: new Date().toISOString(),
-        } as any,
-      ])
+      const { data: tx } = await supabase
+        .from('transactions')
+        .insert([
+          {
+            company_id: company?.id,
+            client_id: p.client_id,
+            type: 'entrada',
+            amount: p.amount,
+            description: p.description,
+            payment_method: finalMethod,
+            status: 'completed',
+            settled_at: new Date().toISOString(),
+          } as any,
+        ])
+        .select()
+        .single()
+
+      if (tx) {
+        await supabase
+          .from('financial_accounts')
+          .update({ status: 'paid', transaction_id: tx.id, settled_at: new Date().toISOString() })
+          .eq('id', p.id)
+      }
     }
     toast.success('Valor Recebido')
     refetch()
@@ -212,6 +235,14 @@ export default function ContasReceberPage() {
     if (tx) setTicketTx(tx)
   }
 
+  const filteredReceivables = receivables.filter((p: any) => {
+    if (filterParam === 'overdue') {
+      const today = new Date().toISOString().split('T')[0]
+      return p.status === 'pending' && p.due_date < today
+    }
+    return true
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -223,6 +254,23 @@ export default function ContasReceberPage() {
           <Plus className="w-4 h-4 mr-2" /> Novo Registro
         </Button>
       </div>
+
+      {filterParam === 'overdue' && (
+        <div className="flex justify-between items-center bg-destructive/10 text-destructive p-3 rounded-lg border border-destructive/20 mb-4 animate-in fade-in zoom-in-95">
+          <div className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="w-4 h-4" />
+            Exibindo apenas contas a receber vencidas.
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSearchParams({})}
+            className="bg-transparent border-destructive/50 hover:bg-destructive/20 text-destructive"
+          >
+            Limpar Filtro
+          </Button>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -237,7 +285,7 @@ export default function ContasReceberPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {receivables.map((p) => (
+              {filteredReceivables.map((p: any) => (
                 <TableRow key={p.id}>
                   <TableCell>
                     <FinancialDescription record={p} />
@@ -298,7 +346,7 @@ export default function ContasReceberPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {receivables.length === 0 && (
+              {filteredReceivables.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Nenhuma conta a receber pendente.

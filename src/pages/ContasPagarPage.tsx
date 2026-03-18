@@ -20,12 +20,21 @@ import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { formatFinancialDescription } from '@/lib/financial'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export default function ContasPagarPage() {
   const { company } = usePasskey()
   const { data: payables, refetch } = useQuery<any>('financial_accounts', {
     match: { type: 'payable' },
+    select: '*, suppliers(name)',
   })
+  const { data: suppliers } = useQuery<any>('suppliers', { match: { is_active: true } })
 
   const [searchParams, setSearchParams] = useSearchParams()
   const filterParam = searchParams.get('filter')
@@ -37,6 +46,7 @@ export default function ContasPagarPage() {
     amount: '',
     due_date: new Date().toISOString().split('T')[0],
     notes: '',
+    supplier_id: 'none',
   })
 
   const openSheet = (p: any = null) => {
@@ -47,6 +57,7 @@ export default function ContasPagarPage() {
         amount: p.amount.toString(),
         due_date: p.due_date,
         notes: p.notes || '',
+        supplier_id: p.supplier_id || 'none',
       })
     } else {
       setEditing(null)
@@ -55,13 +66,20 @@ export default function ContasPagarPage() {
         amount: '',
         due_date: new Date().toISOString().split('T')[0],
         notes: '',
+        supplier_id: 'none',
       })
     }
     setSheetOpen(true)
   }
 
   const handleSave = async () => {
-    const payload = { ...form, amount: Number(form.amount) }
+    const payload = {
+      description: form.description,
+      amount: Number(form.amount),
+      due_date: form.due_date,
+      notes: form.notes,
+      supplier_id: form.supplier_id !== 'none' ? form.supplier_id : null,
+    }
     if (editing) await supabase.from('financial_accounts').update(payload).eq('id', editing.id)
     else
       await supabase.from('financial_accounts').insert([
@@ -85,26 +103,34 @@ export default function ContasPagarPage() {
     refetch()
   }
 
-  const pay = async (id: string, amount: number, desc: string) => {
-    const txDesc = formatFinancialDescription('OUTROS', `Pgto: ${desc}`, false)
+  const pay = async (p: any) => {
+    let entityName = p.description
+    if (p.suppliers && p.suppliers.name) {
+      entityName = p.suppliers.name
+    }
+
+    const txDesc = formatFinancialDescription('OUTROS', `Pgto: ${entityName}`, false)
     const { data: tx } = await supabase
       .from('transactions')
       .insert([
         {
           company_id: company?.id,
           type: 'saida',
-          amount,
+          amount: p.amount,
           description: txDesc,
           status: 'completed',
           payment_method: 'OUTROS',
+          supplier_id: p.supplier_id,
+          settled_at: new Date().toISOString(),
         },
       ])
       .select()
       .single()
+
     await supabase
       .from('financial_accounts')
       .update({ status: 'paid', transaction_id: tx?.id, settled_at: new Date().toISOString() })
-      .eq('id', id)
+      .eq('id', p.id)
     toast.success('Conta Paga')
     refetch()
   }
@@ -122,7 +148,8 @@ export default function ContasPagarPage() {
 
   const filteredPayables = payables.filter((p) => {
     if (filterParam === 'overdue') {
-      return p.status === 'pending' && new Date(p.due_date) < new Date()
+      const today = new Date().toISOString().split('T')[0]
+      return p.status === 'pending' && p.due_date < today
     }
     return true
   })
@@ -137,7 +164,7 @@ export default function ContasPagarPage() {
       </div>
 
       {filterParam === 'overdue' && (
-        <div className="flex justify-between items-center bg-destructive/10 text-destructive p-3 rounded-lg border border-destructive/20 mb-4 animate-in fade-in zoom-in-95">
+        <div className="flex justify-between items-center bg-amber-500/10 text-amber-700 p-3 rounded-lg border border-amber-500/20 mb-4 animate-in fade-in zoom-in-95">
           <div className="flex items-center gap-2 font-medium">
             <AlertTriangle className="w-4 h-4" />
             Exibindo apenas contas vencidas.
@@ -146,7 +173,7 @@ export default function ContasPagarPage() {
             variant="outline"
             size="sm"
             onClick={() => setSearchParams({})}
-            className="bg-transparent border-destructive/50 hover:bg-destructive/20 text-destructive"
+            className="bg-transparent border-amber-500/50 hover:bg-amber-500/20 text-amber-700"
           >
             Limpar Filtro
           </Button>
@@ -158,7 +185,7 @@ export default function ContasPagarPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Descrição</TableHead>
+                <TableHead>Descrição / Fornecedor</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Valor</TableHead>
@@ -167,57 +194,65 @@ export default function ContasPagarPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPayables.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.description}</TableCell>
-                  <TableCell className="uppercase text-xs text-muted-foreground">
-                    {p.origin || 'manual'}
-                  </TableCell>
-                  <TableCell>{new Date(p.due_date).toLocaleDateString()}</TableCell>
-                  <TableCell className="font-bold">R$ {p.amount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    {p.status === 'paid' ? (
-                      <Badge className="bg-green-500">Pago</Badge>
-                    ) : (
-                      <Badge variant="outline">Pendente</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
-                    {p.status !== 'paid' ? (
-                      <>
-                        <Button size="sm" variant="ghost" onClick={() => openSheet(p)}>
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
+              {filteredPayables.map((p) => {
+                const supName = Array.isArray(p.suppliers)
+                  ? p.suppliers[0]?.name
+                  : p.suppliers?.name
+                return (
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <div className="font-medium">{p.description}</div>
+                      {supName && <div className="text-xs text-muted-foreground">{supName}</div>}
+                    </TableCell>
+                    <TableCell className="uppercase text-xs text-muted-foreground">
+                      {p.origin || 'manual'}
+                    </TableCell>
+                    <TableCell>{new Date(p.due_date).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-bold">R$ {p.amount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {p.status === 'paid' ? (
+                        <Badge className="bg-green-500">Pago</Badge>
+                      ) : (
+                        <Badge variant="outline">Pendente</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right space-x-1">
+                      {p.status !== 'paid' ? (
+                        <>
+                          <Button size="sm" variant="ghost" onClick={() => openSheet(p)}>
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            onClick={() => handleDelete(p.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600"
+                            onClick={() => pay(p)}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Pagar
+                          </Button>
+                        </>
+                      ) : (
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-destructive"
-                          onClick={() => handleDelete(p.id)}
+                          className="text-amber-500"
+                          onClick={() => undo(p)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Undo2 className="w-4 h-4 mr-2" /> Desfazer
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-600"
-                          onClick={() => pay(p.id, p.amount, p.description)}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" /> Pagar
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-amber-500"
-                        onClick={() => undo(p)}
-                      >
-                        <Undo2 className="w-4 h-4 mr-2" /> Desfazer
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
               {filteredPayables.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
@@ -241,7 +276,27 @@ export default function ContasPagarPage() {
               <Input
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Ex: Compra de Tinturas"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Fornecedor (Opcional)</Label>
+              <Select
+                value={form.supplier_id}
+                onValueChange={(v) => setForm({ ...form, supplier_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {suppliers.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Valor (R$)</Label>
