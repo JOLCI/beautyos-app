@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
+import { formatFinancialDescription } from '@/lib/financial'
 
 export function CheckoutSheet({
   open,
@@ -104,13 +105,19 @@ export function CheckoutSheet({
     const finStatus = isImmediate ? 'paid' : 'pending'
     const settledAt = isImmediate ? now : null
 
-    const clientName = activeClient?.name || 'Cliente Avulso'
-    const finalDesc = `(${methodUsed}) - ${clientName} (AUTOMATICO)`
+    const finalDesc = formatFinancialDescription(methodUsed, activeClient?.name || '', true)
 
     let notes = `Checkout PDV - ${items.length} itens`
     if (methodUsed === 'CREDITO' && Number(installments) > 1) {
       notes += ` (Parcelado em ${installments}x)`
     }
+
+    const ticketItems = pricedItems.map((i: any) => ({
+      id: i.id,
+      name: i.name,
+      price: i.finalPrice,
+      quantity: 1,
+    }))
 
     const { data: tx } = await supabase
       .from('transactions')
@@ -124,7 +131,9 @@ export function CheckoutSheet({
           status: txStatus,
           user_id: profile?.id,
           settled_at: settledAt,
-        },
+          ref_id: appointmentId || null,
+          metadata: { items: ticketItems, discount: Number(discount || 0) },
+        } as any,
       ])
       .select()
       .single()

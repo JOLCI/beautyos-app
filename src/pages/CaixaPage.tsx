@@ -12,11 +12,13 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Wallet, Loader2, Undo2, Edit2, Check, X } from 'lucide-react'
+import { Wallet, Loader2, Undo2, Edit2, Check, X, Receipt } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
+import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
+import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
 
 export default function CaixaPage() {
   const { company } = usePasskey()
@@ -30,6 +32,7 @@ export default function CaixaPage() {
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
   const [inlineEditing, setInlineEditing] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ description: '', amount: '' })
+  const [ticketTx, setTicketTx] = useState<any>(null)
 
   useEffect(() => {
     if (!company?.id) return
@@ -214,9 +217,7 @@ export default function CaixaPage() {
                             className="h-8 text-sm"
                           />
                         ) : (
-                          <div className="truncate" title={t.description}>
-                            {t.description}
-                          </div>
+                          <FinancialDescription description={t.description} />
                         )}
                       </TableCell>
                       <TableCell className="uppercase text-[10px] tracking-wider font-semibold">
@@ -272,31 +273,43 @@ export default function CaixaPage() {
                             </Button>
                           </>
                         ) : (
-                          t.status === 'completed' &&
-                          !t.description.startsWith('Estorno') && (
-                            <>
-                              {canEdit(t) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => startInlineEdit(t)}
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                              {isAdminOrRoot && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-amber-600 h-8 w-8"
-                                  onClick={() => handleEstorno(t)}
-                                >
-                                  <Undo2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </>
-                          )
+                          <>
+                            {t.status === 'completed' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => setTicketTx(t)}
+                                title="Ver Ticket"
+                              >
+                                <Receipt className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {t.status === 'completed' && !t.description.startsWith('Estorno') && (
+                              <>
+                                {canEdit(t) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => startInlineEdit(t)}
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {isAdminOrRoot && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-amber-600 h-8 w-8"
+                                    onClick={() => handleEstorno(t)}
+                                  >
+                                    <Undo2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </>
                         )}
                       </TableCell>
                     </TableRow>
@@ -314,6 +327,12 @@ export default function CaixaPage() {
           </CardContent>
         </Card>
       )}
+
+      <TransactionTicketDialog
+        transaction={ticketTx}
+        open={!!ticketTx}
+        onOpenChange={(o: boolean) => !o && setTicketTx(null)}
+      />
     </div>
   )
 }

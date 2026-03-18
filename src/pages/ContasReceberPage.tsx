@@ -26,6 +26,8 @@ import { Undo2, CheckCircle2, Plus, Edit2, Trash2, Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { formatFinancialDescription, parseFinancialDescription } from '@/lib/financial'
+import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 
 const PAYMENT_METHODS = [
   'PIX',
@@ -67,19 +69,18 @@ export default function ContasReceberPage() {
       const c = clients?.find((client: any) => client.id === selectedClientId)
       if (c) cName = c.name
     }
-    return `(${paymentMethod}) - ${cName || 'Sem Nome'} (MANUAL)`
+    return formatFinancialDescription(paymentMethod, cName, false)
   }, [clientMode, selectedClientId, customClientName, paymentMethod, clients])
 
   const openSheet = (p: any = null) => {
     if (p) {
       setEditing(p)
-      // Try to parse standard description (FORMAT) - NAME (ORIGIN)
-      const match = p.description?.match(/^\((.*?)\) - (.*?) \((MANUAL|AUTOMATICO)\)$/)
 
-      if (match) {
-        setPaymentMethod(match[1])
-        const parsedName = match[2]
-        const foundClient = clients?.find((c: any) => c.name === parsedName)
+      const { isStandard, method, clientName } = parseFinancialDescription(p.description)
+
+      if (isStandard) {
+        setPaymentMethod(method)
+        const foundClient = clients?.find((c: any) => c.name === clientName)
 
         if (foundClient) {
           setClientMode('registered')
@@ -88,7 +89,7 @@ export default function ContasReceberPage() {
         } else {
           setClientMode('custom')
           setSelectedClientId('none')
-          setCustomClientName(parsedName)
+          setCustomClientName(clientName)
         }
       } else {
         // Fallback for old unformatted records
@@ -156,9 +157,8 @@ export default function ContasReceberPage() {
 
     // Log received amount into transactions if it wasn't linked (manual receipt)
     if (!p.transaction_id) {
-      // Parse method from description if possible
-      const match = p.description?.match(/^\((.*?)\)/)
-      const method = match ? match[1] : 'OUTROS'
+      const { method, isStandard } = parseFinancialDescription(p.description)
+      const finalMethod = isStandard ? method : 'OUTROS'
 
       await supabase.from('transactions').insert([
         {
@@ -166,10 +166,10 @@ export default function ContasReceberPage() {
           type: 'entrada',
           amount: p.amount,
           description: p.description, // Re-use the exact standardized description
-          payment_method: method,
+          payment_method: finalMethod,
           status: 'completed',
           settled_at: new Date().toISOString(),
-        },
+        } as any,
       ])
     }
     toast.success('Valor Recebido')
@@ -205,7 +205,6 @@ export default function ContasReceberPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Descrição (Padronizada)</TableHead>
-                <TableHead>Origem</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
@@ -215,9 +214,8 @@ export default function ContasReceberPage() {
             <TableBody>
               {receivables.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium font-mono text-xs">{p.description}</TableCell>
-                  <TableCell className="uppercase text-[10px] tracking-wider font-semibold text-muted-foreground">
-                    {p.origin || 'manual'}
+                  <TableCell>
+                    <FinancialDescription description={p.description} />
                   </TableCell>
                   <TableCell>{new Date(p.due_date).toLocaleDateString()}</TableCell>
                   <TableCell className="font-bold text-primary">R$ {p.amount.toFixed(2)}</TableCell>
@@ -266,7 +264,7 @@ export default function ContasReceberPage() {
               ))}
               {receivables.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Nenhuma conta a receber pendente.
                   </TableCell>
                 </TableRow>

@@ -12,12 +12,22 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Download, FileText, Printer, ShieldAlert, Coins, CalendarDays } from 'lucide-react'
+import {
+  Download,
+  FileText,
+  Printer,
+  ShieldAlert,
+  Coins,
+  CalendarDays,
+  Receipt,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useQuery } from '@/hooks/use-query'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useAuth } from '@/hooks/use-auth'
+import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
+import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
 
 export default function RelatoriosPage() {
   const { company } = usePasskey()
@@ -28,6 +38,7 @@ export default function RelatoriosPage() {
     return d.toISOString().split('T')[0]
   })
   const [dateEnd, setDateEnd] = useState(new Date().toISOString().split('T')[0])
+  const [ticketTx, setTicketTx] = useState<any>(null)
 
   const { data: auditLogs } = useQuery<any>('financial_audit_logs', {
     order: { column: 'created_at', ascending: false },
@@ -187,6 +198,7 @@ export default function RelatoriosPage() {
                       <TableHead>Tipo</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-right w-16 printable-hide">Ticket</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -209,15 +221,27 @@ export default function RelatoriosPage() {
                             {t.type}
                           </Badge>
                         </TableCell>
-                        <TableCell>{t.description}</TableCell>
+                        <TableCell>
+                          <FinancialDescription description={t.description} />
+                        </TableCell>
                         <TableCell className="text-right font-medium">
                           R$ {t.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right printable-hide">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary"
+                            onClick={() => setTicketTx(t)}
+                          >
+                            <Receipt className="w-4 h-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
                     {filteredTx.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
+                        <TableCell colSpan={5} className="text-center py-8">
                           Nenhum registro no período.
                         </TableCell>
                       </TableRow>
@@ -343,6 +367,12 @@ export default function RelatoriosPage() {
           </TabsContent>
         </div>
       </Tabs>
+
+      <TransactionTicketDialog
+        transaction={ticketTx}
+        open={!!ticketTx}
+        onOpenChange={(o: boolean) => !o && setTicketTx(null)}
+      />
     </div>
   )
 }
