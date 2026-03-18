@@ -76,7 +76,7 @@ export default function SaldoInicialPage() {
               <Label>Tipo de Ajuste</Label>
               <Select value={type} onValueChange={setType}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione o tipo..." />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="inflow">Entrada (+)</SelectItem>

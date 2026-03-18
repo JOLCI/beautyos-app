@@ -221,7 +221,7 @@ export default function ServicosPage() {
                 <Label>Tipo</Label>
                 <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="service">Serviço</SelectItem>
@@ -236,7 +236,7 @@ export default function ServicosPage() {
                   onValueChange={(v) => setForm({ ...form, unit_of_measure: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Selecione a unidade" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="UN">Unidade (UN)</SelectItem>
@@ -297,7 +297,9 @@ export default function ServicosPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {services
-                          ?.filter((x: any) => x && x.type === 'product' && x.id)
+                          ?.filter(
+                            (x: any) => x && x.type === 'product' && x.id && x.id.trim() !== '',
+                          )
                           .map((p: any) => (
                             <SelectItem key={p.id} value={p.id}>
                               {p.name}

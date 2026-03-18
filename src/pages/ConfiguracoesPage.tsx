@@ -391,7 +391,7 @@ export default function ConfiguracoesPage() {
                         onValueChange={(v) => setPixForm({ ...pixForm, provider: v })}
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Selecione um provedor..." />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="mercadopago">Mercado Pago (Automático)</SelectItem>
@@ -414,7 +414,7 @@ export default function ConfiguracoesPage() {
                         onValueChange={(v) => setPixForm({ ...pixForm, pix_key_type: v })}
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Selecione o tipo de chave..." />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="cpf">CPF/CNPJ</SelectItem>

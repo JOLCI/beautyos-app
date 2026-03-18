@@ -196,7 +196,7 @@ export default function UsuariosPage() {
               <Label>Nível de Acesso</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione o nível de acesso..." />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="atendimento">Atendimento (PDV/Agenda)</SelectItem>

@@ -192,11 +192,11 @@ export default function ContasReceberPage() {
                 onValueChange={(v) => setForm({ ...form, client_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
+                  <SelectValue placeholder="Selecione um cliente..." />
                 </SelectTrigger>
                 <SelectContent>
                   {clients
-                    ?.filter((c: any) => c && c.id)
+                    ?.filter((c: any) => c && c.id && c.id.trim() !== '')
                     .map((c: any) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}

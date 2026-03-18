@@ -192,11 +192,11 @@ export default function ContasPagarPage() {
                 onValueChange={(v) => setForm({ ...form, supplier_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
+                  <SelectValue placeholder="Selecione um fornecedor..." />
                 </SelectTrigger>
                 <SelectContent>
                   {suppliers
-                    ?.filter((s: any) => s && s.id)
+                    ?.filter((s: any) => s && s.id && s.id.trim() !== '')
                     .map((s: any) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
