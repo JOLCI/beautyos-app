@@ -22,12 +22,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Undo2, CheckCircle2, Plus, Edit2, Trash2, Info } from 'lucide-react'
+import { Undo2, CheckCircle2, Plus, Edit2, Trash2, Info, Receipt } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { formatFinancialDescription, parseFinancialDescription } from '@/lib/financial'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
+import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
 
 const PAYMENT_METHODS = [
   'PIX',
@@ -50,6 +51,7 @@ export default function ContasReceberPage() {
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
+  const [ticketTx, setTicketTx] = useState<any>(null)
 
   // Standardized Form State
   const [clientMode, setClientMode] = useState<'registered' | 'custom'>('registered')
@@ -80,7 +82,7 @@ export default function ContasReceberPage() {
 
       if (isStandard) {
         setPaymentMethod(method)
-        const foundClient = clients?.find((c: any) => c.name === clientName)
+        const foundClient = clients?.find((c: any) => c.name === clientName || c.id === p.client_id)
 
         if (foundClient) {
           setClientMode('registered')
@@ -92,7 +94,6 @@ export default function ContasReceberPage() {
           setCustomClientName(clientName)
         }
       } else {
-        // Fallback for old unformatted records
         setPaymentMethod('OUTROS')
         setClientMode('custom')
         setCustomClientName(p.description)
@@ -120,7 +121,12 @@ export default function ContasReceberPage() {
   }
 
   const handleSave = async () => {
-    const payload = { ...form, amount: Number(form.amount), description: generatedDescription }
+    const payload = {
+      ...form,
+      amount: Number(form.amount),
+      description: generatedDescription,
+      client_id: selectedClientId !== 'none' ? selectedClientId : null,
+    }
 
     if (editing) {
       await supabase.from('financial_accounts').update(payload).eq('id', editing.id)
@@ -132,7 +138,7 @@ export default function ContasReceberPage() {
           type: 'receivable',
           status: 'pending',
           origin: 'manual',
-        },
+        } as any,
       ])
     }
     toast.success('Salvo com sucesso')
@@ -152,20 +158,20 @@ export default function ContasReceberPage() {
       .from('financial_accounts')
       .update({ status: 'paid', settled_at: new Date().toISOString() })
       .eq('id', p.id)
-    if (p.transaction_id)
-      await supabase.from('transactions').update({ status: 'completed' }).eq('id', p.transaction_id)
 
-    // Log received amount into transactions if it wasn't linked (manual receipt)
-    if (!p.transaction_id) {
+    if (p.transaction_id) {
+      await supabase.from('transactions').update({ status: 'completed' }).eq('id', p.transaction_id)
+    } else {
       const { method, isStandard } = parseFinancialDescription(p.description)
       const finalMethod = isStandard ? method : 'OUTROS'
 
       await supabase.from('transactions').insert([
         {
           company_id: company?.id,
+          client_id: p.client_id,
           type: 'entrada',
           amount: p.amount,
-          description: p.description, // Re-use the exact standardized description
+          description: p.description,
           payment_method: finalMethod,
           status: 'completed',
           settled_at: new Date().toISOString(),
@@ -185,6 +191,19 @@ export default function ContasReceberPage() {
       await supabase.from('transactions').update({ status: 'pending' }).eq('id', p.transaction_id)
     toast.info('Recebimento Desfeito')
     refetch()
+  }
+
+  const openTicket = async (p: any) => {
+    if (!p.transaction_id) {
+      toast.info('Este registro não possui uma transação vinculada (foi criado mas não baixado).')
+      return
+    }
+    const { data: tx } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', p.transaction_id)
+      .single()
+    if (tx) setTicketTx(tx)
   }
 
   return (
@@ -226,7 +245,7 @@ export default function ContasReceberPage() {
                       <Badge variant="outline">Pendente</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right space-x-1">
+                  <TableCell className="text-right space-x-1 whitespace-nowrap">
                     {p.status !== 'paid' ? (
                       <>
                         <Button size="icon" variant="ghost" onClick={() => openSheet(p)}>
@@ -250,14 +269,25 @@ export default function ContasReceberPage() {
                         </Button>
                       </>
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-amber-500"
-                        onClick={() => undo(p)}
-                      >
-                        <Undo2 className="w-4 h-4 mr-2" /> Desfazer
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary"
+                          onClick={() => openTicket(p)}
+                          title="Ver Ticket"
+                        >
+                          <Receipt className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-amber-500"
+                          onClick={() => undo(p)}
+                        >
+                          <Undo2 className="w-4 h-4 mr-2" /> Desfazer
+                        </Button>
+                      </>
                     )}
                   </TableCell>
                 </TableRow>
@@ -394,6 +424,12 @@ export default function ContasReceberPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <TransactionTicketDialog
+        transaction={ticketTx}
+        open={!!ticketTx}
+        onOpenChange={(o: boolean) => !o && setTicketTx(null)}
+      />
     </div>
   )
 }

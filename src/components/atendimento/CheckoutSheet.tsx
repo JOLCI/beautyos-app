@@ -124,6 +124,7 @@ export function CheckoutSheet({
       .insert([
         {
           company_id: company?.id,
+          client_id: clientId || null,
           type: 'entrada',
           amount: finalTotal,
           description: finalDesc,
@@ -132,7 +133,12 @@ export function CheckoutSheet({
           user_id: profile?.id,
           settled_at: settledAt,
           ref_id: appointmentId || null,
-          metadata: { items: ticketItems, discount: Number(discount || 0) },
+          metadata: {
+            items: ticketItems,
+            discount: Number(discount || 0),
+            client_id: clientId,
+            client_name: activeClient?.name,
+          },
         } as any,
       ])
       .select()
@@ -141,6 +147,7 @@ export function CheckoutSheet({
     await supabase.from('financial_accounts').insert([
       {
         company_id: company?.id,
+        client_id: clientId || null,
         type: 'receivable',
         origin: 'pdv',
         description: finalDesc,
@@ -150,7 +157,7 @@ export function CheckoutSheet({
         transaction_id: tx?.id,
         status: finStatus,
         notes: notes,
-      },
+      } as any,
     ])
 
     if (appointmentId) {

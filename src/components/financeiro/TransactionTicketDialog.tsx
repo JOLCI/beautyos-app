@@ -1,4 +1,10 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useQuery } from '@/hooks/use-query'
@@ -7,23 +13,57 @@ import { Receipt, User, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
 
 export function TransactionTicketDialog({ transaction, open, onOpenChange }: any) {
   const { data: profiles } = useQuery<any>('profiles')
+  const { data: clients } = useQuery<any>('clients')
+  const { data: appointments } = useQuery<any>('appointments')
+  const { data: services } = useQuery<any>('services')
 
   if (!transaction) return null
 
   const { isStandard, clientName, origin } = parseFinancialDescription(transaction.description)
-  const professional = profiles.find((p: any) => p.id === transaction.user_id)
+  const professional = profiles?.find((p: any) => p.id === transaction.user_id)
+
+  // Robust client matching: ID column > Metadata ID > Parsed Name
+  const client =
+    clients?.find((c: any) => c.id === transaction.client_id) ||
+    clients?.find((c: any) => c.id === transaction.metadata?.client_id) ||
+    clients?.find((c: any) => c.name === clientName)
+
+  const resolvedClientName =
+    client?.name ||
+    transaction.metadata?.client_name ||
+    (isStandard ? clientName : 'Não Identificado')
+
   const metadata = transaction.metadata || {}
-  const items = metadata.items || []
+  let items = metadata.items || []
   const discount = metadata.discount || 0
+
+  // Fallback to fetch items from appointment if not in metadata
+  if (items.length === 0 && transaction.ref_id && appointments && services) {
+    const app = appointments.find((a: any) => a.id === transaction.ref_id)
+    if (app) {
+      if (app.service_ids && app.service_ids.length > 0) {
+        items = app.service_ids.map((sid: string) => {
+          const svc = services.find((s: any) => s.id === sid)
+          return { name: svc?.name || 'Serviço', price: svc?.price || 0, quantity: 1 }
+        })
+      } else if (app.service_id) {
+        const svc = services.find((s: any) => s.id === app.service_id)
+        items = [{ name: svc?.name || 'Serviço', price: svc?.price || 0, quantity: 1 }]
+      }
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px] w-[95vw] p-0 flex flex-col gap-0 max-h-[90vh] overflow-hidden">
+      <DialogContent className="sm:max-w-[420px] w-[95vw] p-0 flex flex-col gap-0 max-h-[90vh] overflow-hidden rounded-xl shadow-2xl">
         <DialogHeader className="p-6 pb-4 border-b shrink-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Receipt className="w-5 h-5 text-primary" />
             Ticket da Transação
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Detalhes e recibo da transação financeira.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="overflow-y-auto p-6 pt-4 space-y-6 flex-1 bg-background relative">
@@ -53,7 +93,7 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Cliente</span>
               <span className="font-semibold text-foreground text-right max-w-[180px] truncate">
-                {isStandard ? clientName : 'Não Identificado'}
+                {resolvedClientName}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -67,14 +107,14 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
               <span className="text-muted-foreground">Origem</span>
               <Badge
                 variant="secondary"
-                className="font-normal text-[10px] uppercase tracking-wider"
+                className="font-normal text-[10px] uppercase tracking-wider bg-background/50"
               >
                 {origin === 'A' ? 'Automático (PDV)' : 'Lançamento Manual'}
               </Badge>
             </div>
-            <div className="flex justify-between items-center pt-1 border-t border-border/50">
+            <div className="flex justify-between items-center pt-2 mt-1 border-t border-border/50">
               <span className="text-muted-foreground">Forma de Pagamento</span>
-              <span className="font-bold uppercase tracking-wide">
+              <span className="font-bold uppercase tracking-wide text-primary">
                 {transaction.payment_method || '-'}
               </span>
             </div>
@@ -93,7 +133,7 @@ export function TransactionTicketDialog({ transaction, open, onOpenChange }: any
                       {it.quantity}x {it.name}
                     </span>
                     <span className="text-muted-foreground whitespace-nowrap">
-                      R$ {it.price.toFixed(2)}
+                      R$ {it.price?.toFixed(2) || '0.00'}
                     </span>
                   </div>
                 ))}

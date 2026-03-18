@@ -12,6 +12,13 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Wallet, Loader2, Undo2, Edit2, Check, X, Receipt } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -19,6 +26,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
+import { formatFinancialDescription, parseFinancialDescription } from '@/lib/financial'
 
 export default function CaixaPage() {
   const { company } = usePasskey()
@@ -31,7 +39,7 @@ export default function CaixaPage() {
 
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
   const [inlineEditing, setInlineEditing] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({ description: '', amount: '' })
+  const [editForm, setEditForm] = useState({ clientName: '', method: '', origin: 'M', amount: '' })
   const [ticketTx, setTicketTx] = useState<any>(null)
 
   useEffect(() => {
@@ -94,7 +102,7 @@ export default function CaixaPage() {
         status: 'completed',
         user_id: profile?.id,
         settled_at: new Date().toISOString(),
-      },
+      } as any,
     ])
     await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', t.id)
     toast.success('Estorno realizado e auditado')
@@ -109,16 +117,28 @@ export default function CaixaPage() {
   }
 
   const startInlineEdit = (t: any) => {
+    const parsed = parseFinancialDescription(t.description)
     setInlineEditing(t.id)
-    setEditForm({ description: t.description, amount: t.amount.toString() })
+    setEditForm({
+      clientName: parsed.isStandard ? parsed.clientName : t.description,
+      method: parsed.isStandard ? parsed.method : t.payment_method || 'OUTROS',
+      origin: parsed.isStandard ? parsed.origin : 'M',
+      amount: t.amount.toString(),
+    })
   }
 
   const saveInlineEdit = async (t: any) => {
+    const newDesc = formatFinancialDescription(
+      editForm.method,
+      editForm.clientName,
+      editForm.origin === 'A',
+    )
     await supabase
       .from('transactions')
       .update({
         amount: Number(editForm.amount),
-        description: editForm.description,
+        description: newDesc,
+        payment_method: editForm.method,
       })
       .eq('id', t.id)
     toast.success('Lançamento atualizado e auditado')
@@ -187,7 +207,7 @@ export default function CaixaPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Hora</TableHead>
-                  <TableHead>Descrição</TableHead>
+                  <TableHead>Descrição do Cliente</TableHead>
                   <TableHead>Método</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
@@ -207,21 +227,44 @@ export default function CaixaPage() {
                       <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                         {time.toLocaleTimeString()}
                       </TableCell>
-                      <TableCell className="font-medium max-w-[200px]">
+                      <TableCell className="font-medium max-w-[250px]">
                         {isEditing ? (
-                          <Input
-                            value={editForm.description}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, description: e.target.value })
-                            }
-                            className="h-8 text-sm"
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              value={editForm.clientName}
+                              onChange={(e) =>
+                                setEditForm({ ...editForm, clientName: e.target.value })
+                              }
+                              className="h-8 text-sm w-full min-w-[120px]"
+                              placeholder="Nome do Cliente"
+                            />
+                          </div>
                         ) : (
                           <FinancialDescription description={t.description} />
                         )}
                       </TableCell>
                       <TableCell className="uppercase text-[10px] tracking-wider font-semibold">
-                        {t.payment_method || '-'}
+                        {isEditing ? (
+                          <Select
+                            value={editForm.method}
+                            onValueChange={(v) => setEditForm({ ...editForm, method: v })}
+                          >
+                            <SelectTrigger className="h-8 w-[110px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO', 'CONVENIO', 'OUTROS'].map(
+                                (m) => (
+                                  <SelectItem key={m} value={m}>
+                                    {m}
+                                  </SelectItem>
+                                ),
+                              )}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          t.payment_method || '-'
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge

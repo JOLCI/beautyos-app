@@ -1475,14 +1475,50 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION sync_financial_desc_fn()
+//   CREATE OR REPLACE FUNCTION public.sync_financial_desc_fn()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//       IF NEW.description IS DISTINCT FROM OLD.description AND NEW.transaction_id IS NOT NULL THEN
+//           -- Update related transaction only if it actually differs to avoid infinite trigger loops
+//           UPDATE public.transactions
+//           SET description = NEW.description
+//           WHERE id = NEW.transaction_id AND description IS DISTINCT FROM NEW.description;
+//       END IF;
+//       RETURN NEW;
+//   END;
+//   $function$
+//
+// FUNCTION sync_transaction_desc_fn()
+//   CREATE OR REPLACE FUNCTION public.sync_transaction_desc_fn()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//       IF NEW.description IS DISTINCT FROM OLD.description THEN
+//           -- Update related financial accounts only if they actually differ to avoid infinite trigger loops
+//           UPDATE public.financial_accounts
+//           SET description = NEW.description
+//           WHERE transaction_id = NEW.id AND description IS DISTINCT FROM NEW.description;
+//       END IF;
+//       RETURN NEW;
+//   END;
+//   $function$
+//
 
 // --- TRIGGERS ---
 // Table: financial_accounts
 //   audit_financial_accounts_changes: CREATE TRIGGER audit_financial_accounts_changes AFTER INSERT OR DELETE OR UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
+//   trg_sync_financial_desc: CREATE TRIGGER trg_sync_financial_desc AFTER UPDATE OF description ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION sync_financial_desc_fn()
 // Table: pix_gateways
 //   trg_single_active_gateway: CREATE TRIGGER trg_single_active_gateway BEFORE INSERT OR UPDATE ON public.pix_gateways FOR EACH ROW EXECUTE FUNCTION enforce_single_active_gateway()
 // Table: transactions
 //   audit_transactions_changes: CREATE TRIGGER audit_transactions_changes AFTER INSERT OR DELETE OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
+//   trg_sync_transaction_desc: CREATE TRIGGER trg_sync_transaction_desc AFTER UPDATE OF description ON public.transactions FOR EACH ROW EXECUTE FUNCTION sync_transaction_desc_fn()
 
 // --- INDEXES ---
 // Table: client_custom_prices
