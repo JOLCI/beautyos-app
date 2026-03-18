@@ -19,7 +19,6 @@ import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
-import { formatFinancialDescription } from '@/lib/financial'
 
 export function CheckoutSheet({
   open,
@@ -58,19 +57,20 @@ export function CheckoutSheet({
     [clientId, clients],
   )
 
-  const pricedItems = useMemo(() => {
-    return items.map((it: any) => {
-      const customPrice = activeClient?.special_prices?.[it.id]
-      return {
-        ...it,
-        originalPrice: it.price,
-        finalPrice: customPrice !== undefined ? customPrice : it.price,
-        hasCustomPrice: customPrice !== undefined,
-      }
-    })
-  }, [items, activeClient])
+  const pricedItems = useMemo(
+    () =>
+      items.map((it: any) => {
+        const customPrice = activeClient?.special_prices?.[it.id]
+        return {
+          ...it,
+          originalPrice: it.price,
+          finalPrice: customPrice !== undefined ? customPrice : it.price,
+          hasCustomPrice: customPrice !== undefined,
+        }
+      }),
+    [items, activeClient],
+  )
 
-  const totalOriginal = pricedItems.reduce((acc: any, i: any) => acc + i.originalPrice, 0)
   const total = pricedItems.reduce((acc: any, i: any) => acc + i.finalPrice, 0)
   const finalTotal = total - Number(discount || 0)
 
@@ -81,88 +81,79 @@ export function CheckoutSheet({
       .eq('service_id', serviceId)
       .single()
     if (inv) {
-      if (inv.quantity < quantity) toast.warning(`Atenção: Estoque ficará negativo.`)
       await supabase
         .from('inventory')
         .update({ quantity: inv.quantity - quantity })
         .eq('id', inv.id)
-      await supabase.from('inventory_movements').insert([
-        {
-          company_id: company?.id,
-          inventory_id: inv.id,
-          type: 'out',
-          quantity,
-          reason: 'Venda PDV',
-        },
-      ])
+      await supabase
+        .from('inventory_movements')
+        .insert([
+          {
+            company_id: company?.id,
+            inventory_id: inv.id,
+            type: 'out',
+            quantity,
+            reason: 'Venda PDV',
+          },
+        ])
     }
   }
 
   const finalizeTransaction = async (methodUsed: string, isPending: boolean) => {
     const now = new Date().toISOString()
     const isImmediate = ['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO'].includes(methodUsed)
-    const txStatus = isImmediate ? 'completed' : 'pending'
-    const finStatus = isImmediate ? 'paid' : 'pending'
-    const settledAt = isImmediate ? now : null
 
-    const finalDesc = formatFinancialDescription(methodUsed, activeClient?.name || '', true)
-
-    let notes = `Checkout PDV - ${items.length} itens`
-    if (methodUsed === 'CREDITO' && Number(installments) > 1) {
-      notes += ` (Parcelado em ${installments}x)`
-    }
-
-    const ticketItems = pricedItems.map((i: any) => ({
-      id: i.id,
-      name: i.name,
-      price: i.finalPrice,
-      quantity: 1,
-    }))
-
-    const { data: tx } = await supabase
-      .from('transactions')
+    // 1. Create Title (Accounts Receivable)
+    const { data: title } = await supabase
+      .from('financial_titles')
       .insert([
         {
           company_id: company?.id,
+          type: 'receivable',
+          status: isImmediate ? 'paid' : 'open',
+          original_amount: finalTotal,
+          paid_amount: isImmediate ? finalTotal : 0,
+          due_date: isImmediate ? now.split('T')[0] : dueDate,
+          description: `Checkout PDV - ${items.length} itens`,
           client_id: clientId || null,
-          type: 'entrada',
-          amount: finalTotal,
-          description: finalDesc,
-          payment_method: methodUsed,
-          status: txStatus,
-          user_id: profile?.id,
-          settled_at: settledAt,
-          ref_id: appointmentId || null,
-          metadata: {
-            items: ticketItems,
-            discount: Number(discount || 0),
-            client_id: clientId,
-            client_name: activeClient?.name,
-          },
-        } as any,
+        },
       ])
       .select()
       .single()
 
-    await supabase.from('financial_accounts').insert([
-      {
-        company_id: company?.id,
-        client_id: clientId || null,
-        type: 'receivable',
-        origin: 'pdv',
-        description: finalDesc,
-        amount: finalTotal,
-        due_date: isImmediate ? now.split('T')[0] : dueDate,
-        settled_at: settledAt,
-        transaction_id: tx?.id,
-        status: finStatus,
-        notes: notes,
-      } as any,
-    ])
-
-    if (appointmentId) {
-      await supabase.from('appointments').update({ status: 'finalizado' }).eq('id', appointmentId)
+    // 2. Create Transaction (Cash Flow)
+    if (title) {
+      await supabase.from('transactions').insert([
+        {
+          company_id: company?.id,
+          type: 'inflow',
+          origin: 'automatic_entry',
+          amount: finalTotal,
+          status: isImmediate ? 'confirmed' : 'pending',
+          payment_method: methodUsed,
+          client_id: clientId || null,
+          financial_title_id: title.id,
+          ref_id: appointmentId || null,
+          confirmed_at: isImmediate ? now : null,
+          description:
+            methodUsed === 'CREDITO' && Number(installments) > 1
+              ? `Parcelado em ${installments}x`
+              : null,
+          metadata: {
+            items: pricedItems.map((i: any) => ({
+              id: i.id,
+              name: i.name,
+              price: i.finalPrice,
+              quantity: 1,
+            })),
+            discount: Number(discount || 0),
+          },
+        },
+      ])
     }
+
+    if (appointmentId)
+      await supabase.from('appointments').update({ status: 'finalizado' }).eq('id', appointmentId)
 
     for (const item of pricedItems) {
       if (item.type === 'product') await deductStock(item.id, 1)
@@ -176,6 +167,8 @@ export function CheckoutSheet({
   }
 
   const handleFinish = async (forceManual = false) => {
+    if (!clientId)
+      return toast.error('Obrigatório selecionar um cliente para vincular ao faturamento.')
     setStatus('waiting')
     if (method === 'PIX' && !forceManual) {
       const { data } = await supabase.functions.invoke('generate-pix', {
@@ -189,35 +182,18 @@ export function CheckoutSheet({
           })
           if (checkData?.status === 'paid') await finalizeTransaction(method, false)
           else {
-            toast.error('PIX não confirmado automaticamente pelo gateway.')
+            toast.error('PIX não confirmado.')
             setStatus('idle')
             setPixPayload('')
           }
         }, 3000)
       } else {
-        toast.error('Erro ao gerar PIX dinâmico.')
+        toast.error('Erro ao gerar PIX.')
         setStatus('idle')
       }
     } else {
       await finalizeTransaction(method, method === 'PIX AGENDADO' || method === 'CONVENIO')
     }
-  }
-
-  const handleSendWhatsAppPix = async () => {
-    if (!activeClient?.phone) return toast.error('Selecione um cliente com telefone cadastrado.')
-    setSendingWa(true)
-
-    let msg = `Olá [NOME_CLIENTE], o valor do seu atendimento é R$ [VALOR]. Nossa chave PIX é: [CHAVE_PIX]. Por favor envie o comprovante.`
-
-    msg = msg.replace(/\[NOME_CLIENTE\]/g, activeClient.name)
-    msg = msg.replace(/\[VALOR\]/g, finalTotal.toFixed(2))
-    msg = msg.replace(/\[CHAVE_PIX\]/g, gateways?.[0]?.pix_key || 'não cadastrada')
-
-    await supabase.functions.invoke('send-whatsapp', {
-      body: { to: activeClient.phone, message: msg },
-    })
-    toast.success('Cobrança PIX enviada no WhatsApp')
-    setSendingWa(false)
   }
 
   return (
@@ -233,7 +209,7 @@ export function CheckoutSheet({
             <CheckCircle2 className="w-16 h-16 text-green-600 mb-4 animate-in zoom-in" />
             <h3 className="text-2xl font-bold">Transação Finalizada!</h3>
             <p className="text-muted-foreground mt-2">
-              Os registros financeiros foram atualizados com sucesso.
+              Registros financeiros criados com rigor de auditoria.
             </p>
             <Button className="mt-8 rounded-full px-8" onClick={() => onOpenChange(false)}>
               Concluir e Voltar
@@ -260,7 +236,7 @@ export function CheckoutSheet({
         ) : (
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div className="space-y-2">
-              <Label>Vincular a um Cliente</Label>
+              <Label>Vincular Cliente (Obrigatório por Regra Financeira)</Label>
               <Select value={clientId} onValueChange={setClientId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o cliente" />
@@ -279,23 +255,10 @@ export function CheckoutSheet({
                 {pricedItems.map((it: any, idx: number) => (
                   <div
                     key={idx}
-                    className="flex flex-col text-sm border-b border-border/50 pb-2 last:border-0"
+                    className="flex justify-between items-center text-sm border-b border-border/50 pb-2"
                   >
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{it.name}</span>
-                      {it.hasCustomPrice ? (
-                        <div className="text-right flex items-center gap-2">
-                          <span className="line-through text-muted-foreground text-xs">
-                            R$ {it.originalPrice.toFixed(2)}
-                          </span>
-                          <span className="font-bold text-primary">
-                            R$ {it.finalPrice.toFixed(2)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span>R$ {it.finalPrice.toFixed(2)}</span>
-                      )}
-                    </div>
+                    <span className="font-medium">{it.name}</span>
+                    <span>R$ {it.finalPrice.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -342,7 +305,7 @@ export function CheckoutSheet({
             </RadioGroup>
 
             {method === 'CREDITO' && (
-              <div className="space-y-2 p-4 border rounded-xl bg-muted/20 animate-fade-in mt-3">
+              <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
                 <Label>Número de Parcelas</Label>
                 <Input
                   type="number"
@@ -353,46 +316,15 @@ export function CheckoutSheet({
               </div>
             )}
             {(method === 'PIX AGENDADO' || method === 'CONVENIO') && (
-              <div className="space-y-2 p-4 border rounded-xl bg-muted/20 animate-fade-in mt-3">
+              <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
                 <Label>Data de Vencimento</Label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
             )}
 
-            {method === 'PIX' && (
-              <div className="space-y-3 p-4 border rounded-xl bg-primary/5 text-center animate-fade-in mt-3">
-                <Label className="text-primary font-semibold text-xs uppercase tracking-wider">
-                  Chave PIX Manual
-                </Label>
-                <div className="font-mono font-bold text-sm sm:text-base select-all bg-background py-2 rounded border">
-                  {gateways?.[0]?.pix_key || 'Não cadastrada'}
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full bg-white h-10"
-                  onClick={handleSendWhatsAppPix}
-                  disabled={sendingWa}
-                >
-                  {sendingWa ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <MessageSquare className="w-4 h-4 mr-2 text-green-600" />
-                  )}
-                  Enviar Chave por WhatsApp
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => handleFinish(true)}
-                  className="w-full h-8 text-xs text-muted-foreground mt-2"
-                >
-                  Pular Gateway e Concluir Venda
-                </Button>
-              </div>
-            )}
-
             <Button
               onClick={() => handleFinish(false)}
-              disabled={status === 'waiting'}
+              disabled={status === 'waiting' || !clientId}
               className="w-full h-14 text-lg rounded-full shadow-elevation mt-4"
             >
               {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}

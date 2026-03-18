@@ -1,85 +1,122 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { AlertTriangle, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { usePasskey } from '@/contexts/PasskeyContext'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { usePasskey } from '@/contexts/PasskeyContext'
-import { formatFinancialDescription } from '@/lib/financial'
+import { Wallet, Info } from 'lucide-react'
 
 export default function SaldoInicialPage() {
   const { company } = usePasskey()
   const [amount, setAmount] = useState('')
-  const [reason, setReason] = useState('')
-  const [type, setType] = useState<'entrada' | 'saida'>('entrada')
+  const [type, setType] = useState('inflow')
+  const [notes, setNotes] = useState('')
 
-  const handleAdjust = async () => {
-    if (!amount || !reason) return toast.error('Preencha os campos obrigatórios.')
+  const handleSave = async () => {
+    if (!amount || Number(amount) <= 0) {
+      return toast.error('Informe um valor válido.')
+    }
 
-    const desc = formatFinancialDescription('OUTROS', `Ajuste: ${reason}`, false)
+    const payload = {
+      company_id: company?.id,
+      type: type,
+      origin: 'adjustment',
+      amount: Number(amount),
+      status: 'confirmed',
+      payment_method: 'OUTROS',
+      description: `Ajuste de Saldo / Caixa Inicial${notes ? ` - ${notes}` : ''}`,
+      transaction_date: new Date().toISOString().split('T')[0],
+      confirmed_at: new Date().toISOString(),
+    }
 
-    await supabase.from('transactions').insert([
-      {
-        company_id: company?.id,
-        type,
-        amount: Number(amount),
-        description: desc,
-        status: 'completed',
-        payment_method: 'OUTROS',
-      },
-    ])
+    const { error } = await supabase.from('transactions').insert([payload])
 
-    toast.success('Ajuste de caixa registrado com sucesso.')
-    setAmount('')
-    setReason('')
+    if (error) {
+      toast.error('Erro ao ajustar saldo.')
+      console.error(error)
+    } else {
+      toast.success('Ajuste de saldo lançado com sucesso.')
+      setAmount('')
+      setNotes('')
+    }
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <div className="bg-destructive/10 text-destructive font-bold p-4 rounded-xl flex items-center gap-3 border border-destructive/20">
-        <AlertTriangle className="w-6 h-6 shrink-0" />
-        <p>Área Sensível. Operações aqui afetam o fluxo de caixa diretamente.</p>
+    <div className="space-y-6 max-w-2xl mx-auto mt-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Ajuste de Saldo</h1>
+        <p className="text-muted-foreground">
+          Registre o saldo inicial ou faça aportes manuais no caixa.
+        </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Ajuste Manual de Caixa</CardTitle>
-          <CardDescription>Insira saldos iniciais ou corrija diferenças de caixa.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-primary" />
+            Lançamento de Ajuste
+          </CardTitle>
+          <CardDescription>
+            Este valor será somado ou subtraído do fluxo de caixa atual como uma transação
+            confirmada do tipo "Ajuste".
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <Button
-              variant={type === 'entrada' ? 'default' : 'outline'}
-              onClick={() => setType('entrada')}
-              className={type === 'entrada' ? 'bg-green-600 hover:bg-green-700' : ''}
-            >
-              <ArrowUpRight className="w-4 h-4 mr-2" /> Adicionar Saldo
-            </Button>
-            <Button
-              variant={type === 'saida' ? 'destructive' : 'outline'}
-              onClick={() => setType('saida')}
-            >
-              <ArrowDownRight className="w-4 h-4 mr-2" /> Subtrair Saldo
-            </Button>
+            <div className="space-y-2">
+              <Label>Tipo de Ajuste</Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inflow">Entrada (+)</SelectItem>
+                  <SelectItem value="outflow">Saída (-)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Valor (R$)</Label>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Valor do Ajuste (R$)</Label>
-            <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Motivo / Observação</Label>
+            <Label>Justificativa / Observação</Label>
             <Input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Ex: Saldo Inicial do Dia"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ex: Saldo em gaveta do dia anterior"
             />
           </div>
 
-          <Button className="w-full h-12" onClick={handleAdjust}>
-            Aplicar Ajuste no Caixa
+          <div className="bg-muted p-4 rounded-lg flex items-start gap-3 text-sm text-muted-foreground">
+            <Info className="w-5 h-5 shrink-0 text-primary" />
+            <p>
+              Ajustes de saldo não exigem vínculo com cliente ou fornecedor e entrarão diretamente
+              nos relatórios financeiros como origem <strong>"Ajuste"</strong>, garantindo total
+              rastreabilidade na auditoria do sistema.
+            </p>
+          </div>
+
+          <Button onClick={handleSave} className="w-full h-12 text-base font-semibold">
+            Confirmar Lançamento
           </Button>
         </CardContent>
       </Card>

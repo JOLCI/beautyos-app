@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import {
   Select,
   SelectContent,
@@ -20,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, ShoppingCart } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Plus, PackagePlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -28,40 +28,45 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 export default function ComprasPage() {
   const { company } = usePasskey()
   const { data: purchases, refetch } = useQuery<any>('purchases', {
-    order: { column: 'created_at', ascending: false },
+    select: '*, suppliers(name), services(name)',
   })
   const { data: suppliers } = useQuery<any>('suppliers', { match: { is_active: true } })
-  const { data: products } = useQuery<any>('services', {
-    match: { is_active: true, type: 'product' },
-  })
+  const { data: services } = useQuery<any>('services', { match: { type: 'product' } })
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [form, setForm] = useState({
     supplier_id: '',
     service_id: '',
-    quantity: '1',
+    quantity: '',
     unit_cost: '',
     purchase_date: new Date().toISOString().split('T')[0],
+    generate_payable: true,
   })
 
+  const totalCost = Number(form.quantity || 0) * Number(form.unit_cost || 0)
+
   const handleSave = async () => {
-    if (!form.service_id || !form.unit_cost) return toast.error('Preencha os campos obrigatórios')
+    if (!form.supplier_id || !form.service_id || !form.quantity || !form.unit_cost)
+      return toast.error('Preencha os campos obrigatórios')
 
-    const qty = Number(form.quantity)
-    const cost = Number(form.unit_cost)
+    const payload = {
+      company_id: company?.id,
+      supplier_id: form.supplier_id,
+      service_id: form.service_id,
+      quantity: Number(form.quantity),
+      unit_cost: Number(form.unit_cost),
+      total_cost: totalCost,
+      purchase_date: form.purchase_date,
+    }
 
-    await supabase.from('purchases').insert([
-      {
-        company_id: company?.id,
-        supplier_id: form.supplier_id || null,
-        service_id: form.service_id,
-        quantity: qty,
-        unit_cost: cost,
-        total_cost: qty * cost,
-        purchase_date: form.purchase_date,
-      },
-    ])
+    const { data: purchase, error } = await supabase
+      .from('purchases')
+      .insert([payload])
+      .select()
+      .single()
+    if (error) return toast.error('Erro ao salvar compra')
 
+    // Atualiza estoque
     const { data: inv } = await supabase
       .from('inventory')
       .select('*')
@@ -70,17 +75,39 @@ export default function ComprasPage() {
     if (inv) {
       await supabase
         .from('inventory')
-        .update({ quantity: inv.quantity + qty })
+        .update({ quantity: inv.quantity + Number(form.quantity) })
         .eq('id', inv.id)
-    } else {
       await supabase
-        .from('inventory')
-        .insert([{ company_id: company?.id, service_id: form.service_id, quantity: qty }])
+        .from('inventory_movements')
+        .insert([
+          {
+            company_id: company?.id,
+            inventory_id: inv.id,
+            type: 'in',
+            quantity: Number(form.quantity),
+            reason: 'Compra de Fornecedor',
+          },
+        ])
     }
 
-    await supabase.from('services').update({ cost_price: cost }).eq('id', form.service_id)
+    // Gera Título a Pagar se solicitado
+    if (form.generate_payable) {
+      await supabase.from('financial_titles').insert([
+        {
+          company_id: company?.id,
+          type: 'payable',
+          status: 'open',
+          original_amount: totalCost,
+          due_date: form.purchase_date,
+          description: `Compra de Produto - REF: ${purchase?.id.split('-')[0]}`,
+          supplier_id: form.supplier_id,
+        },
+      ])
+      toast.success('Compra registrada e Título a Pagar gerado!')
+    } else {
+      toast.success('Compra registrada com sucesso!')
+    }
 
-    toast.success('Compra registrada e estoque atualizado')
     setSheetOpen(false)
     refetch()
   }
@@ -89,13 +116,16 @@ export default function ComprasPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Compras</h1>
-          <p className="text-muted-foreground">Registro de entrada de produtos e insumos.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Compras e Reposição</h1>
+          <p className="text-muted-foreground">
+            Registre compras de produtos e atualize o estoque.
+          </p>
         </div>
         <Button onClick={() => setSheetOpen(true)} className="rounded-full shadow-md">
-          <Plus className="w-4 h-4 mr-2" /> Nova Compra
+          <PackagePlus className="w-4 h-4 mr-2" /> Nova Compra
         </Button>
       </div>
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -110,62 +140,65 @@ export default function ComprasPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {purchases.map((p) => {
-                const srv = products.find((s: any) => s.id === p.service_id)
-                const sup = suppliers.find((s: any) => s.id === p.supplier_id)
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell>{new Date(p.purchase_date).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">{srv?.name}</TableCell>
-                    <TableCell>{sup?.name || '-'}</TableCell>
-                    <TableCell>{p.quantity}</TableCell>
-                    <TableCell>R$ {p.unit_cost.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-bold">
-                      R$ {p.total_cost.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+              {purchases.map((p: any) => (
+                <TableRow key={p.id}>
+                  <TableCell>{new Date(p.purchase_date).toLocaleDateString()}</TableCell>
+                  <TableCell className="font-medium">{p.services?.name}</TableCell>
+                  <TableCell>{p.suppliers?.name}</TableCell>
+                  <TableCell>{p.quantity}</TableCell>
+                  <TableCell>R$ {p.unit_cost.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-bold text-destructive">
+                    R$ {p.total_cost.toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {purchases.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Nenhuma compra registrada.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right">
-          <SheetHeader className="mb-6">
-            <SheetTitle>Registrar Compra</SheetTitle>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Registrar Nova Compra</SheetTitle>
           </SheetHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 mt-6">
             <div className="space-y-2">
-              <Label>Produto</Label>
+              <Label>Fornecedor</Label>
               <Select
-                value={form.service_id}
-                onValueChange={(v) => setForm({ ...form, service_id: v })}
+                value={form.supplier_id}
+                onValueChange={(v) => setForm({ ...form, supplier_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                  {suppliers.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Fornecedor (Opcional)</Label>
+              <Label>Produto (Estoque)</Label>
               <Select
-                value={form.supplier_id}
-                onValueChange={(v) => setForm({ ...form, supplier_id: v })}
+                value={form.service_id}
+                onValueChange={(v) => setForm({ ...form, service_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s: any) => (
+                  {services.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>
@@ -178,6 +211,7 @@ export default function ComprasPage() {
                 <Label>Quantidade</Label>
                 <Input
                   type="number"
+                  min="1"
                   value={form.quantity}
                   onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                 />
@@ -186,6 +220,7 @@ export default function ComprasPage() {
                 <Label>Custo Unitário (R$)</Label>
                 <Input
                   type="number"
+                  min="0"
                   step="0.01"
                   value={form.unit_cost}
                   onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
@@ -193,19 +228,36 @@ export default function ComprasPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Data</Label>
+              <Label>Data da Compra</Label>
               <Input
                 type="date"
                 value={form.purchase_date}
                 onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
               />
             </div>
-          </div>
-          <SheetFooter className="mt-8">
-            <Button className="w-full" onClick={handleSave}>
-              Confirmar Entrada
+            <div className="p-4 bg-muted/50 rounded-lg flex justify-between items-center border">
+              <span className="font-semibold">Custo Total:</span>
+              <span className="text-xl font-bold text-destructive">R$ {totalCost.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                type="checkbox"
+                id="gen_pay"
+                checked={form.generate_payable}
+                onChange={(e) => setForm({ ...form, generate_payable: e.target.checked })}
+              />
+              <Label htmlFor="gen_pay" className="cursor-pointer">
+                Gerar Título a Pagar automaticamente
+              </Label>
+            </div>
+            <Button
+              onClick={handleSave}
+              className="w-full mt-4"
+              disabled={!form.supplier_id || !form.service_id}
+            >
+              Confirmar Compra
             </Button>
-          </SheetFooter>
+          </div>
         </SheetContent>
       </Sheet>
     </div>

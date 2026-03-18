@@ -1,94 +1,33 @@
 /**
- * Utility functions for standardizing financial descriptions across the app.
+ * Utility functions for standardizing financial representations.
+ * Updated to reflect the new rigid database schema.
  */
 
-/**
- * Formats a standardized financial description.
- */
-export function formatFinancialDescription(method: string, entityName: string, isAuto: boolean) {
-  const safeName = entityName?.trim() || 'Não Identificado'
-  return `(${method || 'OUTROS'}) - ${safeName} (${isAuto ? 'A' : 'M'})`
+export function formatEntityName(record: any): string {
+  if (!record) return 'Não Identificado'
+  if (record.clients && !Array.isArray(record.clients)) return record.clients.name
+  if (record.suppliers && !Array.isArray(record.suppliers)) return record.suppliers.name
+  if (record.client_id) return 'Cliente vinculado (nome indisponível)'
+  if (record.supplier_id) return 'Fornecedor vinculado (nome indisponível)'
+  return 'Não Identificado'
 }
 
-/**
- * Parses a financial description into its components.
- */
-export function parseFinancialDescription(desc: string) {
-  const match = desc?.match(/^\((.*?)\) - (.*?) \((A|M|AUTOMATICO|MANUAL)\)$/i)
-
-  if (match) {
-    const originStr = match[3].toUpperCase()
-    const origin = originStr.startsWith('A') ? 'A' : 'M'
-    return {
-      method: match[1],
-      clientName: match[2].trim(),
-      origin: origin as 'A' | 'M',
-      isStandard: true,
-    }
-  }
-
-  return {
-    method: '',
-    clientName: desc?.trim() || '',
-    origin: 'M' as const,
-    isStandard: false,
-  }
-}
-
-/**
- * Generates a strictly formatted transaction label based on a record object.
- * It enforces the (PAYMENT_METHOD) - Entity Name (A/M) pattern even for legacy records.
- */
-export function formatTransactionLabel(record: any, entityNameOverride?: string) {
+export function formatTransactionLabel(record: any): string {
   if (!record) return ''
-  const desc = record.description || ''
-  const parsed = parseFinancialDescription(desc)
+  const entity = formatEntityName(record)
+  const method = record.payment_method || '-'
+  const desc = record.description ? ` - ${record.description}` : ''
+  return `[${method}] ${entity}${desc}`
+}
 
-  let isAuto = parsed.isStandard ? parsed.origin === 'A' : false
-  if (record.origin && record.origin !== 'manual') isAuto = true
-  if (record.ref_id || record.transaction_id) isAuto = true
-
-  const method = parsed.isStandard ? parsed.method : record.payment_method || 'OUTROS'
-
-  let entityName = ''
-
-  if (entityNameOverride && entityNameOverride.trim() !== '') {
-    entityName = entityNameOverride
-  } else if (record.clients) {
-    entityName = Array.isArray(record.clients) ? record.clients[0]?.name : record.clients?.name
-  } else if (record.suppliers) {
-    entityName = Array.isArray(record.suppliers)
-      ? record.suppliers[0]?.name
-      : record.suppliers?.name
+export function getOriginLabel(origin: string): string {
+  const map: Record<string, string> = {
+    manual_entry: 'Lançamento Manual',
+    automatic_entry: 'PDV (Automático)',
+    receivable_settlement: 'Baixa de Recebível',
+    payable_settlement: 'Baixa de Pagamento',
+    adjustment: 'Ajuste',
+    transfer: 'Transferência',
   }
-
-  if (
-    (!entityName || entityName.trim() === '') &&
-    parsed.isStandard &&
-    parsed.clientName &&
-    !parsed.clientName.toLowerCase().includes('não identificado') &&
-    !parsed.clientName.toLowerCase().includes('nao identificado')
-  ) {
-    entityName = parsed.clientName
-  }
-
-  if (
-    (!entityName || entityName.trim() === '') &&
-    desc &&
-    !desc.toLowerCase().includes('não identificado') &&
-    !desc.toLowerCase().includes('nao identificado')
-  ) {
-    entityName = desc
-  }
-
-  if (
-    !entityName ||
-    entityName.trim() === '' ||
-    entityName.toLowerCase().includes('não identificado') ||
-    entityName.toLowerCase().includes('nao identificado')
-  ) {
-    entityName = 'Não Identificado'
-  }
-
-  return formatFinancialDescription(method, entityName, isAuto)
+  return map[origin] || origin
 }

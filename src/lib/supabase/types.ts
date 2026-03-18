@@ -337,6 +337,7 @@ export type Database = {
           client_id: string | null
           company_id: string | null
           created_at: string
+          created_by: string | null
           description: string
           due_date: string
           id: string
@@ -345,14 +346,17 @@ export type Database = {
           settled_at: string | null
           status: string
           sub_type: string | null
+          supplier_id: string | null
           transaction_id: string | null
           type: string
+          updated_by: string | null
         }
         Insert: {
           amount: number
           client_id?: string | null
           company_id?: string | null
           created_at?: string
+          created_by?: string | null
           description: string
           due_date: string
           id?: string
@@ -361,14 +365,17 @@ export type Database = {
           settled_at?: string | null
           status?: string
           sub_type?: string | null
+          supplier_id?: string | null
           transaction_id?: string | null
           type: string
+          updated_by?: string | null
         }
         Update: {
           amount?: number
           client_id?: string | null
           company_id?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string
           due_date?: string
           id?: string
@@ -377,8 +384,10 @@ export type Database = {
           settled_at?: string | null
           status?: string
           sub_type?: string | null
+          supplier_id?: string | null
           transaction_id?: string | null
           type?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -393,6 +402,13 @@ export type Database = {
             columns: ['company_id']
             isOneToOne: false
             referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'financial_accounts_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
             referencedColumns: ['id']
           },
           {
@@ -797,14 +813,19 @@ export type Database = {
           client_id: string | null
           company_id: string | null
           created_at: string
+          created_by: string | null
           description: string
           id: string
           metadata: Json | null
-          payment_method: string | null
+          origin: string | null
+          payment_method: string
           ref_id: string | null
           settled_at: string | null
           status: string
+          supplier_id: string | null
+          ticket_id: string
           type: string
+          updated_by: string | null
           user_id: string | null
         }
         Insert: {
@@ -812,14 +833,19 @@ export type Database = {
           client_id?: string | null
           company_id?: string | null
           created_at?: string
+          created_by?: string | null
           description: string
           id?: string
           metadata?: Json | null
-          payment_method?: string | null
+          origin?: string | null
+          payment_method: string
           ref_id?: string | null
           settled_at?: string | null
           status?: string
+          supplier_id?: string | null
+          ticket_id?: string
           type: string
+          updated_by?: string | null
           user_id?: string | null
         }
         Update: {
@@ -827,14 +853,19 @@ export type Database = {
           client_id?: string | null
           company_id?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string
           id?: string
           metadata?: Json | null
-          payment_method?: string | null
+          origin?: string | null
+          payment_method?: string
           ref_id?: string | null
           settled_at?: string | null
           status?: string
+          supplier_id?: string | null
+          ticket_id?: string
           type?: string
+          updated_by?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -850,6 +881,13 @@ export type Database = {
             columns: ['company_id']
             isOneToOne: false
             referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
             referencedColumns: ['id']
           },
           {
@@ -1126,6 +1164,9 @@ export const Constants = {
 //   origin: text (nullable, default: 'manual'::text)
 //   notes: text (nullable)
 //   client_id: uuid (nullable)
+//   supplier_id: uuid (nullable)
+//   created_by: uuid (nullable)
+//   updated_by: uuid (nullable)
 // Table: financial_audit_logs
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1212,7 +1253,7 @@ export const Constants = {
 //   type: text (not null)
 //   amount: numeric (not null)
 //   description: text (not null)
-//   payment_method: text (nullable)
+//   payment_method: text (not null)
 //   status: text (not null, default: 'completed'::text)
 //   ref_id: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
@@ -1220,6 +1261,11 @@ export const Constants = {
 //   settled_at: timestamp with time zone (nullable)
 //   metadata: jsonb (nullable, default: '{}'::jsonb)
 //   client_id: uuid (nullable)
+//   ticket_id: text (not null, default: upper(SUBSTRING(replace((gen_random_uuid())::text, '-'::text, ''::text) FROM 1 FOR 8)))
+//   origin: text (nullable, default: 'manual'::text)
+//   supplier_id: uuid (nullable)
+//   created_by: uuid (nullable)
+//   updated_by: uuid (nullable)
 // Table: whatsapp_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1261,8 +1307,11 @@ export const Constants = {
 // Table: financial_accounts
 //   FOREIGN KEY financial_accounts_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
 //   FOREIGN KEY financial_accounts_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   FOREIGN KEY financial_accounts_created_by_fkey: FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL
 //   PRIMARY KEY financial_accounts_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY financial_accounts_supplier_id_fkey: FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT
 //   FOREIGN KEY financial_accounts_transaction_id_fkey: FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
+//   FOREIGN KEY financial_accounts_updated_by_fkey: FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: financial_audit_logs
 //   FOREIGN KEY financial_audit_logs_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY financial_audit_logs_pkey: PRIMARY KEY (id)
@@ -1296,9 +1345,14 @@ export const Constants = {
 //   FOREIGN KEY suppliers_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY suppliers_pkey: PRIMARY KEY (id)
 // Table: transactions
+//   CHECK check_transaction_client_id: CHECK (((ref_id IS NULL) OR (client_id IS NOT NULL)))
 //   FOREIGN KEY transactions_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
 //   FOREIGN KEY transactions_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   FOREIGN KEY transactions_created_by_fkey: FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL
 //   PRIMARY KEY transactions_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY transactions_supplier_id_fkey: FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT
+//   UNIQUE transactions_ticket_id_key: UNIQUE (ticket_id)
+//   FOREIGN KEY transactions_updated_by_fkey: FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL
 //   FOREIGN KEY transactions_user_id_fkey: FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL
 // Table: whatsapp_templates
 //   FOREIGN KEY whatsapp_templates_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
@@ -1505,6 +1559,23 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION set_financial_audit_fields()
+//   CREATE OR REPLACE FUNCTION public.set_financial_audit_fields()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     IF TG_OP = 'INSERT' THEN
+//       NEW.created_by = auth.uid();
+//       NEW.updated_by = auth.uid();
+//     ELSIF TG_OP = 'UPDATE' THEN
+//       NEW.updated_by = auth.uid();
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION sync_financial_desc_fn()
 //   CREATE OR REPLACE FUNCTION public.sync_financial_desc_fn()
 //    RETURNS trigger
@@ -1543,12 +1614,14 @@ export const Constants = {
 // --- TRIGGERS ---
 // Table: financial_accounts
 //   audit_financial_accounts_changes: CREATE TRIGGER audit_financial_accounts_changes AFTER INSERT OR DELETE OR UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
+//   trg_financial_accounts_set_audit: CREATE TRIGGER trg_financial_accounts_set_audit BEFORE INSERT OR UPDATE ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION set_financial_audit_fields()
 //   trg_sync_financial_desc: CREATE TRIGGER trg_sync_financial_desc AFTER UPDATE OF description ON public.financial_accounts FOR EACH ROW EXECUTE FUNCTION sync_financial_desc_fn()
 // Table: pix_gateways
 //   trg_single_active_gateway: CREATE TRIGGER trg_single_active_gateway BEFORE INSERT OR UPDATE ON public.pix_gateways FOR EACH ROW EXECUTE FUNCTION enforce_single_active_gateway()
 // Table: transactions
 //   audit_transactions_changes: CREATE TRIGGER audit_transactions_changes AFTER INSERT OR DELETE OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
 //   trg_sync_transaction_desc: CREATE TRIGGER trg_sync_transaction_desc AFTER UPDATE OF description ON public.transactions FOR EACH ROW EXECUTE FUNCTION sync_transaction_desc_fn()
+//   trg_transactions_set_audit: CREATE TRIGGER trg_transactions_set_audit BEFORE INSERT OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION set_financial_audit_fields()
 
 // --- INDEXES ---
 // Table: client_custom_prices
@@ -1562,3 +1635,4 @@ export const Constants = {
 // Table: transactions
 //   CREATE INDEX idx_transactions_client_id ON public.transactions USING btree (client_id)
 //   CREATE INDEX idx_transactions_client_id_perf ON public.transactions USING btree (client_id)
+//   CREATE UNIQUE INDEX transactions_ticket_id_key ON public.transactions USING btree (ticket_id)

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@/hooks/use-query'
 import { Card, CardContent } from '@/components/ui/card'
@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -23,42 +22,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import {
-  Undo2,
-  CheckCircle2,
-  Plus,
-  Edit2,
-  Trash2,
-  Info,
-  Receipt,
-  AlertTriangle,
-} from 'lucide-react'
+import { CheckCircle2, Plus, AlertTriangle, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
-import {
-  formatFinancialDescription,
-  formatTransactionLabel,
-  parseFinancialDescription,
-} from '@/lib/financial'
-import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
-import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
-
-const PAYMENT_METHODS = [
-  'PIX',
-  'PIX AGENDADO',
-  'DINHEIRO',
-  'DEBITO',
-  'CREDITO',
-  'CONVENIO',
-  'TRANSFERENCIA',
-  'BOLETO',
-  'OUTROS',
-]
 
 export default function ContasReceberPage() {
   const { company } = usePasskey()
-  const { data: receivables, refetch } = useQuery<any>('financial_accounts', {
+  const { data: titles, refetch } = useQuery<any>('financial_titles', {
     match: { type: 'receivable' },
     select: '*, clients(name)',
   })
@@ -68,178 +39,77 @@ export default function ContasReceberPage() {
   const filterParam = searchParams.get('filter')
 
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
-  const [ticketTx, setTicketTx] = useState<any>(null)
-
-  // Standardized Form State
-  const [clientMode, setClientMode] = useState<'registered' | 'custom'>('registered')
-  const [selectedClientId, setSelectedClientId] = useState('none')
-  const [customClientName, setCustomClientName] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('DINHEIRO')
-
   const [form, setForm] = useState({
+    client_id: '',
     amount: '',
     due_date: new Date().toISOString().split('T')[0],
     notes: '',
   })
 
-  const generatedDescription = useMemo(() => {
-    let cName = customClientName
-    if (clientMode === 'registered' && selectedClientId !== 'none') {
-      const c = clients?.find((client: any) => client.id === selectedClientId)
-      if (c) cName = c.name
-    }
-    return formatFinancialDescription(paymentMethod, cName, false)
-  }, [clientMode, selectedClientId, customClientName, paymentMethod, clients])
-
-  const openSheet = (p: any = null) => {
-    if (p) {
-      setEditing(p)
-
-      const label = formatTransactionLabel(p, p.clients?.name)
-      const { isStandard, method, clientName } = parseFinancialDescription(label)
-
-      if (isStandard) {
-        setPaymentMethod(method)
-        const foundClient = clients?.find((c: any) => c.name === clientName || c.id === p.client_id)
-
-        if (foundClient) {
-          setClientMode('registered')
-          setSelectedClientId(foundClient.id)
-          setCustomClientName('')
-        } else {
-          setClientMode('custom')
-          setSelectedClientId('none')
-          setCustomClientName(clientName)
-        }
-      } else {
-        setPaymentMethod(p.payment_method || 'OUTROS')
-        setClientMode('custom')
-        setCustomClientName(p.description)
-        setSelectedClientId('none')
-      }
-
-      setForm({
-        amount: p.amount.toString(),
-        due_date: p.due_date,
-        notes: p.notes || '',
-      })
-    } else {
-      setEditing(null)
-      setClientMode('registered')
-      setSelectedClientId('none')
-      setCustomClientName('')
-      setPaymentMethod('DINHEIRO')
-      setForm({
-        amount: '',
-        due_date: new Date().toISOString().split('T')[0],
-        notes: '',
-      })
-    }
+  const openSheet = () => {
+    setForm({
+      client_id: '',
+      amount: '',
+      due_date: new Date().toISOString().split('T')[0],
+      notes: '',
+    })
     setSheetOpen(true)
   }
 
   const handleSave = async () => {
-    const payload = {
-      ...form,
-      amount: Number(form.amount),
-      description: generatedDescription,
-      client_id: selectedClientId !== 'none' ? selectedClientId : null,
-    }
+    if (!form.client_id || !form.amount) return toast.error('Preencha cliente e valor.')
 
-    if (editing) {
-      await supabase.from('financial_accounts').update(payload).eq('id', editing.id)
-    } else {
-      await supabase.from('financial_accounts').insert([
-        {
-          ...payload,
-          company_id: company?.id,
-          type: 'receivable',
-          status: 'pending',
-          origin: 'manual',
-        } as any,
-      ])
-    }
-    toast.success('Salvo com sucesso')
+    await supabase.from('financial_titles').insert([
+      {
+        company_id: company?.id,
+        type: 'receivable',
+        status: 'open',
+        original_amount: Number(form.amount),
+        due_date: form.due_date,
+        description: form.notes,
+        client_id: form.client_id,
+      },
+    ])
+
+    toast.success('Título criado com sucesso')
     setSheetOpen(false)
     refetch()
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja excluir este registro?')) return
-    await supabase.from('financial_accounts').delete().eq('id', id)
-    toast.success('Excluído')
-    refetch()
-  }
+  const receive = async (t: any) => {
+    // Create cash flow transaction
+    await supabase.from('transactions').insert([
+      {
+        company_id: company?.id,
+        type: 'inflow',
+        origin: 'receivable_settlement',
+        amount: t.open_amount,
+        status: 'confirmed',
+        payment_method: 'OUTROS',
+        client_id: t.client_id,
+        financial_title_id: t.id,
+        description: 'Baixa integral de título',
+        confirmed_at: new Date().toISOString(),
+      },
+    ])
 
-  const receive = async (p: any) => {
-    if (p.transaction_id) {
-      await supabase.from('transactions').update({ status: 'completed' }).eq('id', p.transaction_id)
-      await supabase
-        .from('financial_accounts')
-        .update({ status: 'paid', settled_at: new Date().toISOString() })
-        .eq('id', p.id)
-    } else {
-      const { method, isStandard } = parseFinancialDescription(p.description)
-      const finalMethod = isStandard ? method : 'OUTROS'
-
-      const { data: tx } = await supabase
-        .from('transactions')
-        .insert([
-          {
-            company_id: company?.id,
-            client_id: p.client_id,
-            type: 'entrada',
-            amount: p.amount,
-            description: p.description,
-            payment_method: finalMethod,
-            status: 'completed',
-            settled_at: new Date().toISOString(),
-          } as any,
-        ])
-        .select()
-        .single()
-
-      if (tx) {
-        await supabase
-          .from('financial_accounts')
-          .update({ status: 'paid', transaction_id: tx.id, settled_at: new Date().toISOString() })
-          .eq('id', p.id)
-      }
-    }
-    toast.success('Valor Recebido')
-    refetch()
-  }
-
-  const undo = async (p: any) => {
+    // Update title
     await supabase
-      .from('financial_accounts')
-      .update({ status: 'pending', settled_at: null })
-      .eq('id', p.id)
-    if (p.transaction_id)
-      await supabase.from('transactions').update({ status: 'pending' }).eq('id', p.transaction_id)
-    toast.info('Recebimento Desfeito')
+      .from('financial_titles')
+      .update({
+        paid_amount: t.original_amount, // simplifies open_amount calculation to 0
+        status: 'paid',
+      })
+      .eq('id', t.id)
+
+    toast.success('Título recebido e contabilizado no caixa')
     refetch()
   }
 
-  const openTicket = async (p: any) => {
-    if (!p.transaction_id) {
-      toast.info('Este registro não possui uma transação vinculada (foi criado mas não baixado).')
-      return
-    }
-    const { data: tx } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('id', p.transaction_id)
-      .single()
-    if (tx) setTicketTx(tx)
-  }
-
-  const filteredReceivables = receivables.filter((p: any) => {
-    if (filterParam === 'overdue') {
-      const today = new Date().toISOString().split('T')[0]
-      return p.status === 'pending' && p.due_date < today
-    }
+  const today = new Date().toISOString().split('T')[0]
+  const filteredTitles = titles.filter((t: any) => {
+    if (filterParam === 'overdue')
+      return ['open', 'partial'].includes(t.status) && t.due_date < today
     return true
   })
 
@@ -247,25 +117,24 @@ export default function ContasReceberPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Contas a Receber</h1>
-          <p className="text-muted-foreground">Gerencie seus recebíveis e pagamentos pendentes.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Títulos a Receber</h1>
+          <p className="text-muted-foreground">Gestão rigorosa de contas a receber e clientes.</p>
         </div>
-        <Button onClick={() => openSheet()} className="rounded-full shadow-md">
-          <Plus className="w-4 h-4 mr-2" /> Novo Registro
+        <Button onClick={openSheet} className="rounded-full shadow-md">
+          <Plus className="w-4 h-4 mr-2" /> Novo Título
         </Button>
       </div>
 
       {filterParam === 'overdue' && (
-        <div className="flex justify-between items-center bg-destructive/10 text-destructive p-3 rounded-lg border border-destructive/20 mb-4 animate-in fade-in zoom-in-95">
+        <div className="flex justify-between items-center bg-destructive/10 text-destructive p-3 rounded-lg border border-destructive/20 mb-4">
           <div className="flex items-center gap-2 font-medium">
-            <AlertTriangle className="w-4 h-4" />
-            Exibindo apenas contas a receber vencidas.
+            <AlertTriangle className="w-4 h-4" /> Exibindo títulos vencidos.
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setSearchParams({})}
-            className="bg-transparent border-destructive/50 hover:bg-destructive/20 text-destructive"
+            className="bg-transparent border-destructive/50 text-destructive"
           >
             Limpar Filtro
           </Button>
@@ -277,213 +146,110 @@ export default function ContasReceberPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Descrição (Padronizada)</TableHead>
+                <TableHead>Cliente</TableHead>
                 <TableHead>Vencimento</TableHead>
-                <TableHead>Valor</TableHead>
+                <TableHead>Valor Original</TableHead>
+                <TableHead>Aberto</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredReceivables.map((p: any) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <FinancialDescription record={p} />
-                  </TableCell>
-                  <TableCell>{new Date(p.due_date).toLocaleDateString()}</TableCell>
-                  <TableCell className="font-bold text-primary">R$ {p.amount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    {p.status === 'paid' ? (
-                      <Badge className="bg-green-500">Recebido</Badge>
-                    ) : (
-                      <Badge variant="outline">Pendente</Badge>
+              {filteredTitles.map((t: any) => (
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      {t.clients?.name || 'Cliente Removido'}
+                    </div>
+                    {t.description && (
+                      <div className="text-xs text-muted-foreground mt-1">{t.description}</div>
                     )}
                   </TableCell>
-                  <TableCell className="text-right space-x-1 whitespace-nowrap">
-                    {p.status !== 'paid' ? (
-                      <>
-                        <Button size="icon" variant="ghost" onClick={() => openSheet(p)}>
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => handleDelete(p.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-600"
-                          onClick={() => receive(p)}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" /> Baixar
-                        </Button>
-                      </>
+                  <TableCell>{new Date(t.due_date).toLocaleDateString()}</TableCell>
+                  <TableCell>R$ {t.original_amount.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold text-primary">
+                    R$ {t.open_amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {t.status === 'paid' ? (
+                      <Badge className="bg-green-500">Pago</Badge>
                     ) : (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary"
-                          onClick={() => openTicket(p)}
-                          title="Ver Ticket"
-                        >
-                          <Receipt className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-amber-500"
-                          onClick={() => undo(p)}
-                        >
-                          <Undo2 className="w-4 h-4 mr-2" /> Desfazer
-                        </Button>
-                      </>
+                      <Badge variant="outline">{t.status}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {['open', 'partial'].includes(t.status) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-green-600"
+                        onClick={() => receive(t)}
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2" /> Baixar
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredReceivables.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhuma conta a receber pendente.
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-[480px]">
+        <SheetContent>
           <SheetHeader>
-            <SheetTitle>{editing ? 'Editar Conta a Receber' : 'Nova Conta a Receber'}</SheetTitle>
+            <SheetTitle>Novo Título a Receber</SheetTitle>
           </SheetHeader>
-          <div className="space-y-5 mt-6 overflow-y-auto pb-6">
-            <div className="space-y-4 p-4 bg-muted/30 border rounded-xl">
-              <div className="flex items-center gap-2 text-primary text-sm font-semibold mb-2">
-                <Info className="w-4 h-4" />
-                Descrição Automática
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-2">
-                  <Label>Método de Pagamento</Label>
-                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3 col-span-2">
-                  <Label>Vínculo do Cliente / Entidade</Label>
-                  <RadioGroup
-                    value={clientMode}
-                    onValueChange={(v: any) => setClientMode(v)}
-                    className="flex gap-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="registered" id="r-reg" />
-                      <Label htmlFor="r-reg" className="cursor-pointer">
-                        Cliente Cadastrado
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="custom" id="r-cust" />
-                      <Label htmlFor="r-cust" className="cursor-pointer">
-                        Outro / Avulso
-                      </Label>
-                    </div>
-                  </RadioGroup>
-
-                  {clientMode === 'registered' ? (
-                    <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o cliente..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Selecione...</SelectItem>
-                        {clients?.map((c: any) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      value={customClientName}
-                      onChange={(e) => setCustomClientName(e.target.value)}
-                      placeholder="Ex: Fornecedor, Convenio X, Maria..."
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-border">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Prévia da Descrição
-                </Label>
-                <div className="font-mono text-sm font-medium mt-1 bg-background p-2 rounded border break-all">
-                  {generatedDescription}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Valor (R$)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Data de Vencimento</Label>
-                <Input
-                  type="date"
-                  value={form.due_date}
-                  onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                />
-              </div>
-            </div>
-
+          <div className="space-y-4 mt-6">
             <div className="space-y-2">
-              <Label>Observações Extras (Opcional)</Label>
+              <Label>Cliente (Obrigatório)</Label>
+              <Select
+                value={form.client_id}
+                onValueChange={(v) => setForm({ ...form, client_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients?.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Valor (R$)</Label>
+              <Input
+                type="number"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Vencimento</Label>
+              <Input
+                type="date"
+                value={form.due_date}
+                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Observações Adicionais</Label>
               <Input
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Detalhes adicionais..."
               />
             </div>
-
-            <Button onClick={handleSave} className="w-full h-12 mt-4 rounded-full">
-              {editing ? 'Salvar Alterações' : 'Criar Registro Manual'}
+            <Button onClick={handleSave} className="w-full mt-4">
+              Criar Título
             </Button>
           </div>
         </SheetContent>
       </Sheet>
-
-      <TransactionTicketDialog
-        transaction={ticketTx}
-        open={!!ticketTx}
-        onOpenChange={(o: boolean) => !o && setTicketTx(null)}
-      />
     </div>
   )
 }

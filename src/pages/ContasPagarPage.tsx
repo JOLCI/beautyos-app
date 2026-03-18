@@ -14,12 +14,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Undo2, CheckCircle2, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
-import { toast } from 'sonner'
-import { usePasskey } from '@/contexts/PasskeyContext'
-import { formatFinancialDescription } from '@/lib/financial'
 import {
   Select,
   SelectContent,
@@ -27,10 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { CheckCircle2, Plus, AlertTriangle, Building2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase/client'
+import { toast } from 'sonner'
+import { usePasskey } from '@/contexts/PasskeyContext'
 
 export default function ContasPagarPage() {
   const { company } = usePasskey()
-  const { data: payables, refetch } = useQuery<any>('financial_accounts', {
+  const { data: titles, refetch } = useQuery<any>('financial_titles', {
     match: { type: 'payable' },
     select: '*, suppliers(name)',
   })
@@ -40,140 +39,100 @@ export default function ContasPagarPage() {
   const filterParam = searchParams.get('filter')
 
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
   const [form, setForm] = useState({
-    description: '',
+    supplier_id: '',
     amount: '',
     due_date: new Date().toISOString().split('T')[0],
     notes: '',
-    supplier_id: 'none',
   })
 
-  const openSheet = (p: any = null) => {
-    if (p) {
-      setEditing(p)
-      setForm({
-        description: p.description,
-        amount: p.amount.toString(),
-        due_date: p.due_date,
-        notes: p.notes || '',
-        supplier_id: p.supplier_id || 'none',
-      })
-    } else {
-      setEditing(null)
-      setForm({
-        description: '',
-        amount: '',
-        due_date: new Date().toISOString().split('T')[0],
-        notes: '',
-        supplier_id: 'none',
-      })
-    }
+  const openSheet = () => {
+    setForm({
+      supplier_id: '',
+      amount: '',
+      due_date: new Date().toISOString().split('T')[0],
+      notes: '',
+    })
     setSheetOpen(true)
   }
 
   const handleSave = async () => {
-    const payload = {
-      description: form.description,
-      amount: Number(form.amount),
-      due_date: form.due_date,
-      notes: form.notes,
-      supplier_id: form.supplier_id !== 'none' ? form.supplier_id : null,
-    }
-    if (editing) await supabase.from('financial_accounts').update(payload).eq('id', editing.id)
-    else
-      await supabase.from('financial_accounts').insert([
-        {
-          ...payload,
-          company_id: company?.id,
-          type: 'payable',
-          status: 'pending',
-          origin: 'manual',
-        },
-      ])
-    toast.success('Salvo com sucesso')
+    if (!form.supplier_id || !form.amount) return toast.error('Preencha fornecedor e valor.')
+
+    await supabase.from('financial_titles').insert([
+      {
+        company_id: company?.id,
+        type: 'payable',
+        status: 'open',
+        original_amount: Number(form.amount),
+        due_date: form.due_date,
+        description: form.notes,
+        supplier_id: form.supplier_id,
+      },
+    ])
+
+    toast.success('Título criado com sucesso')
     setSheetOpen(false)
     refetch()
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja excluir este registro?')) return
-    await supabase.from('financial_accounts').delete().eq('id', id)
-    toast.success('Excluído')
-    refetch()
-  }
-
-  const pay = async (p: any) => {
-    let entityName = p.description
-    if (p.suppliers && p.suppliers.name) {
-      entityName = p.suppliers.name
-    }
-
-    const txDesc = formatFinancialDescription('OUTROS', `Pgto: ${entityName}`, false)
-    const { data: tx } = await supabase
-      .from('transactions')
-      .insert([
-        {
-          company_id: company?.id,
-          type: 'saida',
-          amount: p.amount,
-          description: txDesc,
-          status: 'completed',
-          payment_method: 'OUTROS',
-          supplier_id: p.supplier_id,
-          settled_at: new Date().toISOString(),
-        },
-      ])
-      .select()
-      .single()
+  const pay = async (t: any) => {
+    await supabase.from('transactions').insert([
+      {
+        company_id: company?.id,
+        type: 'outflow',
+        origin: 'payable_settlement',
+        amount: t.open_amount,
+        status: 'confirmed',
+        payment_method: 'OUTROS',
+        supplier_id: t.supplier_id,
+        financial_title_id: t.id,
+        description: 'Baixa integral de título',
+        confirmed_at: new Date().toISOString(),
+      },
+    ])
 
     await supabase
-      .from('financial_accounts')
-      .update({ status: 'paid', transaction_id: tx?.id, settled_at: new Date().toISOString() })
-      .eq('id', p.id)
-    toast.success('Conta Paga')
+      .from('financial_titles')
+      .update({
+        paid_amount: t.original_amount,
+        status: 'paid',
+      })
+      .eq('id', t.id)
+
+    toast.success('Título pago e contabilizado no caixa')
     refetch()
   }
 
-  const undo = async (p: any) => {
-    await supabase
-      .from('financial_accounts')
-      .update({ status: 'pending', transaction_id: null, settled_at: null })
-      .eq('id', p.id)
-    if (p.transaction_id)
-      await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', p.transaction_id)
-    toast.info('Pagamento Desfeito')
-    refetch()
-  }
-
-  const filteredPayables = payables.filter((p) => {
-    if (filterParam === 'overdue') {
-      const today = new Date().toISOString().split('T')[0]
-      return p.status === 'pending' && p.due_date < today
-    }
+  const today = new Date().toISOString().split('T')[0]
+  const filteredTitles = titles.filter((t: any) => {
+    if (filterParam === 'overdue')
+      return ['open', 'partial'].includes(t.status) && t.due_date < today
     return true
   })
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Contas a Pagar</h1>
-        <Button onClick={() => openSheet()} className="rounded-full shadow-md">
-          <Plus className="w-4 h-4 mr-2" /> Novo Registro
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Títulos a Pagar</h1>
+          <p className="text-muted-foreground">Gestão rigorosa de obrigações com fornecedores.</p>
+        </div>
+        <Button onClick={openSheet} className="rounded-full shadow-md">
+          <Plus className="w-4 h-4 mr-2" /> Novo Título
         </Button>
       </div>
 
       {filterParam === 'overdue' && (
-        <div className="flex justify-between items-center bg-amber-500/10 text-amber-700 p-3 rounded-lg border border-amber-500/20 mb-4 animate-in fade-in zoom-in-95">
+        <div className="flex justify-between items-center bg-amber-500/10 text-amber-700 p-3 rounded-lg border border-amber-500/20 mb-4">
           <div className="flex items-center gap-2 font-medium">
-            <AlertTriangle className="w-4 h-4" />
-            Exibindo apenas contas vencidas.
+            <AlertTriangle className="w-4 h-4" /> Exibindo títulos vencidos.
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setSearchParams({})}
-            className="bg-transparent border-amber-500/50 hover:bg-amber-500/20 text-amber-700"
+            className="bg-transparent border-amber-500/50 text-amber-700"
           >
             Limpar Filtro
           </Button>
@@ -185,81 +144,52 @@ export default function ContasPagarPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Descrição / Fornecedor</TableHead>
-                <TableHead>Origem</TableHead>
+                <TableHead>Fornecedor</TableHead>
                 <TableHead>Vencimento</TableHead>
-                <TableHead>Valor</TableHead>
+                <TableHead>Valor Original</TableHead>
+                <TableHead>Aberto</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPayables.map((p) => {
-                const supName = Array.isArray(p.suppliers)
-                  ? p.suppliers[0]?.name
-                  : p.suppliers?.name
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell>
-                      <div className="font-medium">{p.description}</div>
-                      {supName && <div className="text-xs text-muted-foreground">{supName}</div>}
-                    </TableCell>
-                    <TableCell className="uppercase text-xs text-muted-foreground">
-                      {p.origin || 'manual'}
-                    </TableCell>
-                    <TableCell>{new Date(p.due_date).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-bold">R$ {p.amount.toFixed(2)}</TableCell>
-                    <TableCell>
-                      {p.status === 'paid' ? (
-                        <Badge className="bg-green-500">Pago</Badge>
-                      ) : (
-                        <Badge variant="outline">Pendente</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right space-x-1">
-                      {p.status !== 'paid' ? (
-                        <>
-                          <Button size="sm" variant="ghost" onClick={() => openSheet(p)}>
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            onClick={() => handleDelete(p.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600"
-                            onClick={() => pay(p)}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-2" /> Pagar
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-amber-500"
-                          onClick={() => undo(p)}
-                        >
-                          <Undo2 className="w-4 h-4 mr-2" /> Desfazer
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-              {filteredPayables.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Nenhum registro encontrado.
+              {filteredTitles.map((t: any) => (
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-muted-foreground" />
+                      {t.suppliers?.name || 'Fornecedor Removido'}
+                    </div>
+                    {t.description && (
+                      <div className="text-xs text-muted-foreground mt-1">{t.description}</div>
+                    )}
+                  </TableCell>
+                  <TableCell>{new Date(t.due_date).toLocaleDateString()}</TableCell>
+                  <TableCell>R$ {t.original_amount.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold text-destructive">
+                    R$ {t.open_amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {t.status === 'paid' ? (
+                      <Badge className="bg-green-500">Pago</Badge>
+                    ) : (
+                      <Badge variant="outline">{t.status}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {['open', 'partial'].includes(t.status) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-green-600"
+                        onClick={() => pay(t)}
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2" /> Pagar
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
-              )}
+              ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -268,19 +198,11 @@ export default function ContasPagarPage() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>{editing ? 'Editar Conta' : 'Nova Conta a Pagar'}</SheetTitle>
+            <SheetTitle>Novo Título a Pagar</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 mt-6">
             <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Input
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Ex: Compra de Tinturas"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Fornecedor (Opcional)</Label>
+              <Label>Fornecedor (Obrigatório)</Label>
               <Select
                 value={form.supplier_id}
                 onValueChange={(v) => setForm({ ...form, supplier_id: v })}
@@ -289,8 +211,7 @@ export default function ContasPagarPage() {
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {suppliers.map((s: any) => (
+                  {suppliers?.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>
@@ -315,14 +236,14 @@ export default function ContasPagarPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Observações</Label>
+              <Label>Observações Adicionais</Label>
               <Input
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
             </div>
-            <Button onClick={handleSave} className="w-full h-12 mt-4">
-              Salvar
+            <Button onClick={handleSave} className="w-full mt-4">
+              Criar Título
             </Button>
           </div>
         </SheetContent>

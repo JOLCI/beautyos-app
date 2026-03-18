@@ -49,7 +49,7 @@ export interface Attendance {
   total: number
   discount: number
   finalTotal: number
-  paymentMethod: 'pix' | 'credit' | 'debit' | 'cash' | 'pix_agendado' | 'convenio' | 'pix_simples'
+  paymentMethod: string
   status: 'pending' | 'paid'
   date: string
 }

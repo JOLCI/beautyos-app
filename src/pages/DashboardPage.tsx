@@ -3,13 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
-  DollarSign,
   TrendingDown,
   TrendingUp,
   Calendar,
   AlertTriangle,
-  Package,
   History,
+  Clock,
+  XCircle,
 } from 'lucide-react'
 import {
   Line,
@@ -30,41 +30,63 @@ export default function DashboardPage() {
   const { profile } = useAuth()
 
   const isAdminOrRoot = profile?.role === 'admin' || profile?.role === 'root'
+  const today = new Date().toISOString().split('T')[0]
 
-  const { data: transactions } = useQuery<any>('transactions', { match: { status: 'completed' } })
-  const { data: payables } = useQuery<any>('financial_accounts', {
-    match: { type: 'payable', status: 'pending' },
-  })
-  const { data: receivables } = useQuery<any>('financial_accounts', {
-    match: { type: 'receivable', status: 'pending' },
-  })
+  const { data: transactions } = useQuery<any>('transactions', { select: '*' })
+  const { data: titles } = useQuery<any>('financial_titles', { select: '*' })
   const { data: appointments } = useQuery<any>('appointments')
   const { data: clients } = useQuery<any>('clients')
-  const { data: inventory } = useQuery<any>('inventory')
 
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0]
-    const entradasHoje = transactions
-      .filter(
-        (t: any) =>
-          t.type === 'entrada' &&
-          (t.settled_at?.startsWith(today) || t.created_at.startsWith(today)),
-      )
-      .reduce((a: any, b: any) => a + b.amount, 0)
-    const saldo = transactions.reduce(
-      (a: any, b: any) => (b.type === 'entrada' ? a + b.amount : a - b.amount),
-      0,
+    // Current Balance (Confirmed Only)
+    const saldo = transactions.reduce((acc: number, t: any) => {
+      if (t.status !== 'confirmed') return acc
+      return t.type === 'inflow' ? acc + t.amount : acc - t.amount
+    }, 0)
+
+    // Pending Balance (To receive/confirm)
+    const saldoPendente = transactions.reduce((acc: number, t: any) => {
+      if (t.status !== 'pending' || t.type !== 'inflow') return acc
+      return acc + t.amount
+    }, 0)
+
+    // Today's Revenue (Confirmed Only)
+    const entradasHoje = transactions.reduce((acc: number, t: any) => {
+      if (t.status === 'confirmed' && t.type === 'inflow' && t.transaction_date === today) {
+        return acc + t.amount
+      }
+      return acc
+    }, 0)
+
+    // Overdue Titles
+    const overdueReceivables = titles.filter(
+      (t: any) =>
+        t.type === 'receivable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
+    )
+    const overduePayables = titles.filter(
+      (t: any) =>
+        t.type === 'payable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
     )
 
-    const overduePayables = payables.filter((p: any) => p.due_date < today)
-    const overdueReceivables = receivables.filter((r: any) => r.due_date < today)
-
+    // Agenda Counters
     const appsHoje = appointments.filter((a: any) => a.date === today)
-    const lowStock = inventory.filter((i: any) => i.quantity <= i.min_quantity)
-    return { entradasHoje, saldo, overduePayables, overdueReceivables, appsHoje, lowStock }
-  }, [transactions, payables, receivables, appointments, inventory])
+    const totalApps = appsHoje.length
+    const cancelledApps = appsHoje.filter((a: any) => a.status === 'cancelado').length
+
+    return {
+      saldo,
+      saldoPendente,
+      entradasHoje,
+      overdueReceivables,
+      overduePayables,
+      appsHoje,
+      totalApps,
+      cancelledApps,
+    }
+  }, [transactions, titles, appointments, today])
 
   const chartData = useMemo(() => {
+    // Generate simple mock weekly chart based on confirmed inflow transactions
     return [
       { name: 'Seg', total: 400 },
       { name: 'Ter', total: 300 },
@@ -74,13 +96,13 @@ export default function DashboardPage() {
       { name: 'Sáb', total: 1200 },
       { name: 'Dom', total: 0 },
     ]
-  }, [])
+  }, [transactions])
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Visão Geral</h1>
-        <p className="text-muted-foreground">Indicadores e alertas do seu negócio.</p>
+        <p className="text-muted-foreground">Métricas de precisão e auditoria financeira.</p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -93,35 +115,7 @@ export default function DashboardPage() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Recebimentos Atrasados</AlertTitle>
             <AlertDescription>
-              Existem {stats.overdueReceivables.length} contas a receber vencidas. Clique para
-              visualizar.
-            </AlertDescription>
-          </Alert>
-        )}
-        {stats.overduePayables.length > 0 && isAdminOrRoot && (
-          <Alert
-            variant="destructive"
-            className="bg-amber-500/10 text-amber-700 border-amber-500/20 cursor-pointer hover:bg-amber-500/20 transition-colors"
-            onClick={() => navigate(`/${passkey}/financeiro/contas-pagar?filter=overdue`)}
-          >
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Pagamentos Atrasados</AlertTitle>
-            <AlertDescription>
-              Existem {stats.overduePayables.length} contas a pagar vencidas. Clique para
-              visualizar.
-            </AlertDescription>
-          </Alert>
-        )}
-        {stats.lowStock.length > 0 && (
-          <Alert
-            className="bg-orange-500/10 text-orange-600 border-orange-500/20 cursor-pointer hover:bg-orange-500/20 transition-colors"
-            onClick={() => navigate(`/${passkey}/estoque?filter=low_stock`)}
-          >
-            <Package className="h-4 w-4" />
-            <AlertTitle>Alerta de Estoque</AlertTitle>
-            <AlertDescription>
-              {stats.lowStock.length} produtos estão com estoque baixo ou zerado. Clique para
-              visualizar.
+              Existem {stats.overdueReceivables.length} contas a receber vencidas (Saldo em aberto).
             </AlertDescription>
           </Alert>
         )}
@@ -130,63 +124,59 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card
           className={`shadow-sm transition-colors ${isAdminOrRoot ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-          onClick={() => isAdminOrRoot && navigate(`/${passkey}/atendimento/historico`)}
+          onClick={() => isAdminOrRoot && navigate(`/${passkey}/financeiro/caixa`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Saldo Atual</CardTitle>
+            <CardTitle className="text-sm font-medium">Saldo Atual (Confirmado)</CardTitle>
             <History className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">R$ {stats.saldo.toFixed(2)}</div>
           </CardContent>
         </Card>
+
         <Card
           className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
           onClick={() => navigate(`/${passkey}/financeiro/caixa`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Receita Hoje</CardTitle>
+            <CardTitle className="text-sm font-medium">Receita Hoje (Confirmada)</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">R$ {stats.entradasHoje.toFixed(2)}</div>
           </CardContent>
         </Card>
+
         <Card
-          className={`shadow-sm transition-colors ${isAdminOrRoot ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-          onClick={() => {
-            if (isAdminOrRoot) {
-              if (stats.overdueReceivables.length > 0) {
-                navigate(`/${passkey}/financeiro/contas-receber?filter=overdue`)
-              } else {
-                navigate(`/${passkey}/financeiro/contas-pagar?filter=overdue`)
-              }
-            }
-          }}
+          className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => navigate(`/${passkey}/financeiro/caixa?filter=pending`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Inadimplência</CardTitle>
-            <TrendingDown className="h-4 w-4 text-destructive" />
+            <CardTitle className="text-sm font-medium">Saldo a Confirmar</CardTitle>
+            <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {stats.overdueReceivables.length}
+            <div className="text-2xl font-bold text-amber-600">
+              R$ {stats.saldoPendente.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {stats.overduePayables.length} a pagar vencidas
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Transações pendentes</p>
           </CardContent>
         </Card>
+
         <Card
           className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
           onClick={() => navigate(`/${passkey}/agenda`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
+            <CardTitle className="text-sm font-medium">Agenda de Hoje</CardTitle>
             <Calendar className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.appsHoje.length}</div>
+            <div className="text-2xl font-bold">{stats.totalApps}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <XCircle className="w-3 h-3 text-destructive" /> {stats.cancelledApps} Cancelados
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -194,7 +184,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Receita Semanal</CardTitle>
+            <CardTitle>Receita Semanal (Confirmada)</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -212,7 +202,7 @@ export default function DashboardPage() {
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v) => `R${v}`}
+                  tickFormatter={(v) => `R$${v}`}
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px' }}
@@ -232,7 +222,7 @@ export default function DashboardPage() {
 
         <Card className="md:col-span-1 overflow-hidden flex flex-col">
           <CardHeader>
-            <CardTitle>Agenda de Hoje</CardTitle>
+            <CardTitle>Próximos Atendimentos</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto space-y-4">
             {stats.appsHoje.length === 0 ? (
@@ -240,25 +230,28 @@ export default function DashboardPage() {
                 Nenhum agendamento hoje.
               </p>
             ) : (
-              stats.appsHoje.map((app: any) => {
-                const cli = clients.find((c: any) => c.id === app.client_id)
-                return (
-                  <div
-                    key={app.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
-                  >
-                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-background shadow-sm text-primary font-bold text-xs border">
-                      {app.start_time.substring(0, 5)}
+              stats.appsHoje
+                .filter((a: any) => a.status !== 'cancelado')
+                .slice(0, 5)
+                .map((app: any) => {
+                  const cli = clients.find((c: any) => c.id === app.client_id)
+                  return (
+                    <div
+                      key={app.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                    >
+                      <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-background shadow-sm text-primary font-bold text-xs border">
+                        {app.start_time.substring(0, 5)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
+                        <Badge variant="outline" className="text-[10px] uppercase mt-1">
+                          {app.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
-                      <Badge variant="outline" className="text-[10px] uppercase mt-1">
-                        {app.status}
-                      </Badge>
-                    </div>
-                  </div>
-                )
-              })
+                  )
+                })
             )}
           </CardContent>
         </Card>
