@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@/hooks/use-query'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -12,9 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Wallet, Loader2, Undo2, Edit2, Search } from 'lucide-react'
+import { Wallet, Loader2, Undo2, Edit2, Check, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useAuth } from '@/hooks/use-auth'
@@ -30,9 +28,8 @@ export default function CaixaPage() {
   } = useQuery<any>('transactions', { order: { column: 'created_at', ascending: false } })
 
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [editingTx, setEditingTx] = useState<any>(null)
-  const [form, setForm] = useState({ description: '', amount: '' })
+  const [inlineEditing, setInlineEditing] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ description: '', amount: '' })
 
   const filtered = useMemo(() => {
     return txs.filter((t: any) => t.created_at.startsWith(dateFilter))
@@ -70,19 +67,21 @@ export default function CaixaPage() {
     )
   }
 
-  const openEdit = (t: any) => {
-    setEditingTx(t)
-    setForm({ description: t.description, amount: t.amount.toString() })
-    setSheetOpen(true)
+  const startInlineEdit = (t: any) => {
+    setInlineEditing(t.id)
+    setEditForm({ description: t.description, amount: t.amount.toString() })
   }
 
-  const handleSaveEdit = async () => {
+  const saveInlineEdit = async (t: any) => {
     await supabase
       .from('transactions')
-      .update({ amount: Number(form.amount), description: form.description })
-      .eq('id', editingTx.id)
-    toast.success('Transação atualizada')
-    setSheetOpen(false)
+      .update({
+        amount: Number(editForm.amount),
+        description: editForm.description,
+      })
+      .eq('id', t.id)
+    toast.success('Lançamento atualizado e auditado')
+    setInlineEditing(null)
     refetch()
   }
 
@@ -91,7 +90,7 @@ export default function CaixaPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Caixa Diário</h1>
-          <p className="text-muted-foreground">Consulta de movimentações por período.</p>
+          <p className="text-muted-foreground">Edição inline e auditoria avançada.</p>
         </div>
         <div className="flex items-center gap-2">
           <Input
@@ -134,53 +133,114 @@ export default function CaixaPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((t: any) => (
-                  <TableRow
-                    key={t.id}
-                    className={t.status === 'cancelled' ? 'opacity-50 line-through' : ''}
-                  >
-                    <TableCell className="text-muted-foreground">
-                      {new Date(t.created_at).toLocaleTimeString()}
-                    </TableCell>
-                    <TableCell className="font-medium max-w-[200px] truncate" title={t.description}>
-                      {t.description}
-                    </TableCell>
-                    <TableCell className="uppercase text-xs">{t.payment_method || '-'}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={t.type === 'entrada' ? 'text-green-600' : 'text-destructive'}
-                      >
-                        {t.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{t.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-bold">R$ {t.amount.toFixed(2)}</TableCell>
-                    <TableCell className="text-right space-x-1">
-                      {t.status === 'completed' && !t.description.startsWith('Estorno') && (
-                        <>
-                          {canEdit(t) && (
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(t)}>
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {profile?.role !== 'atendimento' && (
+                {filtered.map((t: any) => {
+                  const isEditing = inlineEditing === t.id
+                  return (
+                    <TableRow
+                      key={t.id}
+                      className={t.status === 'cancelled' ? 'opacity-50 line-through' : ''}
+                    >
+                      <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                        {new Date(t.created_at).toLocaleTimeString()}
+                      </TableCell>
+                      <TableCell className="font-medium max-w-[200px]">
+                        {isEditing ? (
+                          <Input
+                            value={editForm.description}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, description: e.target.value })
+                            }
+                            className="h-8 text-sm"
+                          />
+                        ) : (
+                          <div className="truncate" title={t.description}>
+                            {t.description}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="uppercase text-[10px] tracking-wider font-semibold">
+                        {t.payment_method || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            t.type === 'entrada'
+                              ? 'text-green-600 border-green-600/30'
+                              : 'text-destructive border-destructive/30'
+                          }
+                        >
+                          {t.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {t.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={editForm.amount}
+                            onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                            className="h-8 w-24 text-right ml-auto"
+                          />
+                        ) : (
+                          `R$ ${t.amount.toFixed(2)}`
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right space-x-1 whitespace-nowrap">
+                        {isEditing ? (
+                          <>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-amber-600"
-                              onClick={() => handleEstorno(t)}
+                              className="text-green-600 h-8 w-8"
+                              onClick={() => saveInlineEdit(t)}
                             >
-                              <Undo2 className="w-4 h-4" />
+                              <Check className="w-4 h-4" />
                             </Button>
-                          )}
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive h-8 w-8"
+                              onClick={() => setInlineEditing(null)}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          t.status === 'completed' &&
+                          !t.description.startsWith('Estorno') && (
+                            <>
+                              {canEdit(t) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => startInlineEdit(t)}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {profile?.role !== 'atendimento' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-amber-600 h-8 w-8"
+                                  onClick={() => handleEstorno(t)}
+                                >
+                                  <Undo2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </>
+                          )
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
                 {filtered.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
@@ -193,37 +253,6 @@ export default function CaixaPage() {
           </CardContent>
         </Card>
       )}
-
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Editar Lançamento</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-4 mt-6">
-            <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Input
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Valor (R$)</Label>
-              <Input
-                type="number"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              />
-            </div>
-            <Button onClick={handleSaveEdit} className="w-full">
-              Salvar Alteração
-            </Button>
-            <p className="text-xs text-muted-foreground text-center mt-4">
-              Esta edição ficará registrada no log de auditoria financeiro.
-            </p>
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   )
 }

@@ -1,187 +1,194 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@/hooks/use-query'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Trash2, ShoppingCart, CalendarCheck } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Search, ShoppingCart, CalendarClock, User, Plus } from 'lucide-react'
 import { CheckoutSheet } from '@/components/atendimento/CheckoutSheet'
-import { useSearchParams } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { toast } from 'sonner'
 
 export default function AtendimentoNovoPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const urlAppId = searchParams.get('appointmentId')
-
   const { data: services } = useQuery<any>('services', { match: { is_active: true } })
-  const { data: professionals } = useQuery<any>('profiles', { match: { is_active: true } })
-  const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
+  const { data: appointments } = useQuery<any>('appointments', { match: { status: 'agendado' } })
+  const { data: clients } = useQuery<any>('clients')
 
-  const today = new Date().toISOString().split('T')[0]
-  const { data: appointments } = useQuery<any>('appointments', { match: { date: today } })
+  const [cart, setCart] = useState<any[]>([])
+  const [search, setSearch] = useState('')
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string>('')
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('')
 
-  const [selectedItems, setSelectedItems] = useState<any[]>([])
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [professionalId, setProfessionalId] = useState('')
-  const [checkoutClientId, setCheckoutClientId] = useState('')
-  const [currentAppId, setCurrentAppId] = useState<string | null>(null)
+  const filteredServices = services.filter(
+    (s) =>
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.code.toLowerCase().includes(search.toLowerCase()),
+  )
 
-  const loadAppointment = (appId: string) => {
-    const app =
-      appointments.find((a: any) => a.id === appId) || (urlAppId === appId ? { id: appId } : null) // simplistic check for passed ID
-    if (!app && urlAppId === appId) {
-      // If we got here, maybe fetch single via generic method, but we assume appointments contains it if it's today
-      return
-    }
-    if (app) {
-      setProfessionalId(app.professional_id || '')
-      setCheckoutClientId(app.client_id || '')
-      setCurrentAppId(app.id)
-
-      const srvs: any[] = []
-      const ids = app.service_ids?.length ? app.service_ids : app.service_id ? [app.service_id] : []
-      ids.forEach((id: string, index: number) => {
-        const s = services.find((srv: any) => srv.id === id)
-        if (s) srvs.push({ ...s, uniqueId: Date.now() + index })
+  const pendingAppointments = useMemo(() => {
+    return appointments
+      .map((a) => {
+        const client = clients.find((c) => c.id === a.client_id)
+        const service = services.find((s) => s.id === a.service_id)
+        return { ...a, client, service }
       })
-      setSelectedItems(srvs)
-      setSearchParams({ appointmentId: app.id })
-    }
+      .filter((a) => a.client)
+  }, [appointments, clients, services])
+
+  const addToCart = (service: any) => {
+    setCart([...cart, service])
   }
 
-  // Effect to load URL appointment
-  useEffect(() => {
-    if (urlAppId && appointments.length && services.length) {
-      loadAppointment(urlAppId)
+  const loadAppointment = (apt: any) => {
+    setSelectedClientId(apt.client_id)
+    setSelectedAppointmentId(apt.id)
+    if (apt.service) {
+      setCart([apt.service])
+      toast.success('Agendamento carregado no PDV')
     }
-  }, [urlAppId, appointments, services])
-
-  const addItem = (id: string) => {
-    const s = services.find((srv) => srv.id === id)
-    if (s) setSelectedItems([...selectedItems, { ...s, uniqueId: Date.now() }])
   }
-
-  const removeItem = (uniqueId: number) =>
-    setSelectedItems(selectedItems.filter((i) => i.uniqueId !== uniqueId))
-  const total = useMemo(() => selectedItems.reduce((acc, i) => acc + i.price, 0), [selectedItems])
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Ponto de Venda (PDV)</h1>
-      <Card>
-        <CardContent className="p-6 space-y-6">
-          <div className="space-y-2 p-4 bg-primary/5 rounded-xl border border-primary/20">
-            <Label className="flex items-center gap-2">
-              <CalendarCheck className="w-4 h-4 text-primary" /> Buscar Agendamento (Opcional)
-            </Label>
-            <Select value={currentAppId || ''} onValueChange={loadAppointment}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Selecione um agendamento de hoje para auto-preencher" />
-              </SelectTrigger>
-              <SelectContent>
-                {appointments
-                  .filter((a: any) => a.status === 'agendado' || a.status === 'confirmado')
-                  .map((a: any) => {
-                    const cli = clients.find((c: any) => c.id === a.client_id)
-                    return (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.start_time.slice(0, 5)} - {cli?.name || 'Desconhecido'}
-                      </SelectItem>
-                    )
-                  })}
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="space-y-6 flex flex-col md:flex-row gap-6">
+      <div className="flex-1 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">PDV / Novo Atendimento</h1>
+          <p className="text-muted-foreground">
+            Inicie uma venda avulsa ou carregue um agendamento pendente.
+          </p>
+        </div>
 
-          <div className="space-y-2">
-            <Label>Profissional (Para Comissões)</Label>
-            <Select value={professionalId} onValueChange={setProfessionalId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Quem realizou o serviço?" />
-              </SelectTrigger>
-              <SelectContent>
-                {professionals.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Adicionar Item Avulso</Label>
-            <Select onValueChange={addItem} value="">
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione produto ou serviço..." />
-              </SelectTrigger>
-              <SelectContent>
-                {services.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name} - R$ {s.price}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-3 pt-4">
-            {selectedItems.map((item) => (
-              <div
-                key={item.uniqueId}
-                className="flex justify-between items-center p-3 border rounded-lg bg-card shadow-sm"
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <CalendarClock className="w-5 h-5" /> Agendamentos Pendentes
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingAppointments.map((apt) => (
+              <Card
+                key={apt.id}
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => loadAppointment(apt)}
               >
-                <div>
-                  <span className="font-semibold">{item.name}</span>
-                  <p className="text-xs text-muted-foreground uppercase">{item.type}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-bold">R$ {item.price.toFixed(2)}</span>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div className="font-semibold flex items-center gap-2">
+                      <User className="w-4 h-4 text-muted-foreground" /> {apt.client?.name}
+                    </div>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {new Date(apt.date).toLocaleDateString()}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {apt.start_time} - {apt.service?.name || 'Vários Serviços'}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {pendingAppointments.length === 0 && (
+              <div className="col-span-full p-4 border border-dashed rounded-xl text-center text-muted-foreground">
+                Nenhum agendamento pendente no momento.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Card>
+          <div className="p-4 border-b border-border bg-muted/20">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produtos e serviços por nome ou código..."
+                className="pl-9 bg-background"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[400px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                {filteredServices.map((s) => (
+                  <div
+                    key={s.id}
+                    className="border rounded-xl p-4 flex flex-col justify-between hover:bg-muted/50 transition-colors"
+                  >
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1 font-mono">{s.code}</div>
+                      <div className="font-medium line-clamp-2">{s.name}</div>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="font-bold text-primary">R$ {s.price.toFixed(2)}</span>
+                      <Button size="sm" variant="secondary" onClick={() => addToCart(s)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="w-full md:w-80 lg:w-96 flex flex-col gap-4">
+        <Card className="flex-1 flex flex-col min-h-[500px] sticky top-6">
+          <CardHeader className="bg-primary/5 pb-4">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5" /> Resumo do Pedido
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 flex-1 flex flex-col">
+            <div className="flex-1 space-y-3 overflow-y-auto pr-2">
+              {cart.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center text-sm border-b pb-2">
+                  <span className="font-medium line-clamp-1 flex-1">{item.name}</span>
+                  <span className="text-muted-foreground ml-2">R$ {item.price.toFixed(2)}</span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => removeItem(item.uniqueId)}
-                    className="text-destructive h-8 w-8"
+                    className="h-6 w-6 ml-2 text-destructive"
+                    onClick={() => setCart(cart.filter((_, i) => i !== idx))}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    &times;
                   </Button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+              {cart.length === 0 && (
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                  Carrinho vazio
+                </div>
+              )}
+            </div>
 
-          {selectedItems.length > 0 && (
-            <Button
-              className="w-full h-14 rounded-full text-lg mt-4 shadow-elevation"
-              onClick={() => setSheetOpen(true)}
-            >
-              <ShoppingCart className="w-5 h-5 mr-2" /> Avançar para Pagamento (R${' '}
-              {total.toFixed(2)})
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+            <div className="pt-4 mt-auto border-t">
+              <div className="flex justify-between font-bold text-lg mb-4">
+                <span>Total</span>
+                <span>R$ {cart.reduce((a, b) => a + b.price, 0).toFixed(2)}</span>
+              </div>
+              <Button
+                className="w-full h-12 text-lg rounded-xl shadow-elevation"
+                disabled={cart.length === 0}
+                onClick={() => setCheckoutOpen(true)}
+              >
+                Ir para Pagamento
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <CheckoutSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        total={total}
-        items={selectedItems}
-        professionalId={professionalId}
-        initialClientId={checkoutClientId}
-        appointmentId={currentAppId}
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        items={cart}
+        initialClientId={selectedClientId}
+        appointmentId={selectedAppointmentId}
         onComplete={() => {
-          setSheetOpen(false)
-          setSelectedItems([])
-          setProfessionalId('')
-          setCheckoutClientId('')
-          setCurrentAppId(null)
-          setSearchParams({})
+          setCart([])
+          setSelectedClientId('')
+          setSelectedAppointmentId('')
+          setCheckoutOpen(false)
         }}
       />
     </div>

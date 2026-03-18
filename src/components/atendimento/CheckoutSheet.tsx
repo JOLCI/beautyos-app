@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CheckCircle2, QrCode, Loader2, Copy } from 'lucide-react'
+import { CheckCircle2, QrCode, Loader2, Copy, MessageSquare } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -44,6 +44,7 @@ export function CheckoutSheet({
 
   const [status, setStatus] = useState<'idle' | 'waiting' | 'success'>('idle')
   const [pixPayload, setPixPayload] = useState('')
+  const [sendingWa, setSendingWa] = useState(false)
 
   useEffect(() => {
     if (initialClientId && open && !clientId) setClientId(initialClientId)
@@ -83,17 +84,15 @@ export function CheckoutSheet({
         .from('inventory')
         .update({ quantity: inv.quantity - quantity })
         .eq('id', inv.id)
-      await supabase
-        .from('inventory_movements')
-        .insert([
-          {
-            company_id: company?.id,
-            inventory_id: inv.id,
-            type: 'out',
-            quantity,
-            reason: 'Venda PDV',
-          },
-        ])
+      await supabase.from('inventory_movements').insert([
+        {
+          company_id: company?.id,
+          inventory_id: inv.id,
+          type: 'out',
+          quantity,
+          reason: 'Venda PDV',
+        },
+      ])
     }
   }
 
@@ -133,38 +132,10 @@ export function CheckoutSheet({
       await supabase.from('appointments').update({ status: 'finalizado' }).eq('id', appointmentId)
     }
 
-    // Stock
     for (const item of pricedItems) {
       if (item.type === 'product') await deductStock(item.id, 1)
       else if (item.is_composite && item.composite_items) {
         for (const child of item.composite_items) await deductStock(child.id, child.quantity || 1)
-      }
-    }
-
-    // Commissions
-    if (professionalId) {
-      const { data: rules } = await supabase
-        .from('commission_rules')
-        .select('*')
-        .eq('professional_id', professionalId)
-      for (const item of pricedItems) {
-        if (item.type === 'service') {
-          const rule = rules?.find((r) => r.service_id === item.id)
-          const pct = rule?.percentage || 0
-          const val = rule?.fixed_value || 0
-          const amount = pct > 0 ? (item.finalPrice * pct) / 100 : val
-          if (amount > 0) {
-            await supabase.from('commissions').insert([
-              {
-                company_id: company?.id,
-                professional_id: professionalId,
-                appointment_id: appointmentId || null,
-                amount,
-                status: 'pending',
-              },
-            ])
-          }
-        }
       }
     }
 
@@ -198,6 +169,17 @@ export function CheckoutSheet({
     } else {
       await finalizeTransaction(method, method === 'pix_agendado' || method === 'convenio')
     }
+  }
+
+  const handleSendWhatsAppPix = async () => {
+    if (!activeClient?.phone) return toast.error('Selecione um cliente com telefone cadastrado.')
+    setSendingWa(true)
+    const msg = `Olá ${activeClient.name}, o valor do seu atendimento é R$ ${finalTotal.toFixed(2)}. Nossa chave PIX é: ${gateways?.[0]?.pix_key || 'não cadastrada'}. Por favor envie o comprovante.`
+    await supabase.functions.invoke('send-whatsapp', {
+      body: { to: activeClient.phone, message: msg },
+    })
+    toast.success('Cobrança PIX enviada no WhatsApp')
+    setSendingWa(false)
   }
 
   return (
@@ -269,22 +251,12 @@ export function CheckoutSheet({
                         <span>R$ {it.finalPrice.toFixed(2)}</span>
                       )}
                     </div>
-                    {it.hasCustomPrice && (
-                      <div className="flex justify-between items-center mt-1">
-                        <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
-                          Preço Especial Aplicado
-                        </Badge>
-                        <span className="text-green-600 font-medium text-[10px]">
-                          - R$ {(it.originalPrice - it.finalPrice).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
               <Separator className="my-3" />
               <div className="flex justify-between items-center mt-2">
-                <span className="text-muted-foreground">Desconto Extra (R$)</span>
+                <span className="text-muted-foreground text-sm">Desconto Extra (R$)</span>
                 <Input
                   type="number"
                   className="w-24 h-8 text-right"
@@ -292,12 +264,6 @@ export function CheckoutSheet({
                   onChange={(e) => setDiscount(e.target.value)}
                 />
               </div>
-              {totalDiscount > 0 && (
-                <div className="flex justify-between text-xs text-green-600 mt-2 font-medium">
-                  <span>Total em Descontos</span>
-                  <span>- R$ {totalDiscount.toFixed(2)}</span>
-                </div>
-              )}
               <Separator className="my-3" />
               <div className="flex justify-between text-xl font-bold">
                 <span>Total Final</span>
@@ -317,11 +283,11 @@ export function CheckoutSheet({
               ].map((o) => (
                 <div
                   key={o.id}
+                  onClick={() => setMethod(o.id)}
                   className={cn(
-                    'border-2 rounded-xl p-3 text-center cursor-pointer flex flex-col items-center justify-center min-h-[4rem] transition-colors',
+                    'border-2 rounded-xl p-3 text-center cursor-pointer flex items-center justify-center min-h-[3.5rem] transition-colors',
                     method === o.id ? 'border-primary bg-primary/5 text-primary' : '',
                   )}
-                  onClick={() => setMethod(o.id)}
                 >
                   <RadioGroupItem value={o.id} id={o.id} className="sr-only" />
                   <Label className="cursor-pointer font-medium text-xs text-center leading-tight">
@@ -331,31 +297,29 @@ export function CheckoutSheet({
               ))}
             </RadioGroup>
 
-            {['pix_agendado', 'convenio'].includes(method) && (
-              <div className="space-y-2 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl animate-fade-in">
-                <Label className="text-amber-800">Data de Vencimento da Cobrança</Label>
-                <Input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="bg-background"
-                />
-                <p className="text-[10px] text-amber-700 leading-tight">
-                  Um registro será criado no Contas a Receber com o status pendente.
-                </p>
-              </div>
-            )}
-
             {method === 'pix_simples' && (
-              <div className="space-y-2 p-4 border rounded-xl bg-muted/50 text-center animate-fade-in">
-                <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+              <div className="space-y-3 p-5 border rounded-xl bg-primary/5 text-center animate-fade-in">
+                <Label className="text-primary font-semibold text-xs uppercase tracking-wider">
                   Chave PIX da Empresa
                 </Label>
-                <div className="font-mono font-bold text-lg py-2 select-all">
-                  {gateways?.[0]?.pix_key || 'Chave não cadastrada'}
+                <div className="font-mono font-bold text-xl select-all bg-background py-2 rounded border">
+                  {gateways?.[0]?.pix_key || 'Não cadastrada'}
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Confira o recebimento no seu banco antes de finalizar.
+                <Button
+                  variant="outline"
+                  className="w-full bg-white"
+                  onClick={handleSendWhatsAppPix}
+                  disabled={sendingWa}
+                >
+                  {sendingWa ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <MessageSquare className="w-4 h-4 mr-2 text-green-600" />
+                  )}
+                  Enviar Cobrança por WhatsApp
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  Valide o recebimento no app do seu banco.
                 </p>
               </div>
             )}
@@ -365,7 +329,7 @@ export function CheckoutSheet({
               disabled={status === 'waiting'}
               className="w-full h-14 text-lg rounded-full shadow-elevation"
             >
-              {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+              {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}{' '}
               Finalizar Atendimento
             </Button>
           </div>

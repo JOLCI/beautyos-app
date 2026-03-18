@@ -110,7 +110,6 @@ export default function ServicosPage() {
 
   const handleSave = async () => {
     if (!form.name || !form.price) return toast.error('Nome e preço obrigatórios')
-
     const payload = {
       name: form.name,
       price: Number(form.price),
@@ -121,7 +120,6 @@ export default function ServicosPage() {
       unit_of_measure: form.unit_of_measure,
       composite_items: form.composite_items,
     }
-
     if (editing) {
       await supabase.from('services').update(payload).eq('id', editing.id)
       toast.success('Atualizado')
@@ -171,7 +169,7 @@ export default function ServicosPage() {
                       {s.code}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {s.name}
+                      {s.name}{' '}
                       {s.is_composite && (
                         <Badge variant="secondary" className="ml-2 text-[10px]">
                           <Layers className="w-3 h-3 mr-1" /> Composto
@@ -181,7 +179,7 @@ export default function ServicosPage() {
                     <TableCell>
                       <Badge variant="outline">
                         {s.type === 'product' ? 'Produto' : 'Serviço'}
-                      </Badge>
+                      </Badge>{' '}
                       <span className="text-xs text-muted-foreground ml-2">
                         {s.unit_of_measure}
                       </span>
@@ -218,7 +216,6 @@ export default function ServicosPage() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo</Label>
@@ -249,12 +246,12 @@ export default function ServicosPage() {
                 </Select>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Preço Venda (R$)</Label>
                 <Input
                   type="number"
+                  step="0.01"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
                 />
@@ -264,13 +261,13 @@ export default function ServicosPage() {
                   <Label>Custo Unitário (R$)</Label>
                   <Input
                     type="number"
+                    step="0.01"
                     value={form.cost_price}
                     onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
                   />
                 </div>
               )}
             </div>
-
             {form.type === 'service' && (
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
@@ -281,7 +278,6 @@ export default function ServicosPage() {
                     onChange={(e) => setForm({ ...form, duration: e.target.value })}
                   />
                 </div>
-
                 <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg border">
                   <div>
                     <Label className="text-sm font-semibold">Bill of Materials (BOM)</Label>
@@ -292,7 +288,6 @@ export default function ServicosPage() {
                     onCheckedChange={(v) => setForm({ ...form, is_composite: v })}
                   />
                 </div>
-
                 {form.is_composite && (
                   <div className="border p-3 rounded-lg space-y-3 bg-card shadow-inner">
                     <Label>Insumos Utilizados</Label>
@@ -317,7 +312,8 @@ export default function ServicosPage() {
                           <span className="text-xs text-muted-foreground w-8">{ci.um}</span>
                           <Input
                             type="number"
-                            className="w-16 h-8 text-right"
+                            step="0.01"
+                            className="w-24 h-8 text-right font-mono"
                             value={ci.quantity}
                             onChange={(e) => {
                               const newI = [...form.composite_items]
@@ -328,7 +324,7 @@ export default function ServicosPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-destructive"
+                            className="h-8 w-8 text-destructive shrink-0"
                             onClick={() => removeCompositeItem(idx)}
                           >
                             <Trash2 className="w-4 h-4" />

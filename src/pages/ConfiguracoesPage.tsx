@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -88,7 +88,13 @@ export default function ConfiguracoesPage() {
   const connectWhatsApp = async () => {
     setWaStatus('waiting')
     const { data } = await supabase.functions.invoke('whatsapp-generate-qr')
-    if (data?.success) setWaQrCode(data.qr)
+    if (data?.success) {
+      setWaQrCode(
+        data.qr.startsWith('data:')
+          ? data.qr
+          : `https://img.usecurling.com/i?q=qr-code&color=black&shape=outline`,
+      )
+    }
 
     const interval = setInterval(async () => {
       const { data: st } = await supabase.functions.invoke('whatsapp-check-status')
@@ -99,24 +105,6 @@ export default function ConfiguracoesPage() {
       }
     }, 5000)
     setTimeout(() => clearInterval(interval), 180000)
-  }
-
-  const savePixGateway = async () => {
-    await supabase.from('pix_gateways').insert([{ ...pixForm, company_id: company?.id }])
-    toast.success('Gateway adicionado')
-    refetchPix()
-  }
-
-  const saveTemplate = async () => {
-    const existing = waTemplates.find((t: any) => t.template_key === tplForm.template_key)
-    if (existing)
-      await supabase.from('whatsapp_templates').update({ body: tplForm.body }).eq('id', existing.id)
-    else
-      await supabase
-        .from('whatsapp_templates')
-        .insert([{ ...tplForm, name: tplForm.template_key, company_id: company?.id }])
-    toast.success('Template salvo')
-    refetchWa()
   }
 
   return (
@@ -180,9 +168,9 @@ export default function ConfiguracoesPage() {
                 {days.map((d) => (
                   <div
                     key={d}
-                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border"
+                    className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border"
                   >
-                    <div className="flex items-center gap-3 w-32">
+                    <div className="flex items-center gap-3 w-32 shrink-0">
                       <Switch
                         checked={hours[d]?.open}
                         onCheckedChange={(v) =>
@@ -192,14 +180,13 @@ export default function ConfiguracoesPage() {
                       <Label>{d}</Label>
                     </div>
                     {hours[d]?.open ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1 max-w-[250px]">
                         <Input
                           type="time"
                           value={hours[d]?.start}
                           onChange={(e) =>
                             setHours({ ...hours, [d]: { ...hours[d], start: e.target.value } })
                           }
-                          className="w-28"
                         />
                         <span className="text-muted-foreground text-xs">até</span>
                         <Input
@@ -208,7 +195,6 @@ export default function ConfiguracoesPage() {
                           onChange={(e) =>
                             setHours({ ...hours, [d]: { ...hours[d], end: e.target.value } })
                           }
-                          className="w-28"
                         />
                       </div>
                     ) : (
@@ -229,16 +215,16 @@ export default function ConfiguracoesPage() {
                 <CardTitle>Conexão WhatsApp (Evolution API)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between p-4 border rounded-xl">
+                <div className="flex items-center justify-between p-4 border rounded-xl bg-muted/30">
                   <div>
                     <Label className="text-lg">Instância Isolada</Label>
-                    <p className="text-sm text-muted-foreground font-mono">
+                    <p className="text-sm text-muted-foreground font-mono mt-1">
                       ID: beautyos_{company?.passkey}
                     </p>
                   </div>
                   <Badge
                     variant={waStatus === 'connected' ? 'default' : 'secondary'}
-                    className={waStatus === 'connected' ? 'bg-green-500' : ''}
+                    className={waStatus === 'connected' ? 'bg-green-500 hover:bg-green-600' : ''}
                   >
                     {waStatus === 'connected'
                       ? 'Conectado'
@@ -249,20 +235,20 @@ export default function ConfiguracoesPage() {
                 </div>
                 {waStatus === 'disconnected' && (
                   <Button onClick={connectWhatsApp} className="w-full h-12">
-                    <QrCode className="w-4 h-4 mr-2" /> Ler QR Code
+                    <QrCode className="w-4 h-4 mr-2" /> Gerar QR Code de Conexão
                   </Button>
                 )}
                 {waStatus === 'waiting' && (
                   <div className="flex flex-col items-center p-8 border rounded-xl bg-muted/30 space-y-4">
-                    <div className="w-48 h-48 bg-white border p-2 rounded-lg flex items-center justify-center">
+                    <div className="w-48 h-48 bg-white border p-2 rounded-lg flex items-center justify-center overflow-hidden">
                       {waQrCode ? (
-                        <QrCode className="w-32 h-32" />
+                        <img src={waQrCode} alt="QR Code" className="w-full h-full object-cover" />
                       ) : (
                         <Loader2 className="w-8 h-8 animate-spin" />
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Escaneie o QR Code com seu WhatsApp para ativar a automação.
+                    <p className="text-sm text-muted-foreground text-center">
+                      Escaneie o QR Code com o WhatsApp do seu salão para ativar a automação.
                     </p>
                   </div>
                 )}
@@ -276,44 +262,9 @@ export default function ConfiguracoesPage() {
                 <CardTitle>Gateways PIX</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Identificação</TableHead>
-                      <TableHead>Provedor</TableHead>
-                      <TableHead>Ativo</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pixGateways.map((g: any) => (
-                      <TableRow key={g.id}>
-                        <TableCell className="font-medium">{g.name}</TableCell>
-                        <TableCell className="capitalize">{g.provider}</TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={g.is_active}
-                            onCheckedChange={async (v) => {
-                              await supabase
-                                .from('pix_gateways')
-                                .update({ is_active: v })
-                                .eq('id', g.id)
-                              refetchPix()
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
                 <div className="space-y-4 border p-4 rounded-xl bg-muted/20">
-                  <h4 className="font-semibold text-sm">Adicionar Novo Gateway</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <h4 className="font-semibold text-sm">Adicionar Novo Gateway / Chave Simples</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Nome</Label>
                       <Input
@@ -331,7 +282,8 @@ export default function ConfiguracoesPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mercadopago">Mercado Pago</SelectItem>
+                          <SelectItem value="mercadopago">Mercado Pago (Auto)</SelectItem>
+                          <SelectItem value="simples">PIX Simples (Manual)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -355,14 +307,60 @@ export default function ConfiguracoesPage() {
                           <SelectItem value="cpf">CPF/CNPJ</SelectItem>
                           <SelectItem value="email">E-mail</SelectItem>
                           <SelectItem value="phone">Telefone</SelectItem>
+                          <SelectItem value="random">Aleatória</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-                  <Button onClick={savePixGateway}>
+                  <Button
+                    onClick={async () => {
+                      await supabase
+                        .from('pix_gateways')
+                        .insert([{ ...pixForm, company_id: company?.id }])
+                      toast.success('Gateway adicionado')
+                      refetchPix()
+                    }}
+                  >
                     <Save className="w-4 h-4 mr-2" /> Salvar
                   </Button>
                 </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Identificação</TableHead>
+                      <TableHead>Provedor</TableHead>
+                      <TableHead>Chave</TableHead>
+                      <TableHead>Ativo</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pixGateways.map((g: any) => (
+                      <TableRow key={g.id}>
+                        <TableCell className="font-medium">{g.name}</TableCell>
+                        <TableCell className="capitalize">{g.provider}</TableCell>
+                        <TableCell className="font-mono text-xs">{g.pix_key}</TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={g.is_active}
+                            onCheckedChange={async (v) => {
+                              await supabase
+                                .from('pix_gateways')
+                                .update({ is_active: v })
+                                .eq('id', g.id)
+                              refetchPix()
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" className="text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
@@ -372,7 +370,8 @@ export default function ConfiguracoesPage() {
               <CardHeader>
                 <CardTitle>Templates de Mensagens</CardTitle>
                 <CardDescription>
-                  Utilize tags como [NOME_CLIENTE], [DATA_HORA], [VALOR], [LINK_PIX].
+                  Utilize tags: [NOME_CLIENTE], [DATA_HORA], [VALOR], [LINK_PIX], [CHAVE_PIX],
+                  [DATA].
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -395,8 +394,8 @@ export default function ConfiguracoesPage() {
                         <SelectItem value="cobranca_pix_agendado">
                           Cobrança (Vencimento PIX)
                         </SelectItem>
+                        <SelectItem value="pix_simples">PIX Simples (Manual via Caixa)</SelectItem>
                         <SelectItem value="pos_atendimento">Pós-Atendimento / Avaliação</SelectItem>
-                        <SelectItem value="cancelamento">Aviso de Cancelamento</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -406,9 +405,29 @@ export default function ConfiguracoesPage() {
                       <Textarea
                         value={tplForm.body}
                         onChange={(e) => setTplForm({ ...tplForm, body: e.target.value })}
-                        className="h-32 font-mono text-xs"
+                        className="h-32 font-mono text-sm leading-relaxed"
                       />
-                      <Button onClick={saveTemplate} className="w-full sm:w-auto">
+                      <Button
+                        onClick={async () => {
+                          const existing = waTemplates.find(
+                            (t: any) => t.template_key === tplForm.template_key,
+                          )
+                          if (existing)
+                            await supabase
+                              .from('whatsapp_templates')
+                              .update({ body: tplForm.body })
+                              .eq('id', existing.id)
+                          else
+                            await supabase
+                              .from('whatsapp_templates')
+                              .insert([
+                                { ...tplForm, name: tplForm.template_key, company_id: company?.id },
+                              ])
+                          toast.success('Template salvo')
+                          refetchWa()
+                        }}
+                        className="w-full sm:w-auto"
+                      >
                         <Save className="w-4 h-4 mr-2" /> Salvar Template
                       </Button>
                     </div>
@@ -423,29 +442,31 @@ export default function ConfiguracoesPage() {
               <CardHeader>
                 <CardTitle>Identidade Visual</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2 max-w-xs">
-                  <Label>Cor Primária</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-16 h-10 p-1"
-                    />
-                    <Input value={primaryColor} readOnly className="font-mono" />
+              <CardContent className="space-y-6">
+                <div className="flex gap-8">
+                  <div className="space-y-2">
+                    <Label>Cor Primária</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="w-16 h-10 p-1"
+                      />
+                      <Input value={primaryColor} readOnly className="font-mono w-28" />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2 max-w-xs">
-                  <Label>Cor Secundária (Destaques)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="w-16 h-10 p-1"
-                    />
-                    <Input value={secondaryColor} readOnly className="font-mono" />
+                  <div className="space-y-2">
+                    <Label>Cor Secundária</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        value={secondaryColor}
+                        onChange={(e) => setSecondaryColor(e.target.value)}
+                        className="w-16 h-10 p-1"
+                      />
+                      <Input value={secondaryColor} readOnly className="font-mono w-28" />
+                    </div>
                   </div>
                 </div>
                 <Button onClick={saveSettings} className="w-full sm:w-auto mt-4">

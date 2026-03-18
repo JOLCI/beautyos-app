@@ -59,17 +59,15 @@ export default function ContasReceberPage() {
     const payload = { ...form, amount: Number(form.amount) }
     if (editing) await supabase.from('financial_accounts').update(payload).eq('id', editing.id)
     else
-      await supabase
-        .from('financial_accounts')
-        .insert([
-          {
-            ...payload,
-            company_id: company?.id,
-            type: 'receivable',
-            status: 'pending',
-            origin: 'manual',
-          },
-        ])
+      await supabase.from('financial_accounts').insert([
+        {
+          ...payload,
+          company_id: company?.id,
+          type: 'receivable',
+          status: 'pending',
+          origin: 'manual',
+        },
+      ])
     toast.success('Salvo com sucesso')
     setSheetOpen(false)
     refetch()

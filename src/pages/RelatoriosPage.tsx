@@ -71,17 +71,15 @@ export default function RelatoriosPage() {
     const pending = commissions.filter((c: any) => c.status === 'pending')
     if (pending.length === 0) return toast.info('Nenhuma comissão pendente')
     const total = pending.reduce((a: any, b: any) => a + b.amount, 0)
-    await supabase
-      .from('transactions')
-      .insert([
-        {
-          company_id: company?.id,
-          type: 'saida',
-          amount: total,
-          description: 'Pagamento de Comissões em Lote',
-          status: 'completed',
-        },
-      ])
+    await supabase.from('transactions').insert([
+      {
+        company_id: company?.id,
+        type: 'saida',
+        amount: total,
+        description: 'Pagamento de Comissões em Lote',
+        status: 'completed',
+      },
+    ])
     for (const c of pending)
       await supabase.from('commissions').update({ status: 'paid' }).eq('id', c.id)
     toast.success('Comissões pagas e baixadas no caixa')

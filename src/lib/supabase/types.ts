@@ -15,10 +15,12 @@ export type Database = {
           company_id: string | null
           created_at: string
           date: string
+          duration_minutes: number | null
           end_time: string
           id: string
           professional_id: string | null
           service_id: string | null
+          service_ids: string[] | null
           start_time: string
           status: string
         }
@@ -27,10 +29,12 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           date: string
+          duration_minutes?: number | null
           end_time: string
           id?: string
           professional_id?: string | null
           service_id?: string | null
+          service_ids?: string[] | null
           start_time: string
           status?: string
         }
@@ -39,10 +43,12 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           date?: string
+          duration_minutes?: number | null
           end_time?: string
           id?: string
           professional_id?: string | null
           service_id?: string | null
+          service_ids?: string[] | null
           start_time?: string
           status?: string
         }
@@ -70,6 +76,55 @@ export type Database = {
           },
           {
             foreignKeyName: 'appointments_service_id_fkey'
+            columns: ['service_id']
+            isOneToOne: false
+            referencedRelation: 'services'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      client_custom_prices: {
+        Row: {
+          client_id: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          price: number
+          service_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          price: number
+          service_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          price?: number
+          service_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'client_custom_prices_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_custom_prices_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_custom_prices_service_id_fkey'
             columns: ['service_id']
             isOneToOne: false
             referencedRelation: 'services'
@@ -239,6 +294,7 @@ export type Database = {
           name: string
           passkey: string
           primary_color: string | null
+          secondary_color: string | null
           settings: Json | null
         }
         Insert: {
@@ -248,6 +304,7 @@ export type Database = {
           name: string
           passkey: string
           primary_color?: string | null
+          secondary_color?: string | null
           settings?: Json | null
         }
         Update: {
@@ -257,6 +314,7 @@ export type Database = {
           name?: string
           passkey?: string
           primary_color?: string | null
+          secondary_color?: string | null
           settings?: Json | null
         }
         Relationships: []
@@ -269,6 +327,8 @@ export type Database = {
           description: string
           due_date: string
           id: string
+          notes: string | null
+          origin: string | null
           settled_at: string | null
           status: string
           sub_type: string | null
@@ -282,6 +342,8 @@ export type Database = {
           description: string
           due_date: string
           id?: string
+          notes?: string | null
+          origin?: string | null
           settled_at?: string | null
           status?: string
           sub_type?: string | null
@@ -295,6 +357,8 @@ export type Database = {
           description?: string
           due_date?: string
           id?: string
+          notes?: string | null
+          origin?: string | null
           settled_at?: string | null
           status?: string
           sub_type?: string | null
@@ -713,6 +777,7 @@ export type Database = {
           ref_id: string | null
           status: string
           type: string
+          user_id: string | null
         }
         Insert: {
           amount: number
@@ -724,6 +789,7 @@ export type Database = {
           ref_id?: string | null
           status?: string
           type: string
+          user_id?: string | null
         }
         Update: {
           amount?: number
@@ -735,6 +801,7 @@ export type Database = {
           ref_id?: string | null
           status?: string
           type?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -742,6 +809,13 @@ export type Database = {
             columns: ['company_id']
             isOneToOne: false
             referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
         ]
@@ -946,6 +1020,15 @@ export const Constants = {
 //   end_time: time without time zone (not null)
 //   status: text (not null, default: 'agendado'::text)
 //   created_at: timestamp with time zone (not null, default: now())
+//   service_ids: _uuid (nullable, default: '{}'::uuid[])
+//   duration_minutes: integer (nullable, default: 0)
+// Table: client_custom_prices
+//   id: uuid (not null, default: gen_random_uuid())
+//   company_id: uuid (nullable)
+//   client_id: uuid (nullable)
+//   service_id: uuid (nullable)
+//   price: numeric (not null)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: clients
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -982,6 +1065,7 @@ export const Constants = {
 //   primary_color: text (nullable, default: '#e11d48'::text)
 //   logo_url: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
+//   secondary_color: text (nullable, default: '#ffffff'::text)
 // Table: financial_accounts
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -994,6 +1078,8 @@ export const Constants = {
 //   status: text (not null, default: 'pending'::text)
 //   transaction_id: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
+//   origin: text (nullable, default: 'manual'::text)
+//   notes: text (nullable)
 // Table: financial_audit_logs
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1083,6 +1169,7 @@ export const Constants = {
 //   status: text (not null, default: 'completed'::text)
 //   ref_id: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
+//   user_id: uuid (nullable)
 // Table: whatsapp_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1099,6 +1186,12 @@ export const Constants = {
 //   PRIMARY KEY appointments_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY appointments_professional_id_fkey: FOREIGN KEY (professional_id) REFERENCES profiles(id) ON DELETE CASCADE
 //   FOREIGN KEY appointments_service_id_fkey: FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+// Table: client_custom_prices
+//   FOREIGN KEY client_custom_prices_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+//   UNIQUE client_custom_prices_client_id_service_id_key: UNIQUE (client_id, service_id)
+//   FOREIGN KEY client_custom_prices_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   PRIMARY KEY client_custom_prices_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY client_custom_prices_service_id_fkey: FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
 // Table: clients
 //   FOREIGN KEY clients_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY clients_pkey: PRIMARY KEY (id)
@@ -1154,6 +1247,7 @@ export const Constants = {
 // Table: transactions
 //   FOREIGN KEY transactions_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY transactions_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY transactions_user_id_fkey: FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL
 // Table: whatsapp_templates
 //   FOREIGN KEY whatsapp_templates_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY whatsapp_templates_pkey: PRIMARY KEY (id)
@@ -1161,6 +1255,15 @@ export const Constants = {
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: appointments
 //   Policy "company_appointments" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (company_id = auth_company_id())
+// Table: client_custom_prices
+//   Policy "company_custom_prices_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (company_id = auth_company_id())
+//   Policy "company_custom_prices_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (company_id = auth_company_id())
+//   Policy "company_custom_prices_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (company_id = auth_company_id())
+//   Policy "company_custom_prices_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (company_id = auth_company_id())
 // Table: clients
 //   Policy "company_clients" (ALL, PERMISSIVE) roles={authenticated}
@@ -1354,6 +1457,8 @@ export const Constants = {
 //   audit_transactions_changes: CREATE TRIGGER audit_transactions_changes AFTER INSERT OR DELETE OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION log_financial_changes()
 
 // --- INDEXES ---
+// Table: client_custom_prices
+//   CREATE UNIQUE INDEX client_custom_prices_client_id_service_id_key ON public.client_custom_prices USING btree (client_id, service_id)
 // Table: companies
 //   CREATE UNIQUE INDEX companies_passkey_key ON public.companies USING btree (passkey)
 // Table: profiles
