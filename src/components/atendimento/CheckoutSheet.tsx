@@ -88,7 +88,8 @@ export function CheckoutSheet({
       .from('inventory')
       .select('id, quantity')
       .eq('service_id', serviceId)
-      .single()
+      .maybeSingle() // Use maybeSingle to avoid PGRST116 error when no rows are found
+
     if (inv) {
       await supabase
         .from('inventory')

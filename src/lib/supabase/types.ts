@@ -1434,7 +1434,7 @@ export const Constants = {
 //   FOREIGN KEY suppliers_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY suppliers_pkey: PRIMARY KEY (id)
 // Table: transactions
-//   CHECK check_tx_entity: CHECK ((((origin = 'receivable_settlement'::text) AND (client_id IS NOT NULL)) OR ((origin = 'payable_settlement'::text) AND (supplier_id IS NOT NULL))))
+//   CHECK check_tx_entity: CHECK ((((origin = 'receivable_settlement'::text) AND (client_id IS NOT NULL)) OR ((origin = 'payable_settlement'::text) AND (supplier_id IS NOT NULL)) OR (origin <> ALL (ARRAY['receivable_settlement'::text, 'payable_settlement'::text]))))
 //   FOREIGN KEY transactions_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT
 //   FOREIGN KEY transactions_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   FOREIGN KEY transactions_created_by_fkey: FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL
