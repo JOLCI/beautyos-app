@@ -42,7 +42,7 @@ export default function LoginPage() {
 
       if (error || !data) {
         setLoading(false)
-        toast.error('Usuário ou senha incorretos.')
+        toast.error('Usuário ou senha inválidos.')
         return
       }
       loginEmail = data as string
@@ -52,7 +52,7 @@ export default function LoginPage() {
     setLoading(false)
 
     if (error) {
-      toast.error('Usuário ou senha incorretos.')
+      toast.error('Usuário ou senha inválidos.')
     } else {
       navigate(`/${passkey}/dashboard`)
     }
@@ -81,7 +81,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="identifier">E-mail ou Usuário</Label>
+              <Label htmlFor="identifier">Usuário ou e-mail</Label>
               <Input
                 id="identifier"
                 type="text"

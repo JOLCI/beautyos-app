@@ -10,7 +10,7 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(supabaseUrl, supabaseKey)
 
   try {
-    const { user_id, email, password, name, role, company_id } = await req.json()
+    const { user_id, email, password, name, role, company_id, username } = await req.json()
 
     if (!user_id) {
       throw new Error('user_id is required')
@@ -33,6 +33,7 @@ Deno.serve(async (req: Request) => {
     if (name) updates.user_metadata.name = name
     if (role) updates.user_metadata.role = role
     if (company_id) updates.user_metadata.company_id = company_id
+    if (username) updates.user_metadata.username = username
 
     // Safely update Auth User credentials inside Supabase Auth via Admin API
     const { data: authData, error: authError } = await supabase.auth.admin.updateUserById(
@@ -47,7 +48,7 @@ Deno.serve(async (req: Request) => {
     if (name) profileUpdate.name = name
     if (role) profileUpdate.role = role
     if (company_id !== undefined) profileUpdate.company_id = company_id
-    if (email) profileUpdate.username = email
+    if (username) profileUpdate.username = username
 
     if (Object.keys(profileUpdate).length > 0) {
       const { error: profileError } = await supabase

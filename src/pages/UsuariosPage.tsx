@@ -48,6 +48,7 @@ export default function UsuariosPage() {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    username: '',
     password: '',
     role: 'atendimento',
     company_id: '',
@@ -66,7 +67,8 @@ export default function UsuariosPage() {
       u
         ? {
             name: u.name,
-            email: u.username,
+            email: '', // Not fetched in profiles, leave blank to not update
+            username: u.username,
             password: '',
             role: u.role,
             company_id: u.company_id || '',
@@ -74,6 +76,7 @@ export default function UsuariosPage() {
         : {
             name: '',
             email: '',
+            username: '',
             password: '',
             role: 'atendimento',
             company_id: company?.id || '',
@@ -96,7 +99,8 @@ export default function UsuariosPage() {
         company_id: targetCompanyId,
       }
 
-      if (form.email && form.email !== editing.username) payload.email = form.email
+      if (form.username && form.username !== editing.username) payload.username = form.username
+      if (form.email) payload.email = form.email
       if (form.password) payload.password = form.password
 
       const { data, error } = await supabase.functions.invoke('update-user', {
@@ -124,7 +128,7 @@ export default function UsuariosPage() {
           errorMsg.toLowerCase().includes('unique constraint') ||
           errorMsg.toLowerCase().includes('already in use')
         ) {
-          displayError = 'Este e-mail já está em uso.'
+          displayError = 'Este e-mail ou nome de usuário já está em uso.'
         }
 
         toast.error('Erro ao atualizar usuário', { description: displayError })
@@ -158,7 +162,7 @@ export default function UsuariosPage() {
           errorMsg.toLowerCase().includes('unique constraint') ||
           errorMsg.toLowerCase().includes('already in use')
         ) {
-          displayError = 'Este e-mail já está em uso.'
+          displayError = 'Este e-mail ou nome de usuário já está em uso.'
         }
 
         toast.error('Erro ao criar usuário', { description: displayError })
@@ -188,7 +192,8 @@ export default function UsuariosPage() {
   const isSubmitDisabled =
     saving ||
     !form.name ||
-    !form.email ||
+    !form.username ||
+    (editing ? false : !form.email) ||
     emailError ||
     (editing ? passwordLengthError : form.password.length < 6)
 
@@ -215,7 +220,7 @@ export default function UsuariosPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>E-mail / Username</TableHead>
+                  <TableHead>Usuário</TableHead>
                   <TableHead>Nível</TableHead>
                   {isRoot && <TableHead>Unidade</TableHead>}
                   <TableHead className="text-right">Ações</TableHead>
@@ -283,12 +288,20 @@ export default function UsuariosPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>E-mail (Username)</Label>
+              <Label>Nome de Usuário (Login)</Label>
+              <Input
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase() })}
+                placeholder="ex: joao.silva"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{editing ? 'Novo E-mail (opcional)' : 'E-mail'}</Label>
               <Input
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="joao@salao.com"
+                placeholder={editing ? 'Deixe em branco para não alterar' : 'joao@salao.com'}
                 className={emailError ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {emailError && (
