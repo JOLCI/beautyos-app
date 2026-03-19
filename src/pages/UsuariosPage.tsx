@@ -102,7 +102,18 @@ export default function UsuariosPage() {
       })
 
       if (error || !data?.success) {
-        toast.error('Erro ao atualizar usuário', { description: data?.error || error?.message })
+        const errorMsg = data?.error || error?.message || ''
+        let displayError = errorMsg
+
+        if (
+          errorMsg.toLowerCase().includes('password should be at least') ||
+          errorMsg.toLowerCase().includes('weak_password') ||
+          errorMsg.toLowerCase().includes('senha')
+        ) {
+          displayError = 'A senha deve ter pelo menos 6 caracteres.'
+        }
+
+        toast.error('Erro ao atualizar usuário', { description: displayError })
       } else {
         toast.success('Usuário atualizado com sucesso')
         setSheetOpen(false)
@@ -113,7 +124,18 @@ export default function UsuariosPage() {
         body: { ...form, company_id: targetCompanyId },
       })
       if (error || !data?.success) {
-        toast.error('Erro ao criar usuário', { description: data?.error || error?.message })
+        const errorMsg = data?.error || error?.message || ''
+        let displayError = errorMsg
+
+        if (
+          errorMsg.toLowerCase().includes('password should be at least') ||
+          errorMsg.toLowerCase().includes('weak_password') ||
+          errorMsg.toLowerCase().includes('senha')
+        ) {
+          displayError = 'A senha deve ter pelo menos 6 caracteres.'
+        }
+
+        toast.error('Erro ao criar usuário', { description: displayError })
       } else {
         toast.success('Usuário criado com sucesso')
         setSheetOpen(false)
@@ -133,6 +155,13 @@ export default function UsuariosPage() {
       toast.error('Erro ao remover usuário')
     }
   }
+
+  const passwordLengthError = form.password.length > 0 && form.password.length < 6
+  const isSubmitDisabled =
+    saving ||
+    !form.name ||
+    !form.email ||
+    (editing ? passwordLengthError : form.password.length < 6)
 
   return (
     <div className="space-y-6">
@@ -240,7 +269,15 @@ export default function UsuariosPage() {
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder={editing ? 'Deixe em branco para não alterar' : 'Mínimo 6 caracteres'}
+                className={
+                  passwordLengthError ? 'border-destructive focus-visible:ring-destructive' : ''
+                }
               />
+              {passwordLengthError && (
+                <p className="text-sm font-medium text-destructive">
+                  A senha deve ter pelo menos 6 caracteres.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Nível de Acesso</Label>
@@ -277,11 +314,7 @@ export default function UsuariosPage() {
             )}
           </div>
           <div className="mt-8 pt-4 sticky bottom-0 bg-background border-t">
-            <Button
-              onClick={handleSave}
-              disabled={saving || !form.name || !form.email || (!editing && !form.password)}
-              className="w-full h-12"
-            >
+            <Button onClick={handleSave} disabled={isSubmitDisabled} className="w-full h-12">
               {saving ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : (
