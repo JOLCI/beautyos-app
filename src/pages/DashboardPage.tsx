@@ -30,19 +30,18 @@ export default function DashboardPage() {
   const { data: clients } = useQuery<any>('clients')
 
   const stats = useMemo(() => {
-    // Current Balance (Confirmed Only)
     const saldo = transactions.reduce((acc: number, t: any) => {
       if (t.status !== 'confirmed') return acc
       return t.type === 'inflow' ? acc + t.amount : acc - t.amount
     }, 0)
 
-    // Pending Balance (To receive/confirm)
-    const saldoPendente = transactions.reduce((acc: number, t: any) => {
-      if (t.status !== 'pending' || t.type !== 'inflow') return acc
-      return acc + t.amount
+    const saldoPendente = titles.reduce((acc: number, t: any) => {
+      if (t.type === 'receivable' && ['open', 'partial'].includes(t.status)) {
+        return acc + (t.open_amount !== null ? t.open_amount : t.original_amount - t.paid_amount)
+      }
+      return acc
     }, 0)
 
-    // Today's Revenue (Confirmed Only)
     const entradasHoje = transactions.reduce((acc: number, t: any) => {
       if (t.status === 'confirmed' && t.type === 'inflow' && t.transaction_date === today) {
         return acc + t.amount
@@ -50,13 +49,11 @@ export default function DashboardPage() {
       return acc
     }, 0)
 
-    // Overdue Titles
     const overdueReceivables = titles.filter(
       (t: any) =>
         t.type === 'receivable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
     )
 
-    // Agenda Counters
     const appsHoje = appointments.filter((a: any) => a.date === today)
     const totalApps = appsHoje.length
     const cancelledApps = appsHoje.filter((a: any) => a.status === 'cancelado').length
@@ -136,17 +133,17 @@ export default function DashboardPage() {
 
         <Card
           className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
-          onClick={() => navigate(`/${passkey}/financeiro/caixa?filter=pending`)}
+          onClick={() => navigate(`/${passkey}/financeiro/contas-receber`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">A Confirmar / Receber</CardTitle>
+            <CardTitle className="text-sm font-medium">Pendente a Receber</CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">
               R$ {stats.saldoPendente.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Soma de transações pendentes</p>
+            <p className="text-xs text-muted-foreground mt-1">Soma de títulos a receber</p>
           </CardContent>
         </Card>
 
@@ -194,7 +191,7 @@ export default function DashboardPage() {
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v) => `R$${v}`}
+                  tickFormatter={(v) => `R${v}`}
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px' }}
@@ -230,7 +227,8 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={app.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                      onClick={() => navigate(`/${passkey}/agenda?date=${app.date}`)}
+                      className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-background shadow-sm text-primary font-bold text-xs border">
                         {app.start_time.substring(0, 5)}

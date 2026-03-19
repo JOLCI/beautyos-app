@@ -4,13 +4,24 @@ import { useQuery } from '@/hooks/use-query'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Calendar as CalendarIcon, Plus, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import {
+  Calendar as CalendarIcon,
+  Plus,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
 
 export default function AgendaPage() {
   const navigate = useNavigate()
   const { passkey } = useParams()
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const searchParams = new URLSearchParams(window.location.search)
+  const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0]
+
+  const [date, setDate] = useState(initialDate)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingApp, setEditingApp] = useState<any>(null)
 
@@ -35,6 +46,12 @@ export default function AgendaPage() {
   }
   const todayStr = getTodayStr()
 
+  const changeDate = (days: number) => {
+    const d = new Date(date + 'T12:00:00')
+    d.setDate(d.getDate() + days)
+    setDate(d.toISOString().split('T')[0])
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -48,14 +65,27 @@ export default function AgendaPage() {
       </div>
 
       <Card className="p-4 shadow-sm border-border overflow-x-auto min-w-[600px]">
-        <div className="flex items-center gap-4 mb-6 border-b pb-4">
-          <CalendarIcon className="w-5 h-5 text-primary" />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="bg-transparent font-medium outline-none border-none cursor-pointer text-lg"
-          />
+        <div className="flex items-center justify-between mb-6 border-b pb-4">
+          <div className="flex items-center gap-4">
+            <CalendarIcon className="w-5 h-5 text-primary" />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-transparent font-medium outline-none border-none cursor-pointer text-lg"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" onClick={() => changeDate(-1)}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" onClick={() => setDate(getTodayStr())}>
+              Hoje
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => changeDate(1)}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {loading ? (

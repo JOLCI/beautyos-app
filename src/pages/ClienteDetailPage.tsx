@@ -124,13 +124,13 @@ export default function ClienteDetailPage() {
     setUploading(true)
     const ext = file.name.split('.').pop()
     const path = `${company?.id}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('client_avatars').upload(path, file)
+    const { error } = await supabase.storage.from('client-photos').upload(path, file)
     if (error) {
       toast.error('Erro ao subir foto')
       setUploading(false)
       return
     }
-    const { data: urlData } = supabase.storage.from('client_avatars').getPublicUrl(path)
+    const { data: urlData } = supabase.storage.from('client-photos').getPublicUrl(path)
 
     const newUrl = urlData.publicUrl
     setForm({ ...form, avatar_url: newUrl })

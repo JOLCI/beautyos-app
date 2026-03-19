@@ -387,7 +387,7 @@ export default function ConfiguracoesPage() {
                     <div className="space-y-2">
                       <Label>Provedor</Label>
                       <Select
-                        value={pixForm.provider}
+                        value={pixForm.provider || undefined}
                         onValueChange={(v) => setPixForm({ ...pixForm, provider: v })}
                       >
                         <SelectTrigger>
@@ -410,7 +410,7 @@ export default function ConfiguracoesPage() {
                     <div className="space-y-2">
                       <Label>Tipo de Chave</Label>
                       <Select
-                        value={pixForm.pix_key_type}
+                        value={pixForm.pix_key_type || undefined}
                         onValueChange={(v) => setPixForm({ ...pixForm, pix_key_type: v })}
                       >
                         <SelectTrigger>
@@ -514,7 +514,7 @@ export default function ConfiguracoesPage() {
                   <div className="space-y-2">
                     <Label>Gatilho Automático</Label>
                     <Select
-                      value={tplForm.template_key}
+                      value={tplForm.template_key || undefined}
                       onValueChange={(v) => {
                         const ex = waTemplates.find((t: any) => t.template_key === v)
                         setTplForm({ template_key: v, body: ex ? ex.body : '' })

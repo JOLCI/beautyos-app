@@ -21,9 +21,11 @@ export function TitlePaymentDialog({ open, onOpenChange, title, onComplete }: an
   const [method, setMethod] = useState('PIX')
   const [loading, setLoading] = useState(false)
 
+  const currentOpenAmount = title?.open_amount ?? title?.original_amount - title?.paid_amount
+
   useEffect(() => {
     if (title && open) {
-      setAmount(title.open_amount.toString())
+      setAmount(currentOpenAmount.toString())
       setMethod('PIX')
     }
   }, [title, open])
@@ -31,7 +33,8 @@ export function TitlePaymentDialog({ open, onOpenChange, title, onComplete }: an
   const handlePay = async () => {
     if (!title || !amount) return
     const payValue = Number(amount)
-    if (payValue <= 0 || payValue > title.open_amount) {
+
+    if (payValue <= 0 || payValue > currentOpenAmount) {
       return toast.error('Valor inválido. Deve ser maior que 0 e menor/igual ao saldo devedor.')
     }
 
@@ -48,7 +51,7 @@ export function TitlePaymentDialog({ open, onOpenChange, title, onComplete }: an
         client_id: title.client_id,
         supplier_id: title.supplier_id,
         financial_title_id: title.id,
-        description: `Baixa ${payValue < title.open_amount ? 'parcial' : 'integral'} de título`,
+        description: `Baixa ${payValue < currentOpenAmount ? 'parcial' : 'integral'} de título`,
         confirmed_at: new Date().toISOString(),
       },
     ])
@@ -59,12 +62,14 @@ export function TitlePaymentDialog({ open, onOpenChange, title, onComplete }: an
     }
 
     const newPaidAmount = Number(title.paid_amount) + payValue
+    const newOpenAmount = title.original_amount - newPaidAmount
     const newStatus = newPaidAmount >= title.original_amount ? 'paid' : 'partial'
 
     await supabase
       .from('financial_titles')
       .update({
         paid_amount: newPaidAmount,
+        open_amount: newOpenAmount,
         status: newStatus,
       })
       .eq('id', title.id)
@@ -91,7 +96,7 @@ export function TitlePaymentDialog({ open, onOpenChange, title, onComplete }: an
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Saldo Devedor Atual:</span>
-              <span className="font-bold text-primary">R$ {title.open_amount.toFixed(2)}</span>
+              <span className="font-bold text-primary">R$ {currentOpenAmount.toFixed(2)}</span>
             </div>
           </div>
 
@@ -101,11 +106,12 @@ export function TitlePaymentDialog({ open, onOpenChange, title, onComplete }: an
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              max={title.open_amount}
+              max={currentOpenAmount}
             />
-            {Number(amount) < title.open_amount && Number(amount) > 0 && (
+            {Number(amount) < currentOpenAmount && Number(amount) > 0 && (
               <p className="text-xs text-amber-600 font-medium">
-                Liquidação parcial. O título permanecerá aberto com o saldo restante.
+                Liquidação parcial. O título permanecerá aberto com o saldo restante de R${' '}
+                {(currentOpenAmount - Number(amount)).toFixed(2)}.
               </p>
             )}
           </div>

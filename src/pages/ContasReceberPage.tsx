@@ -70,6 +70,7 @@ export default function ContasReceberPage() {
         type: 'receivable',
         status: 'open',
         original_amount: Number(form.amount),
+        open_amount: Number(form.amount),
         due_date: form.due_date,
         description: form.notes,
         client_id: form.client_id,
@@ -148,7 +149,7 @@ export default function ContasReceberPage() {
                   <TableCell>{new Date(t.due_date).toLocaleDateString()}</TableCell>
                   <TableCell>R$ {t.original_amount.toFixed(2)}</TableCell>
                   <TableCell className="font-bold text-primary">
-                    R$ {t.open_amount.toFixed(2)}
+                    R$ {(t.open_amount ?? t.original_amount - t.paid_amount).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     {t.status === 'paid' ? (
@@ -188,7 +189,7 @@ export default function ContasReceberPage() {
             <div className="space-y-2">
               <Label>Cliente (Obrigatório)</Label>
               <Select
-                value={form.client_id}
+                value={form.client_id || undefined}
                 onValueChange={(v) => setForm({ ...form, client_id: v })}
               >
                 <SelectTrigger>

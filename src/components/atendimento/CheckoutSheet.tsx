@@ -32,7 +32,7 @@ export function CheckoutSheet({
   const { profile } = useAuth()
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
 
-  const [clientId, setClientId] = useState('')
+  const [clientId, setClientId] = useState('avulso')
   const [method, setMethod] = useState('PIX')
   const [discount, setDiscount] = useState('0')
 
@@ -47,18 +47,20 @@ export function CheckoutSheet({
   const [pixPayload, setPixPayload] = useState('')
 
   useEffect(() => {
-    if (initialClientId && open && !clientId) setClientId(initialClientId)
+    if (initialClientId && open && clientId === 'avulso') setClientId(initialClientId)
     if (!open) {
       setStatus('idle')
       setMethod('PIX')
-      setClientId('')
+      setClientId('avulso')
       setDiscount('0')
     }
   }, [initialClientId, open])
 
+  const actualClientId = clientId === 'avulso' ? '' : clientId
+
   const activeClient = useMemo(
-    () => clients.find((c: any) => c.id === clientId),
-    [clientId, clients],
+    () => clients.find((c: any) => c.id === actualClientId),
+    [actualClientId, clients],
   )
 
   const pricedItems = useMemo(
@@ -79,7 +81,7 @@ export function CheckoutSheet({
   const finalTotal = total - Number(discount || 0)
 
   const isScheduled = method === 'PIX AGENDADO' || method === 'CONVENIO'
-  const canFinish = pricedItems.length > 0 && (!isScheduled || clientId)
+  const canFinish = pricedItems.length > 0 && (!isScheduled || actualClientId)
 
   const deductStock = async (serviceId: string, quantity: number) => {
     const { data: inv } = await supabase
@@ -110,8 +112,7 @@ export function CheckoutSheet({
 
     let titleId = null
 
-    // Create Title ONLY if client exists (Financial Title constraint requires client_id for receivables)
-    if (clientId) {
+    if (actualClientId) {
       const { data: title } = await supabase
         .from('financial_titles')
         .insert([
@@ -121,9 +122,10 @@ export function CheckoutSheet({
             status: isImmediate ? 'paid' : 'open',
             original_amount: finalTotal,
             paid_amount: isImmediate ? finalTotal : 0,
+            open_amount: isImmediate ? 0 : finalTotal,
             due_date: isImmediate ? now.split('T')[0] : dueDate,
             description: `Checkout PDV - ${items.length} itens`,
-            client_id: clientId,
+            client_id: actualClientId,
           },
         ])
         .select()
@@ -131,19 +133,28 @@ export function CheckoutSheet({
 
       titleId = title?.id
 
-      // WhatsApp Scheduling
       if (isScheduled && titleId && activeClient?.phone) {
+        const { data: gateways } = await supabase
+          .from('pix_gateways')
+          .select('pix_key')
+          .eq('company_id', company?.id)
+          .eq('is_active', true)
+
+        const pixKey = gateways?.[0]?.pix_key || 'Chave não configurada'
+
         const { data: tpls } = await supabase
           .from('whatsapp_templates')
           .select('body')
           .eq('template_key', 'cobranca_pix_agendado')
           .eq('company_id', company?.id)
+
         const tpl = tpls?.[0]
         if (tpl) {
           let msg = tpl.body
             .replace(/\[NOME_CLIENTE\]/g, activeClient.name)
             .replace(/\[VALOR\]/g, finalTotal.toFixed(2))
             .replace(/\[DATA\]/g, new Date(dueDate).toLocaleDateString('pt-BR'))
+            .replace(/\[CHAVE_PIX\]/g, pixKey)
 
           const scheduleDate = new Date(dueDate)
           scheduleDate.setHours(8, 0, 0, 0)
@@ -160,7 +171,6 @@ export function CheckoutSheet({
       }
     }
 
-    // Create Transaction
     await supabase.from('transactions').insert([
       {
         company_id: company?.id,
@@ -169,7 +179,7 @@ export function CheckoutSheet({
         amount: finalTotal,
         status: isImmediate ? 'confirmed' : 'pending',
         payment_method: methodUsed,
-        client_id: clientId || null,
+        client_id: actualClientId || null,
         financial_title_id: titleId,
         ref_id: appointmentId || null,
         confirmed_at: isImmediate ? now : null,
@@ -204,7 +214,7 @@ export function CheckoutSheet({
   }
 
   const handleFinish = async (forceManual = false) => {
-    if (isScheduled && !clientId) {
+    if (isScheduled && !actualClientId) {
       return toast.error('Obrigatório selecionar um cliente para faturamento agendado.')
     }
 
@@ -248,7 +258,7 @@ export function CheckoutSheet({
             <CheckCircle2 className="w-16 h-16 text-green-600 mb-4 animate-in zoom-in" />
             <h3 className="text-2xl font-bold">Transação Finalizada!</h3>
             <p className="text-muted-foreground mt-2">
-              {clientId
+              {actualClientId
                 ? 'Registros financeiros criados com rigor de auditoria.'
                 : 'Venda avulsa registrada no caixa sem vínculo nominal.'}
             </p>
@@ -280,12 +290,14 @@ export function CheckoutSheet({
               <Label>Cliente Vinculado (Opcional para Caixa)</Label>
               <Select value={clientId} onValueChange={setClientId}>
                 <SelectTrigger
-                  className={isScheduled && !clientId ? 'border-amber-500 ring-amber-500' : ''}
+                  className={
+                    isScheduled && clientId === 'avulso' ? 'border-amber-500 ring-amber-500' : ''
+                  }
                 >
                   <SelectValue placeholder="Venda Avulsa (Anônimo)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">-- Venda Avulsa --</SelectItem>
+                  <SelectItem value="avulso">-- Venda Avulsa --</SelectItem>
                   {clients.map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
@@ -293,7 +305,7 @@ export function CheckoutSheet({
                   ))}
                 </SelectContent>
               </Select>
-              {isScheduled && !clientId && (
+              {isScheduled && clientId === 'avulso' && (
                 <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
                   <Info className="w-3 h-3" /> Obrigatório para faturamento agendado
                 </p>

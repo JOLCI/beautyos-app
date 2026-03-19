@@ -119,7 +119,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
   }, [selectedServices, startTime, totalDuration, manualOverride])
 
   const handleServiceSelect = (id: string) => {
-    if (!selectedServices.includes(id)) {
+    if (!selectedServices.includes(id) && id) {
       setSelectedServices([...selectedServices, id])
       setManualOverride(false)
     }
@@ -229,7 +229,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
         <div className={`space-y-4 ${showCancelConfirm ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="space-y-2">
             <Label>Cliente</Label>
-            <Select value={clientId} onValueChange={setClientId}>
+            <Select value={clientId || undefined} onValueChange={setClientId}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o cliente" />
               </SelectTrigger>
@@ -245,7 +245,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
 
           <div className="space-y-2">
             <Label>Profissional</Label>
-            <Select value={profId} onValueChange={setProfId}>
+            <Select value={profId || undefined} onValueChange={setProfId}>
               <SelectTrigger>
                 <SelectValue placeholder="Quem vai atender?" />
               </SelectTrigger>
@@ -261,7 +261,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
 
           <div className="space-y-2 p-3 bg-muted/30 rounded-xl border">
             <Label>Adicionar Serviço</Label>
-            <Select value="" onValueChange={handleServiceSelect}>
+            <Select onValueChange={handleServiceSelect}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione serviços..." />
               </SelectTrigger>

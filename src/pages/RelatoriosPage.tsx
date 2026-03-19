@@ -1,7 +1,17 @@
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useQuery } from '@/hooks/use-query'
+import { formatEntityName, getOriginLabel } from '@/lib/financial'
 import {
   BarChart,
   Bar,
@@ -12,7 +22,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
-import { FileText, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
+import { FileText, TrendingUp, TrendingDown, Wallet, Download, Printer } from 'lucide-react'
 
 export default function RelatoriosPage() {
   const [startDate, setStartDate] = useState(() => {
@@ -28,16 +38,21 @@ export default function RelatoriosPage() {
     return d.toISOString().split('T')[0]
   })
 
-  // Usando a nova tabela transactions (apenas confirmados)
   const { data: transactions } = useQuery<any>('transactions', {
     match: { status: 'confirmed' },
+    select: '*, clients(name), suppliers(name)',
   })
 
   const filteredData = useMemo(() => {
-    return transactions.filter((t: any) => {
-      const d = t.transaction_date
-      return d >= startDate && d <= endDate
-    })
+    return transactions
+      .filter((t: any) => {
+        const d = t.transaction_date
+        return d >= startDate && d <= endDate
+      })
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime(),
+      )
   }, [transactions, startDate, endDate])
 
   const totals = useMemo(() => {
@@ -55,13 +70,37 @@ export default function RelatoriosPage() {
   const chartData = useMemo(() => {
     const daily: Record<string, { name: string; Receitas: number; Despesas: number }> = {}
     filteredData.forEach((t: any) => {
-      const d = t.transaction_date.slice(5, 10) // MM-DD
+      const d = t.transaction_date.slice(5, 10)
       if (!daily[d]) daily[d] = { name: d, Receitas: 0, Despesas: 0 }
       if (t.type === 'inflow') daily[d].Receitas += t.amount
       else if (t.type === 'outflow') daily[d].Despesas += t.amount
     })
     return Object.values(daily).sort((a, b) => a.name.localeCompare(b.name))
   }, [filteredData])
+
+  const exportCSV = () => {
+    const headers = ['Data', 'Ticket', 'Entidade', 'Origem', 'Tipo', 'Método', 'Valor']
+    const rows = filteredData.map((t: any) => [
+      new Date(t.transaction_date).toLocaleDateString(),
+      t.ticket_id,
+      formatEntityName(t) || '-',
+      getOriginLabel(t.origin),
+      t.type === 'inflow' ? 'Entrada' : 'Saída',
+      t.payment_method,
+      t.amount.toFixed(2),
+    ])
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `relatorio_fluxo_${startDate}_a_${endDate}.csv`)
+    link.click()
+  }
+
+  const exportPDF = () => {
+    window.print()
+  }
 
   return (
     <div className="space-y-6">
@@ -87,7 +126,7 @@ export default function RelatoriosPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 print:hidden">
         <Card>
           <CardContent className="p-6 flex items-center gap-4">
             <div className="p-3 bg-green-500/10 rounded-full text-green-600">
@@ -127,7 +166,7 @@ export default function RelatoriosPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="print:hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" /> Fluxo Diário (Período Selecionado)
@@ -154,7 +193,7 @@ export default function RelatoriosPage() {
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v) => `R$${v}`}
+                  tickFormatter={(v) => `R${v}`}
                 />
                 <RechartsTooltip
                   contentStyle={{
@@ -170,6 +209,60 @@ export default function RelatoriosPage() {
               </BarChart>
             </ResponsiveContainer>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <div className="p-4 border-b flex justify-between items-center print:hidden">
+          <h3 className="font-semibold">Detalhamento das Transações</h3>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportCSV}>
+              <Download className="w-4 h-4 mr-2" /> Exportar CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportPDF}>
+              <Printer className="w-4 h-4 mr-2" /> Imprimir / PDF
+            </Button>
+          </div>
+        </div>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Ticket</TableHead>
+                <TableHead>Entidade / Origem</TableHead>
+                <TableHead>Método</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredData.map((t: any) => (
+                <TableRow key={t.id}>
+                  <TableCell>{new Date(t.transaction_date).toLocaleDateString()}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {t.ticket_id}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{formatEntityName(t)}</div>
+                    <div className="text-xs text-muted-foreground">{getOriginLabel(t.origin)}</div>
+                  </TableCell>
+                  <TableCell className="uppercase text-xs">{t.payment_method}</TableCell>
+                  <TableCell
+                    className={`text-right font-bold ${t.type === 'inflow' ? 'text-green-600' : 'text-destructive'}`}
+                  >
+                    {t.type === 'outflow' ? '-' : ''} R$ {t.amount.toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredData.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                    Nenhum registro encontrado neste período.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

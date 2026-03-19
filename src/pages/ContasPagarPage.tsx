@@ -70,6 +70,7 @@ export default function ContasPagarPage() {
         type: 'payable',
         status: 'open',
         original_amount: Number(form.amount),
+        open_amount: Number(form.amount),
         due_date: form.due_date,
         description: form.notes,
         supplier_id: form.supplier_id,
@@ -148,7 +149,7 @@ export default function ContasPagarPage() {
                   <TableCell>{new Date(t.due_date).toLocaleDateString()}</TableCell>
                   <TableCell>R$ {t.original_amount.toFixed(2)}</TableCell>
                   <TableCell className="font-bold text-destructive">
-                    R$ {t.open_amount.toFixed(2)}
+                    R$ {(t.open_amount ?? t.original_amount - t.paid_amount).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     {t.status === 'paid' ? (
@@ -188,7 +189,7 @@ export default function ContasPagarPage() {
             <div className="space-y-2">
               <Label>Fornecedor (Obrigatório)</Label>
               <Select
-                value={form.supplier_id}
+                value={form.supplier_id || undefined}
                 onValueChange={(v) => setForm({ ...form, supplier_id: v })}
               >
                 <SelectTrigger>

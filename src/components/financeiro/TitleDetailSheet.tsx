@@ -7,12 +7,26 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Edit2, Save, FileText, Calendar, DollarSign, Clock, X } from 'lucide-react'
+import { useQuery } from '@/hooks/use-query'
+import {
+  Edit2,
+  Save,
+  FileText,
+  Calendar,
+  DollarSign,
+  Clock,
+  X,
+  Link as LinkIcon,
+} from 'lucide-react'
 
 export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
   const [editMode, setEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ original_amount: 0, due_date: '' })
+
+  const { data: transactions } = useQuery<any>('transactions', {
+    match: { financial_title_id: title?.id },
+  })
 
   useEffect(() => {
     if (title) {
@@ -25,16 +39,18 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
     setSaving(true)
     const newAmount = Number(form.original_amount)
 
-    // Check if new amount is less than what's already paid
     if (newAmount < title.paid_amount) {
       setSaving(false)
       return toast.error('Valor original não pode ser menor que o valor já pago.')
     }
 
+    const newOpenAmount = newAmount - title.paid_amount
+
     const { error } = await supabase
       .from('financial_titles')
       .update({
         original_amount: newAmount,
+        open_amount: newOpenAmount,
         due_date: form.due_date,
       })
       .eq('id', title.id)
@@ -45,7 +61,6 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
       return
     }
 
-    // Update scheduled WA message if it exists and is pending
     const { data: schedules } = await supabase
       .from('whatsapp_message_schedules')
       .select('*')
@@ -91,6 +106,8 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
 
   if (!title) return null
 
+  const currentOpenAmount = title.open_amount ?? title.original_amount - title.paid_amount
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
@@ -129,7 +146,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Saldo Restante</span>
-              <span className="font-bold text-destructive">R$ {title.open_amount.toFixed(2)}</span>
+              <span className="font-bold text-destructive">R$ {currentOpenAmount.toFixed(2)}</span>
             </div>
           </div>
 
@@ -188,6 +205,36 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                 <p className="text-sm bg-muted p-3 rounded-lg min-h-[3rem]">
                   {title.description || 'Sem descrição.'}
                 </p>
+              </div>
+
+              <div className="space-y-3 pt-4">
+                <Label className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
+                  <LinkIcon className="w-3.5 h-3.5" /> Histórico de Liquidações
+                </Label>
+                {transactions?.length > 0 ? (
+                  <div className="space-y-2">
+                    {transactions.map((tx: any) => (
+                      <div
+                        key={tx.id}
+                        className="p-3 border rounded-lg bg-background text-sm flex justify-between items-center"
+                      >
+                        <div>
+                          <p className="font-medium text-[10px] text-muted-foreground mb-0.5">
+                            {new Date(tx.created_at).toLocaleDateString()}
+                          </p>
+                          <p className="font-semibold text-xs">
+                            {tx.ticket_id} • {tx.payment_method}
+                          </p>
+                        </div>
+                        <span className="font-bold text-green-600">R$ {tx.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-4 border rounded-lg border-dashed">
+                    Nenhuma transação vinculada.
+                  </p>
+                )}
               </div>
             </div>
           )}
