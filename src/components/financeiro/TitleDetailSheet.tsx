@@ -26,6 +26,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
 
   const { data: transactions } = useQuery<any>('transactions', {
     match: { financial_title_id: title?.id },
+    enabled: !!title?.id,
   })
 
   useEffect(() => {
