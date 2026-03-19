@@ -22,8 +22,10 @@ Deno.serve(async (req: Request) => {
 
     if (email) {
       updates.email = email
-      updates.email_confirm = true
+      updates.email_confirm = true // Programmatically auto-confirm updated email addresses
     }
+
+    // Only update the password if a new one was provided, otherwise ignore it
     if (password) {
       updates.password = password
     }
@@ -32,7 +34,7 @@ Deno.serve(async (req: Request) => {
     if (role) updates.user_metadata.role = role
     if (company_id) updates.user_metadata.company_id = company_id
 
-    // Update Auth User
+    // Safely update Auth User credentials inside Supabase Auth via Admin API
     const { data: authData, error: authError } = await supabase.auth.admin.updateUserById(
       user_id,
       updates,
@@ -40,7 +42,7 @@ Deno.serve(async (req: Request) => {
 
     if (authError) throw authError
 
-    // Sync Profile manually just in case the existing handle_new_user trigger doesn't cover updates
+    // Sync Profile explicitly to maintain the relationship and UI synchronization
     const profileUpdate: any = {}
     if (name) profileUpdate.name = name
     if (role) profileUpdate.role = role

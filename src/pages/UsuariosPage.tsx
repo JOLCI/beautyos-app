@@ -118,8 +118,13 @@ export default function UsuariosPage() {
           errorMsg.toLowerCase().includes('invalid format') ||
           errorMsg.toLowerCase().includes('invalid email')
         ) {
-          displayError =
-            'E-mail inválido. Por favor, insira um endereço de e-mail válido (ex: usuario@dominio.com)'
+          displayError = 'Formato de e-mail inválido.'
+        } else if (
+          errorMsg.toLowerCase().includes('already registered') ||
+          errorMsg.toLowerCase().includes('unique constraint') ||
+          errorMsg.toLowerCase().includes('already in use')
+        ) {
+          displayError = 'Este e-mail já está em uso.'
         }
 
         toast.error('Erro ao atualizar usuário', { description: displayError })
@@ -147,8 +152,13 @@ export default function UsuariosPage() {
           errorMsg.toLowerCase().includes('invalid format') ||
           errorMsg.toLowerCase().includes('invalid email')
         ) {
-          displayError =
-            'E-mail inválido. Por favor, insira um endereço de e-mail válido (ex: usuario@dominio.com)'
+          displayError = 'Formato de e-mail inválido.'
+        } else if (
+          errorMsg.toLowerCase().includes('already registered') ||
+          errorMsg.toLowerCase().includes('unique constraint') ||
+          errorMsg.toLowerCase().includes('already in use')
+        ) {
+          displayError = 'Este e-mail já está em uso.'
         }
 
         toast.error('Erro ao criar usuário', { description: displayError })
@@ -282,10 +292,7 @@ export default function UsuariosPage() {
                 className={emailError ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {emailError && (
-                <p className="text-sm font-medium text-destructive">
-                  E-mail inválido. Por favor, insira um endereço de e-mail válido (ex:
-                  usuario@dominio.com)
-                </p>
+                <p className="text-sm font-medium text-destructive">Formato de e-mail inválido.</p>
               )}
             </div>
             <div className="space-y-2">
