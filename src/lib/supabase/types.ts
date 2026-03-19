@@ -1487,7 +1487,6 @@ export const Constants = {
 //   FOREIGN KEY profiles_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   FOREIGN KEY profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY profiles_pkey: PRIMARY KEY (id)
-//   UNIQUE profiles_username_key: UNIQUE (username)
 // Table: purchases
 //   FOREIGN KEY purchases_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY purchases_pkey: PRIMARY KEY (id)
@@ -1698,13 +1697,21 @@ export const Constants = {
 //   DECLARE
 //     v_email TEXT;
 //   BEGIN
+//     RAISE LOG 'get_email_for_login: Resolving identifier "%" for company "%"', p_username, p_company_id;
+//
 //     SELECT au.email INTO v_email
 //     FROM public.profiles p
 //     JOIN auth.users au ON au.id = p.id
-//     WHERE p.username ILIKE p_username
+//     WHERE lower(p.username) = lower(p_username)
 //       AND p.company_id = p_company_id
 //       AND p.is_active = true
 //     LIMIT 1;
+//
+//     IF v_email IS NOT NULL THEN
+//       RAISE LOG 'get_email_for_login: Found email for username "%"', p_username;
+//     ELSE
+//       RAISE LOG 'get_email_for_login: Username "%" not found', p_username;
+//     END IF;
 //
 //     RETURN v_email;
 //   END;
@@ -1904,7 +1911,7 @@ export const Constants = {
 //   CREATE INDEX idx_titles_status ON public.financial_titles USING btree (status)
 //   CREATE INDEX idx_titles_supplier_id ON public.financial_titles USING btree (supplier_id)
 // Table: profiles
-//   CREATE UNIQUE INDEX profiles_username_key ON public.profiles USING btree (username)
+//   CREATE UNIQUE INDEX profiles_username_lower_idx ON public.profiles USING btree (lower(username))
 // Table: transactions
 //   CREATE INDEX idx_tx_client_id ON public.transactions USING btree (client_id)
 //   CREATE INDEX idx_tx_company_id ON public.transactions USING btree (company_id)

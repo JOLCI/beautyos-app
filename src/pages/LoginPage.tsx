@@ -46,6 +46,9 @@ export default function LoginPage() {
         return
       }
       loginEmail = data as string
+    } else {
+      // Ensure email is lowercased for case-insensitive authentication
+      loginEmail = loginEmail.toLowerCase()
     }
 
     const { error } = await signIn(loginEmail, password)
