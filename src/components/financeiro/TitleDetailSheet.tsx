@@ -44,13 +44,10 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
       return toast.error('Valor original não pode ser menor que o valor já pago.')
     }
 
-    const newOpenAmount = newAmount - title.paid_amount
-
     const { error } = await supabase
       .from('financial_titles')
       .update({
         original_amount: newAmount,
-        open_amount: newOpenAmount,
         due_date: form.due_date,
       })
       .eq('id', title.id)

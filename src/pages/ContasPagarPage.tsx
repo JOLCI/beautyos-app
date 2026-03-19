@@ -70,7 +70,6 @@ export default function ContasPagarPage() {
         type: 'payable',
         status: 'open',
         original_amount: Number(form.amount),
-        open_amount: Number(form.amount),
         due_date: form.due_date,
         description: form.notes,
         supplier_id: form.supplier_id,

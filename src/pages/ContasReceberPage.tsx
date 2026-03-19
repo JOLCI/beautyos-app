@@ -70,7 +70,6 @@ export default function ContasReceberPage() {
         type: 'receivable',
         status: 'open',
         original_amount: Number(form.amount),
-        open_amount: Number(form.amount),
         due_date: form.due_date,
         description: form.notes,
         client_id: form.client_id,

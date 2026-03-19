@@ -122,7 +122,6 @@ export function CheckoutSheet({
             status: isImmediate ? 'paid' : 'open',
             original_amount: finalTotal,
             paid_amount: isImmediate ? finalTotal : 0,
-            open_amount: isImmediate ? 0 : finalTotal,
             due_date: isImmediate ? now.split('T')[0] : dueDate,
             description: `Checkout PDV - ${items.length} itens`,
             client_id: actualClientId,

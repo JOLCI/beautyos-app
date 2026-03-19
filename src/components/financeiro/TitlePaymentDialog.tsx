@@ -62,14 +62,12 @@ export function TitlePaymentDialog({ open, onOpenChange, title, onComplete }: an
     }
 
     const newPaidAmount = Number(title.paid_amount) + payValue
-    const newOpenAmount = title.original_amount - newPaidAmount
     const newStatus = newPaidAmount >= title.original_amount ? 'paid' : 'partial'
 
     await supabase
       .from('financial_titles')
       .update({
         paid_amount: newPaidAmount,
-        open_amount: newOpenAmount,
         status: newStatus,
       })
       .eq('id', title.id)
