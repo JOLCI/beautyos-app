@@ -1,29 +1,19 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@/hooks/use-query'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import {
-  ArrowLeft,
-  Save,
-  MessageCircle,
-  Loader2,
-  Calendar,
-  DollarSign,
-  FileText,
-  Send,
-  Camera,
-} from 'lucide-react'
+import { ArrowLeft, Save, MessageCircle, Loader2, Camera } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
-import { translateStatus } from '@/lib/utils'
+import { ClientTimeline } from '@/components/clients/ClientTimeline'
+import { ClientCrmTable } from '@/components/clients/ClientCrmTable'
 
 export default function ClienteDetailPage() {
   const { id } = useParams()
@@ -38,6 +28,9 @@ export default function ClienteDetailPage() {
     match: { client_id: id },
   })
   const { data: services } = useQuery<any>('services', { match: { type: 'service' } })
+  const { data: serviceIntervals } = useQuery<any>('v_client_service_intervals', {
+    match: { client_id: id },
+  })
 
   const client = clients?.[0]
   const [form, setForm] = useState({
@@ -65,52 +58,6 @@ export default function ClienteDetailPage() {
     }
   }, [client])
 
-  const timeline = useMemo(() => {
-    const events: any[] = []
-    appointments?.forEach((a: any) =>
-      events.push({
-        type: 'appointment',
-        date: a.created_at,
-        data: a,
-        icon: Calendar,
-        color: 'text-blue-500',
-        bg: 'bg-blue-50',
-      }),
-    )
-    transactions?.forEach((t: any) =>
-      events.push({
-        type: 'transaction',
-        date: t.created_at,
-        data: t,
-        icon: DollarSign,
-        color: 'text-green-500',
-        bg: 'bg-green-50',
-      }),
-    )
-    titles?.forEach((t: any) =>
-      events.push({
-        type: 'title',
-        date: t.created_at,
-        data: t,
-        icon: FileText,
-        color: 'text-amber-500',
-        bg: 'bg-amber-50',
-      }),
-    )
-    waSchedules?.forEach((w: any) =>
-      events.push({
-        type: 'whatsapp',
-        date: w.created_at,
-        data: w,
-        icon: Send,
-        color: 'text-emerald-500',
-        bg: 'bg-emerald-50',
-      }),
-    )
-
-    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [appointments, transactions, titles, waSchedules])
-
   if (loading)
     return (
       <div className="p-8 flex justify-center">
@@ -132,10 +79,8 @@ export default function ClienteDetailPage() {
       return
     }
     const { data: urlData } = supabase.storage.from('client-photos').getPublicUrl(path)
-
-    const newUrl = urlData.publicUrl
-    setForm({ ...form, avatar_url: newUrl })
-    await supabase.from('clients').update({ avatar_url: newUrl }).eq('id', id)
+    setForm({ ...form, avatar_url: urlData.publicUrl })
+    await supabase.from('clients').update({ avatar_url: urlData.publicUrl }).eq('id', id)
     refetch()
     setUploading(false)
     toast.success('Foto atualizada')
@@ -144,12 +89,7 @@ export default function ClienteDetailPage() {
   const saveDados = async () => {
     const { error } = await supabase
       .from('clients')
-      .update({
-        phone: form.phone,
-        email: form.email,
-        birthday: form.birthday,
-        notes: form.notes,
-      })
+      .update({ phone: form.phone, email: form.email, birthday: form.birthday, notes: form.notes })
       .eq('id', id)
     if (!error) {
       toast.success('Dados salvos')
@@ -171,7 +111,7 @@ export default function ClienteDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       <Button variant="ghost" className="mb-2 -ml-4" onClick={() => navigate(-1)}>
         <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
       </Button>
@@ -188,7 +128,7 @@ export default function ClienteDetailPage() {
               <AvatarFallback className="text-xl">{client.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <Label
-              htmlFor="avatar-upload-page"
+              htmlFor="avatar-upload"
               className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
             >
               {uploading ? (
@@ -198,7 +138,7 @@ export default function ClienteDetailPage() {
               )}
             </Label>
             <input
-              id="avatar-upload-page"
+              id="avatar-upload"
               type="file"
               accept="image/*"
               className="hidden"
@@ -213,115 +153,34 @@ export default function ClienteDetailPage() {
             </p>
           </div>
         </div>
-        <Button className="rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white relative z-10">
+        <Button className="rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-sm">
           <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
         </Button>
       </div>
 
-      <Tabs defaultValue="historico" className="w-full">
-        <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full md:w-auto bg-muted/50 p-1">
-          <TabsTrigger value="historico">Histórico Unificado</TabsTrigger>
-          <TabsTrigger value="dados">Dados</TabsTrigger>
-          <TabsTrigger value="anamnese">Anamnese</TabsTrigger>
-          <TabsTrigger value="precos">Preços</TabsTrigger>
+      <Tabs defaultValue="crm" className="w-full">
+        <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full md:w-auto bg-muted/50 p-1 h-auto gap-1">
+          <TabsTrigger value="crm">CRM & Consumo</TabsTrigger>
+          <TabsTrigger value="historico">Histórico 360º</TabsTrigger>
+          <TabsTrigger value="dados">Dados Pessoais</TabsTrigger>
+          <TabsTrigger value="anamnese">Ficha/Anamnese</TabsTrigger>
+          <TabsTrigger value="precos">Preços Especiais</TabsTrigger>
         </TabsList>
 
         <div className="mt-6">
+          <TabsContent value="crm" className="space-y-4">
+            <ClientCrmTable
+              serviceIntervals={serviceIntervals || []}
+              transactions={transactions || []}
+            />
+          </TabsContent>
           <TabsContent value="historico">
-            <Card>
-              <CardHeader>
-                <CardTitle>Histórico de Eventos (360º)</CardTitle>
-                <CardDescription>
-                  Rastreabilidade completa de agendamentos e transações.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {timeline.length > 0 ? (
-                  <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-                    {timeline.map((ev, idx) => {
-                      const Icon = ev.icon
-                      return (
-                        <div
-                          key={idx}
-                          className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active"
-                        >
-                          <div
-                            className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-background bg-card shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm ${ev.color} z-10`}
-                          >
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border bg-card shadow-sm space-y-1">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                {ev.type === 'appointment'
-                                  ? 'Agendamento'
-                                  : ev.type === 'transaction'
-                                    ? 'Transação Caixa'
-                                    : ev.type === 'title'
-                                      ? 'Título Financeiro'
-                                      : 'WhatsApp Automático'}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {new Date(ev.date).toLocaleString()}
-                              </span>
-                            </div>
-
-                            {ev.type === 'appointment' && (
-                              <div>
-                                <p className="font-medium">
-                                  {ev.data.date} às {ev.data.start_time.slice(0, 5)}
-                                </p>
-                                <Badge variant="outline" className="text-[10px] mt-1 uppercase">
-                                  {translateStatus(ev.data.status)}
-                                </Badge>
-                              </div>
-                            )}
-
-                            {ev.type === 'transaction' && (
-                              <div>
-                                <p className="font-medium text-lg">
-                                  R$ {ev.data.amount.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {ev.data.payment_method} • {translateStatus(ev.data.status)}
-                                </p>
-                              </div>
-                            )}
-
-                            {ev.type === 'title' && (
-                              <div>
-                                <p className="font-medium">
-                                  Original: R$ {ev.data.original_amount.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Vencimento: {new Date(ev.data.due_date).toLocaleDateString()} •{' '}
-                                  {translateStatus(ev.data.status)}
-                                </p>
-                              </div>
-                            )}
-
-                            {ev.type === 'whatsapp' && (
-                              <div>
-                                <p className="text-sm italic line-clamp-2 text-muted-foreground">
-                                  "{ev.data.rendered_message}"
-                                </p>
-                                <Badge variant="secondary" className="text-[10px] mt-2 uppercase">
-                                  {translateStatus(ev.data.status)}
-                                </Badge>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    Nenhum evento registrado para este cliente.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <ClientTimeline
+              appointments={appointments || []}
+              transactions={transactions || []}
+              titles={titles || []}
+              waSchedules={waSchedules || []}
+            />
           </TabsContent>
 
           <TabsContent value="dados">
@@ -358,11 +217,10 @@ export default function ClienteDetailPage() {
                   <Textarea
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    className="h-24"
                   />
                 </div>
                 <Button onClick={saveDados}>
-                  <Save className="w-4 h-4 mr-2" /> Salvar
+                  <Save className="w-4 h-4 mr-2" /> Salvar Cadastro
                 </Button>
               </CardContent>
             </Card>
@@ -371,16 +229,17 @@ export default function ClienteDetailPage() {
           <TabsContent value="anamnese">
             <Card>
               <CardHeader>
-                <CardTitle>Anamnese</CardTitle>
+                <CardTitle>Anamnese e Evolução</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea
-                  className="min-h-[150px]"
+                  className="min-h-[200px]"
                   value={anamnesis}
+                  placeholder="Descreva aqui alergias, preferências e histórico clínico do cliente..."
                   onChange={(e) => setAnamnesis(e.target.value)}
                 />
                 <Button onClick={saveAnamnesis}>
-                  <Save className="w-4 h-4 mr-2" /> Salvar Ficha
+                  <Save className="w-4 h-4 mr-2" /> Salvar Anamnese
                 </Button>
               </CardContent>
             </Card>
@@ -389,32 +248,29 @@ export default function ClienteDetailPage() {
           <TabsContent value="precos">
             <Card>
               <CardHeader>
-                <CardTitle>Preços Customizados</CardTitle>
-                <CardDescription>Defina valores diferenciados para este cliente.</CardDescription>
+                <CardTitle>Tabela de Preços Customizados</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3 max-w-md">
-                  {services?.map((s: any) => (
-                    <div key={s.id} className="flex items-center justify-between">
-                      <Label className="flex-1">
-                        {s.name}{' '}
-                        <span className="text-muted-foreground text-xs ml-2">
-                          (Padrão: R$ {s.price})
-                        </span>
-                      </Label>
-                      <Input
-                        type="number"
-                        className="w-24 text-right"
-                        value={customPrices[s.id] || ''}
-                        placeholder={String(s.price)}
-                        onChange={(e) =>
-                          setCustomPrices({ ...customPrices, [s.id]: Number(e.target.value) })
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-                <Button onClick={savePrices} className="mt-4">
+              <CardContent className="space-y-4 max-w-md">
+                {services?.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between gap-4">
+                    <Label className="flex-1 leading-snug">
+                      {s.name} <br />
+                      <span className="text-muted-foreground text-[10px] uppercase font-semibold">
+                        Padrão: R$ {s.price}
+                      </span>
+                    </Label>
+                    <Input
+                      type="number"
+                      className="w-28 text-right"
+                      value={customPrices[s.id] || ''}
+                      placeholder={String(s.price)}
+                      onChange={(e) =>
+                        setCustomPrices({ ...customPrices, [s.id]: Number(e.target.value) })
+                      }
+                    />
+                  </div>
+                ))}
+                <Button onClick={savePrices} className="mt-4 w-full">
                   <Save className="w-4 h-4 mr-2" /> Salvar Preços
                 </Button>
               </CardContent>

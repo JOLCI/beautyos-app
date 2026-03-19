@@ -8,6 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   LayoutDashboard,
@@ -31,6 +32,7 @@ export function AppSidebar() {
   const location = useLocation()
   const { company } = usePasskey()
   const { profile } = useAuth()
+  const { setOpenMobile, isMobile } = useSidebar()
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'root'
   const isRoot = profile?.role === 'root'
@@ -100,7 +102,14 @@ export function AppSidebar() {
                     tooltip={item.name}
                     className="font-medium"
                   >
-                    <Link to={item.href}>
+                    <Link
+                      to={item.href}
+                      onClick={() => {
+                        if (isMobile) {
+                          setOpenMobile(false)
+                        }
+                      }}
+                    >
                       <item.icon
                         className={cn(
                           'w-4 h-4',

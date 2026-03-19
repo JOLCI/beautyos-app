@@ -1070,6 +1070,10 @@ export type Database = {
         Args: { p_company_id: string; p_username: string }
         Returns: string
       }
+      resolve_login_identifier: {
+        Args: { p_company_id: string; p_identifier: string }
+        Returns: Json
+      }
       seed_basic_wa_tags: { Args: never; Returns: undefined }
     }
     Enums: {
@@ -1768,6 +1772,66 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION resolve_login_identifier(text, uuid)
+//   CREATE OR REPLACE FUNCTION public.resolve_login_identifier(p_identifier text, p_company_id uuid)
+//    RETURNS jsonb
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//    SET search_path TO 'public'
+//   AS $function$
+//   DECLARE
+//       v_clean_identifier TEXT;
+//       v_user_count INT;
+//       v_resolved_email TEXT;
+//   BEGIN
+//       -- Normalize the identifier
+//       v_clean_identifier := lower(trim(p_identifier));
+//
+//       -- 1. Try Email Match
+//       SELECT au.email INTO v_resolved_email
+//       FROM auth.users au
+//       JOIN public.profiles p ON p.id = au.id
+//       WHERE lower(au.email) = v_clean_identifier
+//         AND p.company_id = p_company_id
+//         AND p.is_active = true
+//       LIMIT 1;
+//
+//       IF v_resolved_email IS NOT NULL THEN
+//           RETURN jsonb_build_object('status', 'success', 'email', v_resolved_email, 'match_type', 'email');
+//       END IF;
+//
+//       -- 2. Try Username Match
+//       SELECT au.email INTO v_resolved_email
+//       FROM auth.users au
+//       JOIN public.profiles p ON p.id = au.id
+//       WHERE lower(p.username) = v_clean_identifier
+//         AND p.company_id = p_company_id
+//         AND p.is_active = true
+//       LIMIT 1;
+//
+//       IF v_resolved_email IS NOT NULL THEN
+//           RETURN jsonb_build_object('status', 'success', 'email', v_resolved_email, 'match_type', 'username');
+//       END IF;
+//
+//       -- 3. Try Name Match
+//       SELECT count(*), max(au.email) INTO v_user_count, v_resolved_email
+//       FROM auth.users au
+//       JOIN public.profiles p ON p.id = au.id
+//       WHERE lower(p.name) = v_clean_identifier
+//         AND p.company_id = p_company_id
+//         AND p.is_active = true;
+//
+//       IF v_user_count = 1 THEN
+//           RETURN jsonb_build_object('status', 'success', 'email', v_resolved_email, 'match_type', 'name');
+//       ELSIF v_user_count > 1 THEN
+//           RETURN jsonb_build_object('status', 'ambiguous', 'message', 'Múltiplos usuários encontrados com este nome.');
+//       END IF;
+//
+//       -- 4. Not found
+//       RETURN jsonb_build_object('status', 'not_found');
+//   END;
+//   $function$
+//
 // FUNCTION rls_auto_enable()
 //   CREATE OR REPLACE FUNCTION public.rls_auto_enable()
 //    RETURNS event_trigger
@@ -1911,7 +1975,7 @@ export const Constants = {
 //   CREATE INDEX idx_titles_status ON public.financial_titles USING btree (status)
 //   CREATE INDEX idx_titles_supplier_id ON public.financial_titles USING btree (supplier_id)
 // Table: profiles
-//   CREATE UNIQUE INDEX profiles_username_lower_idx ON public.profiles USING btree (lower(username))
+//   CREATE UNIQUE INDEX profiles_company_username_lower_idx ON public.profiles USING btree (company_id, lower(username))
 // Table: transactions
 //   CREATE INDEX idx_tx_client_id ON public.transactions USING btree (client_id)
 //   CREATE INDEX idx_tx_company_id ON public.transactions USING btree (company_id)
