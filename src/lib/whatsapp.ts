@@ -36,19 +36,66 @@ export async function resolveAndScheduleWhatsApp(
 
   let msg = tpls.body
 
+  let pixKeyToUse = context.pixKey
+
   // 2. Dynamic Tag Engine Logic & Validation
-  // As per AC, missing mandatory tags block the scheduling.
-  if (msg.includes('[PIX]') && !context.pixKey) {
-    return { error: 'Erro: Chave PIX ausente. Impossível agendar mensagem com a tag [PIX].' }
+  if (msg.includes('[PIX]') && !pixKeyToUse) {
+    const { data: pixGateway } = await supabase
+      .from('pix_gateways')
+      .select('pix_key')
+      .eq('company_id', companyId)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (pixGateway?.pix_key) {
+      pixKeyToUse = pixGateway.pix_key
+    } else {
+      return {
+        error:
+          'Erro: Chave PIX ausente ou nenhum gateway ativo. Impossível agendar mensagem com a tag [PIX].',
+      }
+    }
   }
 
-  // Registry Resolution (Fallback mapping applied in-memory for speed & reliability)
+  // Registry Resolution
   msg = msg.replace(/\[NOME_CLIENTE\]/g, context.clientName || '')
   msg = msg.replace(/\[DATA\]/g, context.date || '')
   msg = msg.replace(/\[DATA_HORA\]/g, context.dateTime || '')
-  msg = msg.replace(/\[VALOR\]/g, context.amount ? String(context.amount) : '')
+
+  if (msg.includes('[VALOR]')) {
+    if (context.amount !== undefined && context.amount !== null) {
+      const val = Number(context.amount)
+      if (isNaN(val)) {
+        return { error: 'Erro: Valor numérico inválido. Impossível agendar mensagem.' }
+      }
+      const formatted = val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      msg = msg.replace(/\[VALOR\]/g, formatted)
+    } else {
+      return { error: 'Erro: Valor ausente. Impossível agendar mensagem com a tag [VALOR].' }
+    }
+  }
+
   msg = msg.replace(/\[SERVICOS\]/g, context.services || '')
-  if (context.pixKey) msg = msg.replace(/\[PIX\]/g, context.pixKey)
+
+  if (pixKeyToUse) {
+    msg = msg.replace(/\[PIX\]/g, pixKeyToUse)
+  }
+
+  // Integrity Check: Block scheduling if there are unresolved tags
+  if (msg.match(/\[.*?\]/)) {
+    return {
+      error: 'Erro: A mensagem renderizada contém tags não resolvidas. Operação cancelada.',
+    }
+  }
+
+  // Formatting Date Scheduling
+  const finalScheduleDate = new Date(scheduleDate)
+  const isFixedTime = ['cobranca_pix_agendado', 'aniversario', 'recorrencia'].includes(templateKey)
+
+  if (isFixedTime) {
+    // Force specific message types to 08:00 AM local time
+    finalScheduleDate.setHours(8, 0, 0, 0)
+  }
 
   // 3. Schedule the message
   const { error } = await supabase.from('whatsapp_message_schedules').insert([
@@ -57,7 +104,7 @@ export async function resolveAndScheduleWhatsApp(
       client_id: clientId,
       phone_number: phone,
       rendered_message: msg,
-      scheduled_at_datetime: scheduleDate,
+      scheduled_at_datetime: finalScheduleDate.toISOString(),
       related_title_id: relatedTitleId || null,
       related_transaction_id: relatedTxId || null,
       status: 'pending',

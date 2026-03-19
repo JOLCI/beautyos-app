@@ -710,6 +710,7 @@ export type Database = {
           is_composite: boolean | null
           name: string
           price: number
+          recurrence_days: number | null
           type: string
           unit_of_measure: string | null
         }
@@ -725,6 +726,7 @@ export type Database = {
           is_composite?: boolean | null
           name: string
           price: number
+          recurrence_days?: number | null
           type?: string
           unit_of_measure?: string | null
         }
@@ -740,6 +742,7 @@ export type Database = {
           is_composite?: boolean | null
           name?: string
           price?: number
+          recurrence_days?: number | null
           type?: string
           unit_of_measure?: string | null
         }
@@ -906,6 +909,7 @@ export type Database = {
           id: string
           phone_number: string
           related_title_id: string | null
+          related_transaction_id: string | null
           rendered_message: string
           scheduled_at_datetime: string
           status: string
@@ -918,6 +922,7 @@ export type Database = {
           id?: string
           phone_number: string
           related_title_id?: string | null
+          related_transaction_id?: string | null
           rendered_message: string
           scheduled_at_datetime: string
           status?: string
@@ -930,6 +935,7 @@ export type Database = {
           id?: string
           phone_number?: string
           related_title_id?: string | null
+          related_transaction_id?: string | null
           rendered_message?: string
           scheduled_at_datetime?: string
           status?: string
@@ -955,6 +961,54 @@ export type Database = {
             columns: ['related_title_id']
             isOneToOne: false
             referencedRelation: 'financial_titles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'whatsapp_message_schedules_related_transaction_id_fkey'
+            columns: ['related_transaction_id']
+            isOneToOne: false
+            referencedRelation: 'transactions'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      whatsapp_tags: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          formatter: string | null
+          id: string
+          is_active: boolean | null
+          source_field: string | null
+          source_table: string | null
+          tag_name: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          formatter?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_field?: string | null
+          source_table?: string | null
+          tag_name: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          formatter?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_field?: string | null
+          source_table?: string | null
+          tag_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'whatsapp_tags_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
             referencedColumns: ['id']
           },
         ]
@@ -1016,6 +1070,7 @@ export type Database = {
         Args: { p_company_id: string; p_username: string }
         Returns: string
       }
+      seed_basic_wa_tags: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
@@ -1305,6 +1360,7 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 //   composite_items: jsonb (nullable, default: '[]'::jsonb)
 //   unit_of_measure: text (nullable, default: 'UN'::text)
+//   recurrence_days: integer (nullable, default: 0)
 // Table: suppliers
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1353,6 +1409,16 @@ export const Constants = {
 //   related_title_id: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   related_transaction_id: uuid (nullable)
+// Table: whatsapp_tags
+//   id: uuid (not null, default: gen_random_uuid())
+//   company_id: uuid (nullable)
+//   tag_name: text (not null)
+//   source_table: text (nullable)
+//   source_field: text (nullable)
+//   formatter: text (nullable)
+//   is_active: boolean (nullable, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: whatsapp_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   company_id: uuid (nullable)
@@ -1451,7 +1517,12 @@ export const Constants = {
 //   FOREIGN KEY whatsapp_message_schedules_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY whatsapp_message_schedules_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY whatsapp_message_schedules_related_title_id_fkey: FOREIGN KEY (related_title_id) REFERENCES financial_titles(id) ON DELETE CASCADE
+//   FOREIGN KEY whatsapp_message_schedules_related_transaction_id_fkey: FOREIGN KEY (related_transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
 //   CHECK whatsapp_message_schedules_status_check: CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'cancelled'::text, 'failed'::text])))
+// Table: whatsapp_tags
+//   FOREIGN KEY whatsapp_tags_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+//   UNIQUE whatsapp_tags_company_id_tag_name_key: UNIQUE (company_id, tag_name)
+//   PRIMARY KEY whatsapp_tags_pkey: PRIMARY KEY (id)
 // Table: whatsapp_templates
 //   FOREIGN KEY whatsapp_templates_company_id_fkey: FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 //   PRIMARY KEY whatsapp_templates_pkey: PRIMARY KEY (id)
@@ -1522,6 +1593,9 @@ export const Constants = {
 // Table: whatsapp_message_schedules
 //   Policy "company_wa_schedules" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
+// Table: whatsapp_tags
+//   Policy "company_wa_tags_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
 // Table: whatsapp_templates
 //   Policy "company_whatsapp_templates" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: ((company_id = auth_company_id()) OR (( SELECT profiles.role    FROM profiles   WHERE (profiles.id = auth.uid())) = 'root'::text))
@@ -1553,6 +1627,26 @@ export const Constants = {
 //           UPDATE public.whatsapp_message_schedules
 //           SET status = 'cancelled', updated_at = NOW()
 //           WHERE related_title_id = OLD.id AND status = 'pending';
+//       END IF;
+//       RETURN NULL;
+//   END;
+//   $function$
+//
+// FUNCTION cancel_related_wa_schedules_tx()
+//   CREATE OR REPLACE FUNCTION public.cancel_related_wa_schedules_tx()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//       IF TG_OP = 'UPDATE' AND NEW.status IN ('cancelled') AND OLD.status NOT IN ('cancelled') THEN
+//           UPDATE public.whatsapp_message_schedules
+//           SET status = 'cancelled', updated_at = NOW()
+//           WHERE related_transaction_id = NEW.id AND status = 'pending';
+//       ELSIF TG_OP = 'DELETE' THEN
+//           UPDATE public.whatsapp_message_schedules
+//           SET status = 'cancelled', updated_at = NOW()
+//           WHERE related_transaction_id = OLD.id AND status = 'pending';
 //       END IF;
 //       RETURN NULL;
 //   END;
@@ -1698,6 +1792,26 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION seed_basic_wa_tags()
+//   CREATE OR REPLACE FUNCTION public.seed_basic_wa_tags()
+//    RETURNS void
+//    LANGUAGE plpgsql
+//   AS $function$
+//   DECLARE
+//       rec RECORD;
+//   BEGIN
+//       FOR rec IN SELECT id FROM public.companies LOOP
+//           INSERT INTO public.whatsapp_tags (company_id, tag_name, source_table, source_field) VALUES
+//           (rec.id, '[NOME_CLIENTE]', 'clients', 'name'),
+//           (rec.id, '[DATA]', 'appointments', 'date'),
+//           (rec.id, '[VALOR]', 'financial_titles', 'original_amount'),
+//           (rec.id, '[PIX]', 'pix_gateways', 'pix_key'),
+//           (rec.id, '[SERVICOS]', 'services', 'name')
+//           ON CONFLICT DO NOTHING;
+//       END LOOP;
+//   END;
+//   $function$
+//
 // FUNCTION set_financial_audit_fields()
 //   CREATE OR REPLACE FUNCTION public.set_financial_audit_fields()
 //    RETURNS trigger
@@ -1775,6 +1889,7 @@ export const Constants = {
 // Table: pix_gateways
 //   trg_single_active_gateway: CREATE TRIGGER trg_single_active_gateway BEFORE INSERT OR UPDATE ON public.pix_gateways FOR EACH ROW EXECUTE FUNCTION enforce_single_active_gateway()
 // Table: transactions
+//   trg_cancel_wa_on_tx: CREATE TRIGGER trg_cancel_wa_on_tx AFTER DELETE OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION cancel_related_wa_schedules_tx()
 //   trg_transactions_audit: CREATE TRIGGER trg_transactions_audit BEFORE INSERT OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION set_financial_audit_v2()
 
 // --- INDEXES ---
@@ -1797,3 +1912,5 @@ export const Constants = {
 //   CREATE INDEX idx_tx_supplier_id ON public.transactions USING btree (supplier_id)
 //   CREATE INDEX idx_tx_transaction_date ON public.transactions USING btree (transaction_date)
 //   CREATE UNIQUE INDEX transactions_ticket_id_key ON public.transactions USING btree (ticket_id)
+// Table: whatsapp_tags
+//   CREATE UNIQUE INDEX whatsapp_tags_company_id_tag_name_key ON public.whatsapp_tags USING btree (company_id, tag_name)

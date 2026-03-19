@@ -197,48 +197,64 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
       return toast.error('Erro ao salvar agendamento')
     }
 
-    // Schedule Event-Driven WhatsApp Reminders for confirmed appointments
-    if (
-      company?.id &&
-      clientId &&
-      targetStatus === 'agendado' &&
-      (!appointment || appointment.status === 'provisional')
-    ) {
+    // Schedule Event-Driven WhatsApp Reminders
+    if (company?.id && clientId) {
       const client = clients.find((c: any) => c.id === clientId)
       if (client?.phone) {
         const startDt = new Date(`${date}T${startTime}:00`)
         const reminder24h = new Date(startDt.getTime() - 24 * 60 * 60 * 1000).toISOString()
         const reminder1h = new Date(startDt.getTime() - 60 * 60 * 1000).toISOString()
+
+        const parts = date.split('-')
+        const dtString = `${parts[2]}/${parts[1]}/${parts[0]}`
+
         const contextData = {
           clientName: client.name,
-          date: new Date(date).toLocaleDateString(),
-          dateTime: `${new Date(date).toLocaleDateString()} às ${startTime}`,
+          date: dtString,
+          dateTime: `${dtString} às ${startTime}`,
           services: selectedServices
             .map((id) => services.find((s: any) => s.id === id)?.name)
             .join(', '),
         }
 
-        // We invoke the resolution non-blocking to prevent UI lag
-        resolveAndScheduleWhatsApp(
-          company.id,
-          clientId,
-          client.phone,
-          'lembrete_24h',
-          reminder24h,
-          contextData,
-        ).then((res) => {
-          if (res.error && !res.error.includes('inativo')) console.error(res.error)
-        })
-        resolveAndScheduleWhatsApp(
-          company.id,
-          clientId,
-          client.phone,
-          'lembrete_1h',
-          reminder1h,
-          contextData,
-        ).then((res) => {
-          if (res.error && !res.error.includes('inativo')) console.error(res.error)
-        })
+        if (targetStatus === 'agendado' && (!appointment || appointment.status === 'provisional')) {
+          resolveAndScheduleWhatsApp(
+            company.id,
+            clientId,
+            client.phone,
+            'lembrete_24h',
+            reminder24h,
+            contextData,
+          ).then((res) => {
+            if (res.error && !res.error.includes('inativo')) toast.error(res.error)
+          })
+
+          resolveAndScheduleWhatsApp(
+            company.id,
+            clientId,
+            client.phone,
+            'lembrete_1h',
+            reminder1h,
+            contextData,
+          ).then((res) => {
+            if (res.error && !res.error.includes('inativo')) console.error(res.error)
+          })
+        } else if (targetStatus === 'provisional' && !appointment) {
+          // Automated Recurrence Reminder - 7 Days before at 08:00 AM
+          const reminder7d = new Date(`${date}T08:00:00`)
+          reminder7d.setDate(reminder7d.getDate() - 7)
+
+          resolveAndScheduleWhatsApp(
+            company.id,
+            clientId,
+            client.phone,
+            'recorrencia',
+            reminder7d.toISOString(),
+            contextData,
+          ).then((res) => {
+            if (res.error && !res.error.includes('inativo')) console.error(res.error)
+          })
+        }
       }
     }
 

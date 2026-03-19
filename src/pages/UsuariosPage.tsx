@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { UserPlus, Trash2, KeyRound, Loader2 } from 'lucide-react'
+import { UserPlus, Trash2, KeyRound, Loader2, Edit } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
@@ -31,43 +31,86 @@ import { toast } from 'sonner'
 export default function UsuariosPage() {
   const { company } = usePasskey()
   const { profile } = useAuth()
+  const isRoot = profile?.role === 'root'
+
   const {
     data: users,
     loading,
     refetch,
   } = useQuery<any>('profiles', { match: { is_active: true } })
 
+  const { data: companies } = useQuery<any>('companies', { enabled: isRoot })
+
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'atendimento' })
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'atendimento',
+    company_id: '',
+  })
   const [saving, setSaving] = useState(false)
 
-  // Strictly filter out root users from company-level user management
-  const filteredUsers = users.filter((u) => u.role !== 'root')
+  // Filter out root users from company-level user management if not root
+  const filteredUsers = useMemo(() => {
+    if (isRoot) return users
+    return users.filter((u) => u.role !== 'root')
+  }, [users, isRoot])
 
   const openSheet = (u: any = null) => {
     setEditing(u)
     setForm(
       u
-        ? { name: u.name, email: u.username, password: '', role: u.role }
-        : { name: '', email: '', password: '', role: 'atendimento' },
+        ? {
+            name: u.name,
+            email: u.username,
+            password: '',
+            role: u.role,
+            company_id: u.company_id || '',
+          }
+        : {
+            name: '',
+            email: '',
+            password: '',
+            role: 'atendimento',
+            company_id: company?.id || '',
+          },
     )
     setSheetOpen(true)
   }
 
   const handleSave = async () => {
     setSaving(true)
+
+    // Only allow setting company_id for root, else enforce current company
+    const targetCompanyId = isRoot ? form.company_id : company?.id
+
     if (editing) {
-      await supabase
-        .from('profiles')
-        .update({ name: form.name, role: form.role })
-        .eq('id', editing.id)
-      toast.success('Usuário atualizado')
-      setSheetOpen(false)
-      refetch()
+      const payload: any = {
+        user_id: editing.id,
+        name: form.name,
+        role: form.role,
+        company_id: targetCompanyId,
+      }
+
+      if (form.email && form.email !== editing.username) payload.email = form.email
+      if (form.password) payload.password = form.password
+
+      const { data, error } = await supabase.functions.invoke('update-user', {
+        body: payload,
+      })
+
+      if (error || !data?.success) {
+        toast.error('Erro ao atualizar usuário', { description: data?.error || error?.message })
+      } else {
+        toast.success('Usuário atualizado com sucesso')
+        setSheetOpen(false)
+        refetch()
+      }
     } else {
       const { data, error } = await supabase.functions.invoke('create-user', {
-        body: { ...form, company_id: company?.id },
+        body: { ...form, company_id: targetCompanyId },
       })
       if (error || !data?.success) {
         toast.error('Erro ao criar usuário', { description: data?.error || error?.message })
@@ -84,10 +127,10 @@ export default function UsuariosPage() {
     if (!confirm(`Remover permanentemente o usuário ${u.username}?`)) return
     const { data } = await supabase.functions.invoke('delete-user', { body: { user_id: u.id } })
     if (data?.success) {
-      toast.success('Usuário removido')
+      toast.success('Usuário removido com sucesso')
       refetch()
     } else {
-      toast.error('Erro ao remover')
+      toast.error('Erro ao remover usuário')
     }
   }
 
@@ -96,7 +139,7 @@ export default function UsuariosPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Equipe e Acessos</h1>
-          <p className="text-muted-foreground">Gerencie o acesso da sua equipe.</p>
+          <p className="text-muted-foreground">Gerencie o acesso da sua equipe ao sistema.</p>
         </div>
         <Button onClick={() => openSheet()} className="rounded-full shadow-md">
           <UserPlus className="w-4 h-4 mr-2" /> Novo Usuário
@@ -114,8 +157,9 @@ export default function UsuariosPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Username / E-mail</TableHead>
+                  <TableHead>E-mail / Username</TableHead>
                   <TableHead>Nível</TableHead>
+                  {isRoot && <TableHead>Unidade</TableHead>}
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -127,24 +171,33 @@ export default function UsuariosPage() {
                         <Avatar className="w-8 h-8">
                           <AvatarFallback>{u.name.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        {u.name}
+                        <span className="font-medium">{u.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono">{u.username}</TableCell>
+                    <TableCell className="text-muted-foreground">{u.username}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="uppercase text-[10px]">
-                        {u.role}
+                      <Badge
+                        variant="secondary"
+                        className="uppercase text-[10px] font-semibold tracking-wider"
+                      >
+                        {u.role === 'root' ? 'Admin Global' : u.role}
                       </Badge>
                     </TableCell>
+                    {isRoot && (
+                      <TableCell className="text-xs text-muted-foreground truncate max-w-[120px]">
+                        {companies?.find((c: any) => c.id === u.company_id)?.name || 'N/A'}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => openSheet(u)}>
-                        <KeyRound className="w-4 h-4" />
+                        <Edit className="w-4 h-4 text-muted-foreground" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive"
+                        className="text-destructive hover:bg-destructive/10"
                         onClick={() => handleDelete(u)}
+                        disabled={u.id === profile?.id}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -158,10 +211,7 @@ export default function UsuariosPage() {
       )}
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent
-          side="right"
-          className="sm:max-w-[480px] overflow-y-auto max-h-screen flex flex-col"
-        >
+        <SheetContent side="right" className="sm:max-w-[480px] overflow-y-auto flex flex-col">
           <SheetHeader className="mb-6">
             <SheetTitle>{editing ? 'Editar Usuário' : 'Novo Usuário'}</SheetTitle>
           </SheetHeader>
@@ -171,6 +221,7 @@ export default function UsuariosPage() {
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ex: João da Silva"
               />
             </div>
             <div className="space-y-2">
@@ -178,36 +229,64 @@ export default function UsuariosPage() {
               <Input
                 type="email"
                 value={form.email}
-                disabled={!!editing}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="joao@salao.com"
               />
             </div>
-            {!editing && (
-              <div className="space-y-2">
-                <Label>Senha Inicial</Label>
-                <Input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>{editing ? 'Nova Senha (opcional)' : 'Senha Inicial'}</Label>
+              <Input
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder={editing ? 'Deixe em branco para não alterar' : 'Mínimo 6 caracteres'}
+              />
+            </div>
             <div className="space-y-2">
               <Label>Nível de Acesso</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o nível de acesso..." />
+                  <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="atendimento">Atendimento (PDV/Agenda)</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="atendimento">Atendimento (Agenda e PDV)</SelectItem>
+                  <SelectItem value="admin">Administrador (Relatórios e Configs)</SelectItem>
+                  {isRoot && <SelectItem value="root">Root (Gestor Multilojas)</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
+            {isRoot && form.role !== 'root' && (
+              <div className="space-y-2">
+                <Label>Unidade / Salão</Label>
+                <Select
+                  value={form.company_id}
+                  onValueChange={(v) => setForm({ ...form, company_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a unidade..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies?.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
-          <div className="mt-8 border-t pt-4 sticky bottom-0 bg-background">
-            <Button onClick={handleSave} disabled={saving} className="w-full h-12">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          <div className="mt-8 pt-4 sticky bottom-0 bg-background border-t">
+            <Button
+              onClick={handleSave}
+              disabled={saving || !form.name || !form.email || (!editing && !form.password)}
+              className="w-full h-12"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <KeyRound className="w-4 h-4 mr-2" />
+              )}
               {editing ? 'Salvar Alterações' : 'Criar Conta'}
             </Button>
           </div>

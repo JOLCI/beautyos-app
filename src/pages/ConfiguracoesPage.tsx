@@ -505,8 +505,8 @@ export default function ConfiguracoesPage() {
               <CardHeader>
                 <CardTitle>Templates de Mensagens</CardTitle>
                 <CardDescription>
-                  Utilize tags: [NOME_CLIENTE], [DATA_HORA], [VALOR], [LINK_PIX], [CHAVE_PIX],
-                  [DATA].
+                  Utilize tags: [NOME_CLIENTE], [DATA_HORA], [VALOR], [LINK_PIX], [PIX], [DATA],
+                  [SERVICOS].
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -531,6 +531,7 @@ export default function ConfiguracoesPage() {
                         </SelectItem>
                         <SelectItem value="pos_atendimento">Pós-Atendimento / Avaliação</SelectItem>
                         <SelectItem value="aniversario">Aniversário (08:00 AM)</SelectItem>
+                        <SelectItem value="recorrencia">Recorrência (7 dias antes)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
