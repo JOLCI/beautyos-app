@@ -12,13 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CheckCircle2, QrCode, Loader2, Copy, AlertCircle, Info } from 'lucide-react'
+import { CheckCircle2, QrCode, Loader2, Copy, AlertCircle, Info, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
+import { resolveAndScheduleWhatsApp } from '@/lib/whatsapp'
 
 export function CheckoutSheet({
   open,
@@ -45,6 +46,7 @@ export function CheckoutSheet({
 
   const [status, setStatus] = useState<'idle' | 'waiting' | 'success'>('idle')
   const [pixPayload, setPixPayload] = useState('')
+  const [provisionalCreated, setProvisionalCreated] = useState(false)
 
   useEffect(() => {
     if (initialClientId && open && clientId === 'avulso') setClientId(initialClientId)
@@ -53,6 +55,7 @@ export function CheckoutSheet({
       setMethod('PIX')
       setClientId('avulso')
       setDiscount('0')
+      setProvisionalCreated(false)
     }
   }, [initialClientId, open])
 
@@ -83,12 +86,29 @@ export function CheckoutSheet({
   const isScheduled = method === 'PIX AGENDADO' || method === 'CONVENIO'
   const canFinish = pricedItems.length > 0 && (!isScheduled || actualClientId)
 
+  const minRecurrence = useMemo(() => {
+    let min = 0
+    pricedItems.forEach((i: any) => {
+      if (i.recurrence_days > 0) {
+        if (min === 0 || i.recurrence_days < min) min = i.recurrence_days
+      }
+    })
+    return min
+  }, [pricedItems])
+
+  const suggestedDate = useMemo(() => {
+    if (minRecurrence === 0) return ''
+    const d = new Date()
+    d.setDate(d.getDate() + minRecurrence)
+    return d.toISOString().split('T')[0]
+  }, [minRecurrence])
+
   const deductStock = async (serviceId: string, quantity: number) => {
     const { data: inv } = await supabase
       .from('inventory')
       .select('id, quantity')
       .eq('service_id', serviceId)
-      .maybeSingle() // Use maybeSingle to avoid PGRST116 error when no rows are found
+      .maybeSingle()
 
     if (inv) {
       await supabase
@@ -133,74 +153,91 @@ export function CheckoutSheet({
 
       titleId = title?.id
 
-      if (isScheduled && titleId && activeClient?.phone) {
+      if (isScheduled && titleId && activeClient?.phone && company?.id) {
         const { data: gateways } = await supabase
           .from('pix_gateways')
           .select('pix_key')
-          .eq('company_id', company?.id)
+          .eq('company_id', company.id)
           .eq('is_active', true)
+        const pixKey = gateways?.[0]?.pix_key || ''
 
-        const pixKey = gateways?.[0]?.pix_key || 'Chave não configurada'
+        const scheduleDate = new Date(dueDate)
+        scheduleDate.setHours(8, 0, 0, 0)
 
-        const { data: tpls } = await supabase
-          .from('whatsapp_templates')
-          .select('body')
-          .eq('template_key', 'cobranca_pix_agendado')
-          .eq('company_id', company?.id)
-
-        const tpl = tpls?.[0]
-        if (tpl) {
-          let msg = tpl.body
-            .replace(/\[NOME_CLIENTE\]/g, activeClient.name)
-            .replace(/\[VALOR\]/g, finalTotal.toFixed(2))
-            .replace(/\[DATA\]/g, new Date(dueDate).toLocaleDateString('pt-BR'))
-            .replace(/\[CHAVE_PIX\]/g, pixKey)
-
-          const scheduleDate = new Date(dueDate)
-          scheduleDate.setHours(8, 0, 0, 0)
-
-          await supabase.from('whatsapp_message_schedules').insert({
-            company_id: company?.id,
-            client_id: activeClient.id,
-            phone_number: activeClient.phone,
-            rendered_message: msg,
-            scheduled_at_datetime: scheduleDate.toISOString(),
-            related_title_id: titleId,
-          })
+        const contextData = {
+          clientName: activeClient.name,
+          date: new Date(dueDate).toLocaleDateString(),
+          amount: finalTotal.toFixed(2),
+          pixKey,
         }
+
+        await resolveAndScheduleWhatsApp(
+          company.id,
+          activeClient.id,
+          activeClient.phone,
+          'cobranca_pix_agendado',
+          scheduleDate.toISOString(),
+          contextData,
+          titleId,
+          undefined,
+        ).then((res) => {
+          if (res.error && res.error.includes('Chave PIX')) toast.error(res.error)
+        })
       }
     }
 
-    await supabase.from('transactions').insert([
-      {
-        company_id: company?.id,
-        type: 'inflow',
-        origin: 'automatic_entry',
-        amount: finalTotal,
-        status: isImmediate ? 'confirmed' : 'pending',
-        payment_method: methodUsed,
-        client_id: actualClientId || null,
-        financial_title_id: titleId,
-        ref_id: appointmentId || null,
-        confirmed_at: isImmediate ? now : null,
-        description:
-          methodUsed === 'CREDITO' && Number(installments) > 1
-            ? `Parcelado em ${installments}x`
-            : null,
-        metadata: {
-          items: pricedItems.map((i: any) => ({
-            id: i.id,
-            name: i.name,
-            price: i.finalPrice,
-            quantity: 1,
-          })),
-          discount: Number(discount || 0),
+    const { data: tx } = await supabase
+      .from('transactions')
+      .insert([
+        {
+          company_id: company?.id,
+          type: 'inflow',
+          origin: 'automatic_entry',
+          amount: finalTotal,
+          status: isImmediate ? 'confirmed' : 'pending',
+          payment_method: methodUsed,
+          client_id: actualClientId || null,
+          financial_title_id: titleId,
+          ref_id: appointmentId || null,
+          confirmed_at: isImmediate ? now : null,
+          description:
+            methodUsed === 'CREDITO' && Number(installments) > 1
+              ? `Parcelado em ${installments}x`
+              : null,
+          metadata: {
+            items: pricedItems.map((i: any) => ({
+              id: i.id,
+              name: i.name,
+              price: i.finalPrice,
+              quantity: 1,
+            })),
+            discount: Number(discount || 0),
+          },
         },
-      },
-    ])
+      ])
+      .select()
+      .single()
 
-    if (appointmentId)
+    if (appointmentId) {
       await supabase.from('appointments').update({ status: 'finalizado' }).eq('id', appointmentId)
+
+      // Post-Service Follow-up
+      if (company?.id && activeClient?.phone) {
+        const contextData = { clientName: activeClient.name }
+        resolveAndScheduleWhatsApp(
+          company.id,
+          actualClientId,
+          activeClient.phone,
+          'pos_atendimento',
+          new Date().toISOString(),
+          contextData,
+          undefined,
+          tx?.id,
+        ).then((res) => {
+          if (res.error && !res.error.includes('inativo')) console.error(res.error)
+        })
+      }
+    }
 
     for (const item of pricedItems) {
       if (item.type === 'product') await deductStock(item.id, 1)
@@ -210,7 +247,6 @@ export function CheckoutSheet({
     }
 
     setStatus('success')
-    if (onComplete) onComplete()
   }
 
   const handleFinish = async (forceManual = false) => {
@@ -245,6 +281,52 @@ export function CheckoutSheet({
     }
   }
 
+  const handleCreateProvisional = async () => {
+    if (!company?.id || !actualClientId || !suggestedDate) return
+
+    // We infer professional from the first service or profile for simplicity
+    const { data: newApp, error } = await supabase
+      .from('appointments')
+      .insert({
+        company_id: company.id,
+        client_id: actualClientId,
+        date: suggestedDate,
+        start_time: '09:00:00',
+        end_time: '10:00:00',
+        status: 'provisional',
+        service_ids: pricedItems.map((i: any) => i.id),
+      })
+      .select()
+      .single()
+
+    if (error) return toast.error('Erro ao agendar retorno provisório')
+
+    toast.success('Retorno provisório pré-agendado!')
+    setProvisionalCreated(true)
+
+    // Schedule WA 7 days before
+    if (activeClient?.phone) {
+      const reminderDt = new Date(suggestedDate)
+      reminderDt.setDate(reminderDt.getDate() - 7)
+      reminderDt.setHours(8, 0, 0, 0)
+
+      const contextData = {
+        clientName: activeClient.name,
+        date: new Date(suggestedDate).toLocaleDateString(),
+      }
+      resolveAndScheduleWhatsApp(
+        company.id,
+        actualClientId,
+        activeClient.phone,
+        'recorrencia',
+        reminderDt.toISOString(),
+        contextData,
+      ).then((res) => {
+        if (res.error && !res.error.includes('inativo')) console.error(res.error)
+      })
+    }
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="sm:max-w-[560px] w-full flex flex-col h-full p-0">
@@ -254,7 +336,7 @@ export function CheckoutSheet({
           </SheetHeader>
         </div>
         {status === 'success' ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
             <CheckCircle2 className="w-16 h-16 text-green-600 mb-4 animate-in zoom-in" />
             <h3 className="text-2xl font-bold">Transação Finalizada!</h3>
             <p className="text-muted-foreground mt-2">
@@ -262,8 +344,34 @@ export function CheckoutSheet({
                 ? 'Registros financeiros criados com rigor de auditoria.'
                 : 'Venda avulsa registrada no caixa sem vínculo nominal.'}
             </p>
-            <Button className="mt-8 rounded-full px-8" onClick={() => onOpenChange(false)}>
-              Concluir e Voltar
+
+            {minRecurrence > 0 && actualClientId && !provisionalCreated && (
+              <div className="mt-8 w-full p-5 border rounded-2xl bg-primary/5 border-primary/20 text-left animate-fade-in-up">
+                <div className="flex items-center gap-2 text-primary font-bold text-lg mb-2">
+                  <CalendarClock className="w-5 h-5" /> Sugerir Retorno
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Com base nos serviços, a próxima visita ideal seria em aproximadamente{' '}
+                  <strong>{minRecurrence} dias</strong>.
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateProvisional} className="flex-1 shadow-md">
+                    Pré-agendar para {new Date(suggestedDate).toLocaleDateString()}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <Button
+              className="mt-8 rounded-full px-8"
+              variant={
+                minRecurrence > 0 && actualClientId && !provisionalCreated ? 'outline' : 'default'
+              }
+              onClick={() => {
+                if (onComplete) onComplete()
+              }}
+            >
+              Concluir e Fechar
             </Button>
           </div>
         ) : status === 'waiting' && method === 'PIX' && pixPayload ? (

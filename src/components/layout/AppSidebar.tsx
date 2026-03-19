@@ -36,7 +36,7 @@ export function AppSidebar() {
   const isRoot = profile?.role === 'root'
 
   const navigation = [
-    { name: 'Dashboard', href: `/${passkey}/dashboard`, icon: LayoutDashboard },
+    { name: 'Painel', href: `/${passkey}/dashboard`, icon: LayoutDashboard },
     { name: 'Agenda', href: `/${passkey}/agenda`, icon: CalendarDays },
     { name: 'Caixa (PDV)', href: `/${passkey}/atendimento/novo`, icon: Wallet },
     { name: 'Clientes', href: `/${passkey}/clientes`, icon: Users },

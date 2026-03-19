@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
 import { Loader2, X, Clock, AlertCircle } from 'lucide-react'
+import { resolveAndScheduleWhatsApp } from '@/lib/whatsapp'
 
 export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointment }: any) {
   const { company } = usePasskey()
@@ -153,13 +154,13 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     return false
   }
 
-  const handleSave = async (forceSave = false) => {
+  const handleSave = async (forceSave = false, overrideStatus?: string) => {
     if (!forceSave && checkConflicts()) {
       toast('Conflito de Horário', {
         description: 'Já existe um agendamento nessa data/horário para este profissional.',
         action: {
           label: 'Confirmar mesmo assim',
-          onClick: () => handleSave(true),
+          onClick: () => handleSave(true, overrideStatus),
         },
         duration: 8000,
       })
@@ -167,6 +168,8 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
     }
 
     setSaving(true)
+    const targetStatus = overrideStatus || appointment?.status || 'agendado'
+
     const payload = {
       company_id: company?.id,
       client_id: clientId,
@@ -177,6 +180,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
       start_time: startTime + ':00',
       end_time: endTime + ':00',
       duration_minutes: totalDuration,
+      status: targetStatus,
     }
 
     let err = null
@@ -184,15 +188,61 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
       const { error } = await supabase.from('appointments').update(payload).eq('id', appointment.id)
       err = error
     } else {
-      const { error } = await supabase
-        .from('appointments')
-        .insert([{ ...payload, status: 'agendado' }])
+      const { error } = await supabase.from('appointments').insert([payload])
       err = error
     }
 
-    setSaving(false)
-    if (err) return toast.error('Erro ao salvar agendamento')
+    if (err) {
+      setSaving(false)
+      return toast.error('Erro ao salvar agendamento')
+    }
 
+    // Schedule Event-Driven WhatsApp Reminders for confirmed appointments
+    if (
+      company?.id &&
+      clientId &&
+      targetStatus === 'agendado' &&
+      (!appointment || appointment.status === 'provisional')
+    ) {
+      const client = clients.find((c: any) => c.id === clientId)
+      if (client?.phone) {
+        const startDt = new Date(`${date}T${startTime}:00`)
+        const reminder24h = new Date(startDt.getTime() - 24 * 60 * 60 * 1000).toISOString()
+        const reminder1h = new Date(startDt.getTime() - 60 * 60 * 1000).toISOString()
+        const contextData = {
+          clientName: client.name,
+          date: new Date(date).toLocaleDateString(),
+          dateTime: `${new Date(date).toLocaleDateString()} às ${startTime}`,
+          services: selectedServices
+            .map((id) => services.find((s: any) => s.id === id)?.name)
+            .join(', '),
+        }
+
+        // We invoke the resolution non-blocking to prevent UI lag
+        resolveAndScheduleWhatsApp(
+          company.id,
+          clientId,
+          client.phone,
+          'lembrete_24h',
+          reminder24h,
+          contextData,
+        ).then((res) => {
+          if (res.error && !res.error.includes('inativo')) console.error(res.error)
+        })
+        resolveAndScheduleWhatsApp(
+          company.id,
+          clientId,
+          client.phone,
+          'lembrete_1h',
+          reminder1h,
+          contextData,
+        ).then((res) => {
+          if (res.error && !res.error.includes('inativo')) console.error(res.error)
+        })
+      }
+    }
+
+    setSaving(false)
     toast.success(appointment ? 'Agendamento Atualizado' : 'Horário Reservado')
     supabase.functions.invoke('google-calendar-sync')
 
@@ -388,13 +438,25 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
 
         {!showCancelConfirm && (
           <SheetFooter className="mt-8 flex flex-col gap-2 sm:flex-col">
-            <Button
-              onClick={() => handleSave(false)}
-              disabled={!clientId || selectedServices.length === 0 || !profId || saving}
-              className="w-full"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Salvar
-            </Button>
+            {appointment?.status === 'provisional' ? (
+              <Button
+                onClick={() => handleSave(false, 'agendado')}
+                disabled={!clientId || selectedServices.length === 0 || !profId || saving}
+                className="w-full bg-green-600 hover:bg-green-700 text-white shadow-md text-lg h-12"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Confirmar
+                Agendamento
+              </Button>
+            ) : (
+              <Button
+                onClick={() => handleSave(false)}
+                disabled={!clientId || selectedServices.length === 0 || !profId || saving}
+                className="w-full"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Salvar
+              </Button>
+            )}
+
             {appointment &&
               appointment.status !== 'cancelado' &&
               appointment.status !== 'finalizado' && (

@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
+import { translateStatus } from '@/lib/utils'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -54,7 +55,7 @@ export default function DashboardPage() {
         t.type === 'receivable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
     )
 
-    const appsHoje = appointments.filter((a: any) => a.date === today)
+    const appsHoje = appointments.filter((a: any) => a.date === today && a.status !== 'provisional')
     const totalApps = appsHoje.length
     const cancelledApps = appsHoje.filter((a: any) => a.status === 'cancelado').length
 
@@ -236,7 +237,7 @@ export default function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
                         <Badge variant="outline" className="text-[10px] uppercase mt-1">
-                          {app.status}
+                          {translateStatus(app.status)}
                         </Badge>
                       </div>
                     </div>

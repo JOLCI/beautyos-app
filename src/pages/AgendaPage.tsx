@@ -12,8 +12,10 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Clock,
 } from 'lucide-react'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
+import { translateStatus } from '@/lib/utils'
 
 export default function AgendaPage() {
   const navigate = useNavigate()
@@ -122,13 +124,20 @@ export default function AgendaPage() {
                         const srvNames = srvs.map((s: any) => s.name).join(', ')
 
                         const isOverdue =
-                          a.date < todayStr && a.status !== 'finalizado' && a.status !== 'cancelado'
+                          a.date < todayStr &&
+                          a.status !== 'finalizado' &&
+                          a.status !== 'cancelado' &&
+                          a.status !== 'provisional'
                         const isCanceled = a.status === 'cancelado'
+                        const isProvisional = a.status === 'provisional'
 
                         let cardClass = 'border-l-primary bg-card hover:-translate-y-1'
                         if (isCanceled)
                           cardClass =
                             'border-l-muted bg-muted/40 opacity-70 line-through text-muted-foreground'
+                        else if (isProvisional)
+                          cardClass =
+                            'border-dashed border-2 border-primary/50 bg-primary/5 shadow-none'
                         else if (isOverdue)
                           cardClass =
                             'border-l-destructive bg-destructive/10 border-destructive shadow-sm'
@@ -146,14 +155,21 @@ export default function AgendaPage() {
                                   {isOverdue && (
                                     <AlertTriangle className="w-3 h-3 text-destructive" />
                                   )}
+                                  {isProvisional && <Clock className="w-3 h-3 text-primary" />}
                                 </span>
                                 <Badge
                                   variant={
-                                    isCanceled ? 'secondary' : isOverdue ? 'destructive' : 'outline'
+                                    isCanceled
+                                      ? 'secondary'
+                                      : isOverdue
+                                        ? 'destructive'
+                                        : isProvisional
+                                          ? 'outline'
+                                          : 'default'
                                   }
-                                  className="text-[10px] uppercase"
+                                  className={`text-[10px] uppercase ${isProvisional ? 'text-primary border-primary' : ''}`}
                                 >
-                                  {isOverdue ? 'Atrasado' : a.status}
+                                  {isOverdue ? 'Atrasado' : translateStatus(a.status)}
                                 </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground line-clamp-2">
@@ -161,7 +177,7 @@ export default function AgendaPage() {
                                 {a.end_time.slice(0, 5)}
                               </div>
                             </div>
-                            {!isCanceled && a.status !== 'finalizado' && (
+                            {!isCanceled && !isProvisional && a.status !== 'finalizado' && (
                               <div className="mt-3 flex justify-end">
                                 <Button
                                   size="sm"

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table'
 import { useQuery } from '@/hooks/use-query'
 import { formatEntityName, getOriginLabel } from '@/lib/financial'
+import { translateStatus } from '@/lib/utils'
 import {
   BarChart,
   Bar,
@@ -85,7 +86,7 @@ export default function RelatoriosPage() {
       t.ticket_id,
       formatEntityName(t) || '-',
       getOriginLabel(t.origin),
-      t.type === 'inflow' ? 'Entrada' : 'Saída',
+      translateStatus(t.type),
       t.payment_method,
       t.amount.toFixed(2),
     ])

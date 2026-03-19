@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
+import { translateStatus } from '@/lib/utils'
 
 export default function CaixaPage() {
   const { company } = usePasskey()
@@ -182,7 +183,7 @@ export default function CaixaPage() {
                             : 'text-destructive border-destructive/30'
                         }
                       >
-                        {t.type}
+                        {translateStatus(t.type)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -190,7 +191,7 @@ export default function CaixaPage() {
                         variant={t.status === 'confirmed' ? 'default' : 'secondary'}
                         className="text-[10px]"
                       >
-                        {t.status}
+                        {translateStatus(t.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-bold">R$ {t.amount.toFixed(2)}</TableCell>

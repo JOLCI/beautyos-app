@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Loader2, Trash2, Edit2, Layers } from 'lucide-react'
+import { Plus, Loader2, Trash2, Edit2, Layers, CalendarClock } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -44,6 +44,7 @@ export default function ServicosPage() {
     type: 'service',
     duration: '60',
     cost_price: '',
+    recurrence_days: '0',
     is_composite: false,
     unit_of_measure: 'UN',
     composite_items: [] as any[],
@@ -58,6 +59,7 @@ export default function ServicosPage() {
         type: s.type,
         duration: s.duration.toString(),
         cost_price: s.cost_price?.toString() || '',
+        recurrence_days: s.recurrence_days?.toString() || '0',
         is_composite: s.is_composite,
         unit_of_measure: s.unit_of_measure || 'UN',
         composite_items: s.composite_items || [],
@@ -70,6 +72,7 @@ export default function ServicosPage() {
         type: 'service',
         duration: '60',
         cost_price: '',
+        recurrence_days: '0',
         is_composite: false,
         unit_of_measure: 'UN',
         composite_items: [],
@@ -116,6 +119,7 @@ export default function ServicosPage() {
       type: form.type,
       duration: Number(form.duration),
       cost_price: calculatedCost,
+      recurrence_days: form.type === 'service' ? Number(form.recurrence_days) : 0,
       is_composite: form.is_composite,
       unit_of_measure: form.unit_of_measure,
       composite_items: form.composite_items,
@@ -157,8 +161,8 @@ export default function ServicosPage() {
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo / UND</TableHead>
+                  <TableHead>Recorrência</TableHead>
                   <TableHead>Valor Venda</TableHead>
-                  <TableHead>Custo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -184,11 +188,17 @@ export default function ServicosPage() {
                         {s.unit_of_measure}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      {s.type === 'service' && s.recurrence_days > 0 ? (
+                        <span className="flex items-center text-xs text-muted-foreground">
+                          <CalendarClock className="w-3 h-3 mr-1" /> {s.recurrence_days} dias
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-semibold text-primary">
                       R$ {s.price.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      R$ {s.cost_price?.toFixed(2) || '0.00'}
                     </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => openSheet(s)}>
@@ -269,14 +279,25 @@ export default function ServicosPage() {
               )}
             </div>
             {form.type === 'service' && (
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label>Duração Estimada (min)</Label>
-                  <Input
-                    type="number"
-                    value={form.duration}
-                    onChange={(e) => setForm({ ...form, duration: e.target.value })}
-                  />
+              <div className="space-y-4 pt-2 border-t">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Duração (min)</Label>
+                    <Input
+                      type="number"
+                      value={form.duration}
+                      onChange={(e) => setForm({ ...form, duration: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Recorrência (dias)</Label>
+                    <Input
+                      type="number"
+                      value={form.recurrence_days}
+                      onChange={(e) => setForm({ ...form, recurrence_days: e.target.value })}
+                      placeholder="Ex: 30"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg border">
                   <div>

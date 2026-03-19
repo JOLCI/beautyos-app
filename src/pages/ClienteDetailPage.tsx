@@ -23,6 +23,7 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
+import { translateStatus } from '@/lib/utils'
 
 export default function ClienteDetailPage() {
   const { id } = useParams()
@@ -271,7 +272,7 @@ export default function ClienteDetailPage() {
                                   {ev.data.date} às {ev.data.start_time.slice(0, 5)}
                                 </p>
                                 <Badge variant="outline" className="text-[10px] mt-1 uppercase">
-                                  {ev.data.status}
+                                  {translateStatus(ev.data.status)}
                                 </Badge>
                               </div>
                             )}
@@ -282,7 +283,7 @@ export default function ClienteDetailPage() {
                                   R$ {ev.data.amount.toFixed(2)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {ev.data.payment_method} • {ev.data.status}
+                                  {ev.data.payment_method} • {translateStatus(ev.data.status)}
                                 </p>
                               </div>
                             )}
@@ -294,7 +295,7 @@ export default function ClienteDetailPage() {
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   Vencimento: {new Date(ev.data.due_date).toLocaleDateString()} •{' '}
-                                  {ev.data.status}
+                                  {translateStatus(ev.data.status)}
                                 </p>
                               </div>
                             )}
@@ -305,7 +306,7 @@ export default function ClienteDetailPage() {
                                   "{ev.data.rendered_message}"
                                 </p>
                                 <Badge variant="secondary" className="text-[10px] mt-2 uppercase">
-                                  {ev.data.status}
+                                  {translateStatus(ev.data.status)}
                                 </Badge>
                               </div>
                             )}

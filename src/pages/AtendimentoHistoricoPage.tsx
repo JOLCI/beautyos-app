@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
+import { translateStatus } from '@/lib/utils'
 
 export default function AtendimentoHistoricoPage() {
   const { company } = usePasskey()
@@ -101,19 +102,23 @@ export default function AtendimentoHistoricoPage() {
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={t.status === 'completed' ? 'default' : 'secondary'}
+                        variant={
+                          t.status === 'completed' || t.status === 'confirmed'
+                            ? 'default'
+                            : 'secondary'
+                        }
                         className={
-                          t.status === 'completed'
+                          t.status === 'completed' || t.status === 'confirmed'
                             ? 'bg-green-500 hover:bg-green-600 text-white'
                             : ''
                         }
                       >
-                        {t.status === 'completed' ? 'Concluído' : t.status}
+                        {translateStatus(t.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-bold">R$ {t.amount.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
-                      {t.status === 'completed' && (
+                      {(t.status === 'completed' || t.status === 'confirmed') && (
                         <Button
                           variant="ghost"
                           size="icon"
