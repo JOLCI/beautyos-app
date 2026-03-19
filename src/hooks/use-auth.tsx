@@ -76,11 +76,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) =>
     await supabase.auth.signInWithPassword({ email, password })
+
   const signOut = async () => {
-    // Clear profile optimistically
+    // Clear profile optimistically from local state
     setProfile(null)
     setUser(null)
-    return await supabase.auth.signOut()
+    setSession(null)
+
+    try {
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        // Intercept specific session missing errors (e.g. 403 session_not_found)
+        const isSessionMissing =
+          error.status === 403 ||
+          error.message?.includes('session_not_found') ||
+          error.message?.includes('Session from session_id claim in JWT does not exist')
+
+        if (isSessionMissing) {
+          console.warn('Session already missing on server. Proceeding with local logout.')
+          return { error: null } // Return success to avoid failing the logout flow
+        }
+
+        console.error('Error during sign out:', error)
+        return { error }
+      }
+
+      return { error: null }
+    } catch (err) {
+      console.error('Unexpected error during sign out:', err)
+      // Fallback: treat as successful local logout to ensure user isn't stuck
+      return { error: null }
+    }
   }
 
   return (

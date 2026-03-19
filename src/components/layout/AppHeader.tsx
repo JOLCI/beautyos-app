@@ -17,8 +17,14 @@ export function AppHeader() {
   const { passkey } = useParams()
 
   const handleSignOut = async () => {
-    await signOut()
-    navigate(`/${passkey}/login`)
+    try {
+      await signOut()
+    } catch (err) {
+      console.error('Error in sign out handler:', err)
+    } finally {
+      // Ensure redirect happens even if an unexpected error occurs during sign out
+      navigate(`/${passkey}/login`, { replace: true })
+    }
   }
 
   return (
