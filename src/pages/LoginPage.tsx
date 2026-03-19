@@ -31,31 +31,53 @@ export default function LoginPage() {
     if (!company) return
     setLoading(true)
 
-    let loginEmail = identifier.trim()
+    // Call the identity resolver RPC
+    const { data, error } = await supabase.rpc('resolve_login_identifier', {
+      p_identifier: identifier,
+      p_company_id: company.id,
+    })
 
-    // If not an email, lookup email by username and company_id
-    if (!loginEmail.includes('@')) {
-      const { data, error } = await supabase.rpc('get_email_for_login', {
-        p_username: loginEmail,
-        p_company_id: company.id,
-      })
+    // Internal Logging
+    console.debug('[Auth Log] Login resolution attempt:', {
+      rawIdentifier: identifier,
+      cleanIdentifier: identifier.trim().toLowerCase(),
+      rpcResult: data,
+      rpcError: error,
+    })
 
-      if (error || !data) {
-        setLoading(false)
-        toast.error('Usuário ou senha inválidos.')
-        return
-      }
-      loginEmail = data as string
-    } else {
-      // Ensure email is lowercased for case-insensitive authentication
-      loginEmail = loginEmail.toLowerCase()
+    if (error || !data) {
+      setLoading(false)
+      toast.error('Usuário, nome, e-mail ou senha inválidos.')
+      return
     }
 
-    const { error } = await signIn(loginEmail, password)
+    const result = data as {
+      status: string
+      email?: string
+      message?: string
+      match_type?: string
+    }
+
+    if (result.status === 'ambiguous') {
+      setLoading(false)
+      toast.error(
+        'Múltiplos usuários encontrados com este nome. Por favor, use seu e-mail ou nome de usuário.',
+      )
+      return
+    }
+
+    if (result.status !== 'success' || !result.email) {
+      setLoading(false)
+      toast.error('Usuário, nome, e-mail ou senha inválidos.')
+      return
+    }
+
+    // Call standard Supabase Auth with the resolved email
+    const { error: signInError } = await signIn(result.email, password)
     setLoading(false)
 
-    if (error) {
-      toast.error('Usuário ou senha inválidos.')
+    if (signInError) {
+      toast.error('Usuário, nome, e-mail ou senha inválidos.')
     } else {
       navigate(`/${passkey}/dashboard`)
     }
@@ -84,11 +106,11 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="identifier">Usuário ou e-mail</Label>
+              <Label htmlFor="identifier">Usuário, nome ou e-mail</Label>
               <Input
                 id="identifier"
                 type="text"
-                placeholder="Ex: admin@beautyos.com ou admin"
+                placeholder="Ex: joao.silva, João ou joao@salao.com"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 required

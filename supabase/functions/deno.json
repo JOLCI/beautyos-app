@@ -3,16 +3,16 @@
     "test-whatsapp": 1,
     "generate-pix": 2,
     "check-pix-status": 2,
-    "send-whatsapp": 11,
-    "create-user": 1,
+    "send-whatsapp": 13,
+    "create-user": 5,
     "google-calendar-sync": 4,
     "save-integration-secrets": 4,
     "delete-user": 1,
     "test-pix": 1,
     "whatsapp-generate-qr": 3,
     "whatsapp-check-status": 4,
-    "functions": 3,
-    "cron-triggers": 2,
-    "update-user": 1
+    "functions": 4,
+    "cron-triggers": 4,
+    "update-user": 6
   }
 }
