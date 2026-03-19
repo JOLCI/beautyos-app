@@ -28,6 +28,8 @@ import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export default function UsuariosPage() {
   const { company } = usePasskey()
   const { profile } = useAuth()
@@ -111,6 +113,13 @@ export default function UsuariosPage() {
           errorMsg.toLowerCase().includes('senha')
         ) {
           displayError = 'A senha deve ter pelo menos 6 caracteres.'
+        } else if (
+          errorMsg.toLowerCase().includes('unable to validate email address') ||
+          errorMsg.toLowerCase().includes('invalid format') ||
+          errorMsg.toLowerCase().includes('invalid email')
+        ) {
+          displayError =
+            'E-mail inválido. Por favor, insira um endereço de e-mail válido (ex: usuario@dominio.com)'
         }
 
         toast.error('Erro ao atualizar usuário', { description: displayError })
@@ -133,6 +142,13 @@ export default function UsuariosPage() {
           errorMsg.toLowerCase().includes('senha')
         ) {
           displayError = 'A senha deve ter pelo menos 6 caracteres.'
+        } else if (
+          errorMsg.toLowerCase().includes('unable to validate email address') ||
+          errorMsg.toLowerCase().includes('invalid format') ||
+          errorMsg.toLowerCase().includes('invalid email')
+        ) {
+          displayError =
+            'E-mail inválido. Por favor, insira um endereço de e-mail válido (ex: usuario@dominio.com)'
         }
 
         toast.error('Erro ao criar usuário', { description: displayError })
@@ -157,10 +173,13 @@ export default function UsuariosPage() {
   }
 
   const passwordLengthError = form.password.length > 0 && form.password.length < 6
+  const emailError = form.email.length > 0 && !emailRegex.test(form.email)
+
   const isSubmitDisabled =
     saving ||
     !form.name ||
     !form.email ||
+    emailError ||
     (editing ? passwordLengthError : form.password.length < 6)
 
   return (
@@ -260,7 +279,14 @@ export default function UsuariosPage() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="joao@salao.com"
+                className={emailError ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
+              {emailError && (
+                <p className="text-sm font-medium text-destructive">
+                  E-mail inválido. Por favor, insira um endereço de e-mail válido (ex:
+                  usuario@dominio.com)
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{editing ? 'Nova Senha (opcional)' : 'Senha Inicial'}</Label>

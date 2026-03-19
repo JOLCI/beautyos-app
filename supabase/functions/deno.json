@@ -4,7 +4,7 @@
     "generate-pix": 2,
     "check-pix-status": 2,
     "send-whatsapp": 13,
-    "create-user": 2,
+    "create-user": 3,
     "google-calendar-sync": 4,
     "save-integration-secrets": 4,
     "delete-user": 1,
@@ -13,6 +13,6 @@
     "whatsapp-check-status": 4,
     "functions": 4,
     "cron-triggers": 4,
-    "update-user": 2
+    "update-user": 3
   }
 }
