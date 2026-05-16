@@ -26,7 +26,13 @@ import { toast } from 'sonner'
 import { Loader2, X, Clock, AlertCircle } from 'lucide-react'
 import { resolveAndScheduleWhatsApp } from '@/lib/whatsapp'
 
-export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointment }: any) {
+export function NovoAgendamentoSheet({
+  open,
+  onOpenChange,
+  onSuccess,
+  appointment,
+  initialTime,
+}: any) {
   const { company } = usePasskey()
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
   const { data: services } = useQuery<any>('services', { match: { is_active: true } })
@@ -47,7 +53,7 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
   const [canceledByClient, setCanceledByClient] = useState(false)
 
   const availableProfessionals = useMemo(() => {
-    return professionals?.filter((p: any) => p.role !== 'root') || []
+    return professionals?.filter((p: any) => p.role !== 'root' && p.is_attendant) || []
   }, [professionals])
 
   useEffect(() => {
@@ -72,10 +78,10 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
       setClientId('')
       setSelectedServices([])
       setProfId('')
-      setDate(new Date().toISOString().split('T')[0])
-      setStartTime('09:00')
+      setDate(initialTime?.date || new Date().toISOString().split('T')[0])
+      setStartTime(initialTime?.time || '09:00')
       setEndTime('09:30')
-      setManualOverride(false)
+      setManualOverride(!!initialTime)
       setShowCancelConfirm(false)
       setCancelReason('')
       setCanceledByClient(false)
@@ -156,13 +162,14 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
 
   const handleSave = async (forceSave = false, overrideStatus?: string) => {
     if (!forceSave && checkConflicts()) {
-      toast('Conflito de Horário', {
-        description: 'Já existe um agendamento nessa data/horário para este profissional.',
+      toast('Conflito de Horário e Profissional', {
+        description:
+          'Já existe um agendamento neste dia e horário para o profissional selecionado. Deseja sobrepor?',
         action: {
-          label: 'Confirmar mesmo assim',
+          label: 'Agendar Mesmo Assim',
           onClick: () => handleSave(true, overrideStatus),
         },
-        duration: 8000,
+        duration: 10000,
       })
       return
     }
@@ -407,6 +414,21 @@ export function NovoAgendamentoSheet({ open, onOpenChange, onSuccess, appointmen
             </div>
           </div>
         </div>
+
+        {appointment?.status === 'cancelado' && (
+          <div className="mt-6 p-4 border border-destructive/30 bg-destructive/10 rounded-xl space-y-2">
+            <h4 className="font-bold text-destructive flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" /> Agendamento Cancelado
+            </h4>
+            <p className="text-sm">
+              <strong>Cancelado pelo cliente:</strong>{' '}
+              {appointment.canceled_by_client ? 'Sim' : 'Não'}
+            </p>
+            <p className="text-sm">
+              <strong>Motivo:</strong> {appointment.cancellation_reason || 'Não informado'}
+            </p>
+          </div>
+        )}
 
         {showCancelConfirm && (
           <div className="mt-6 p-4 border border-destructive/30 bg-destructive/5 rounded-xl space-y-4 animate-in fade-in slide-in-from-bottom-4">

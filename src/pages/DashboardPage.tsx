@@ -105,7 +105,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card
           className={`shadow-sm transition-colors ${isAdminOrRoot ? 'cursor-pointer hover:bg-muted/50' : ''}`}
           onClick={() => isAdminOrRoot && navigate(`/${passkey}/financeiro/caixa`)}
@@ -137,14 +137,41 @@ export default function DashboardPage() {
           onClick={() => navigate(`/${passkey}/financeiro/contas-receber`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pendente a Receber</CardTitle>
-            <Clock className="h-4 w-4 text-amber-500" />
+            <CardTitle className="text-sm font-medium">A Receber</CardTitle>
+            <Clock className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">
+            <div className="text-2xl font-bold text-primary">
               R$ {stats.saldoPendente.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Soma de títulos a receber</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors bg-destructive/5 border-destructive/20"
+          onClick={() => navigate(`/${passkey}/financeiro/contas-pagar`)}
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-destructive">A Pagar</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">
+              R${' '}
+              {titles
+                ?.reduce(
+                  (acc: number, t: any) =>
+                    t.type === 'payable' && ['open', 'partial'].includes(t.status)
+                      ? acc + (t.open_amount ?? t.original_amount - t.paid_amount)
+                      : acc,
+                  0,
+                )
+                .toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 text-destructive/80">
+              Soma de contas a pagar
+            </p>
           </CardContent>
         </Card>
 
@@ -220,29 +247,40 @@ export default function DashboardPage() {
                 Nenhum agendamento hoje.
               </p>
             ) : (
-              stats.appsHoje
-                .filter((a: any) => a.status !== 'cancelado')
-                .slice(0, 5)
-                .map((app: any) => {
-                  const cli = clients.find((c: any) => c.id === app.client_id)
-                  return (
-                    <div
-                      key={app.id}
-                      onClick={() => navigate(`/${passkey}/agenda?date=${app.date}`)}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-background shadow-sm text-primary font-bold text-xs border">
-                        {app.start_time.substring(0, 5)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
-                        <Badge variant="outline" className="text-[10px] uppercase mt-1">
-                          {translateStatus(app.status)}
-                        </Badge>
-                      </div>
+              stats.appsHoje.slice(0, 6).map((app: any) => {
+                const cli = clients?.find((c: any) => c.id === app.client_id)
+                let colorClass = 'border-primary/20 bg-primary/5'
+                let statusClass = 'text-primary border-primary'
+                if (app.status === 'finalizado') {
+                  colorClass = 'border-green-500/20 bg-green-500/5'
+                  statusClass = 'text-green-600 border-green-200 bg-green-50'
+                }
+                if (app.status === 'cancelado') {
+                  colorClass = 'border-destructive/20 bg-destructive/5 opacity-70 line-through'
+                  statusClass = 'text-destructive border-destructive/20'
+                }
+
+                return (
+                  <div
+                    key={app.id}
+                    onClick={() => navigate(`/${passkey}/agenda?date=${app.date}`)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${colorClass}`}
+                  >
+                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-background shadow-sm font-bold text-xs border">
+                      {app.start_time.substring(0, 5)}
                     </div>
-                  )
-                })
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] uppercase mt-1 ${statusClass}`}
+                      >
+                        {translateStatus(app.status)}
+                      </Badge>
+                    </div>
+                  </div>
+                )
+              })
             )}
           </CardContent>
         </Card>

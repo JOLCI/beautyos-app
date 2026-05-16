@@ -24,14 +24,18 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ original_amount: 0, due_date: '' })
 
-  const { data: transactions } = useQuery<any>('transactions', {
+  const { data: transactions, refetch: refetchTx } = useQuery<any>('transactions', {
     match: { financial_title_id: title?.id },
     enabled: !!title?.id,
   })
 
   useEffect(() => {
     if (title) {
-      setForm({ original_amount: title.original_amount, due_date: title.due_date })
+      setForm({
+        original_amount: title.original_amount,
+        due_date: title.due_date,
+        description: title.description || '',
+      })
       setEditMode(false)
     }
   }, [title])
@@ -104,6 +108,44 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
 
   if (!title) return null
 
+  const handleEstorno = async (txId: string) => {
+    if (
+      !confirm(
+        'Deseja realmente estornar este pagamento? O saldo do título voltará a ficar em aberto e a transação será cancelada.',
+      )
+    )
+      return
+    setSaving(true)
+
+    // Get tx
+    const tx = transactions.find((t: any) => t.id === txId)
+    if (tx) {
+      await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', txId)
+      const newPaid = Math.max(0, title.paid_amount - tx.amount)
+      await supabase
+        .from('financial_titles')
+        .update({
+          paid_amount: newPaid,
+          status: newPaid === 0 ? 'open' : 'partial',
+        })
+        .eq('id', title.id)
+      toast.success('Estorno realizado com sucesso')
+      refetchTx()
+      if (onUpdate) onUpdate()
+    }
+    setSaving(false)
+  }
+
+  const handleUpdateDescription = async () => {
+    setSaving(true)
+    await supabase
+      .from('financial_titles')
+      .update({ description: form.description })
+      .eq('id', title.id)
+    toast.success('Descrição atualizada')
+    setSaving(false)
+  }
+
   const currentOpenAmount = title.open_amount ?? title.original_amount - title.paid_amount
 
   return (
@@ -168,6 +210,13 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                   onChange={(e) => setForm({ ...form, due_date: e.target.value })}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Descrição / Notas</Label>
+                <Input
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+              </div>
               <div className="flex gap-2 pt-4">
                 <Button
                   variant="outline"
@@ -224,7 +273,27 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                             {tx.ticket_id} • {tx.payment_method}
                           </p>
                         </div>
-                        <span className="font-bold text-green-600">R$ {tx.amount.toFixed(2)}</span>
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={
+                              tx.status === 'cancelled'
+                                ? 'font-bold text-muted-foreground line-through'
+                                : 'font-bold text-green-600'
+                            }
+                          >
+                            R$ {tx.amount.toFixed(2)}
+                          </span>
+                          {tx.status === 'confirmed' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEstorno(tx.id)}
+                              className="h-6 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 px-2"
+                            >
+                              Estornar
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -286,6 +286,13 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
+            foreignKeyName: 'commissions_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['appointment_id']
+          },
+          {
             foreignKeyName: 'commissions_company_id_fkey'
             columns: ['company_id']
             isOneToOne: false
@@ -1053,6 +1060,44 @@ export type Database = {
       }
     }
     Views: {
+      v_client_service_intervals: {
+        Row: {
+          appointment_id: string | null
+          client_id: string | null
+          company_id: string | null
+          date: string | null
+          days_interval: number | null
+          previous_date: string | null
+          service_id: string | null
+          service_name: string | null
+          service_price: number | null
+          start_time: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'appointments_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'appointments_company_id_fkey'
+            columns: ['company_id']
+            isOneToOne: false
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'appointments_service_id_fkey'
+            columns: ['service_id']
+            isOneToOne: false
+            referencedRelation: 'services'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       v_financial_inconsistencies: {
         Row: {
           company_id: string | null
@@ -1397,6 +1442,18 @@ export const Constants = {
 //   updated_by: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: v_client_service_intervals
+//   appointment_id: uuid (nullable)
+//   company_id: uuid (nullable)
+//   client_id: uuid (nullable)
+//   service_id: uuid (nullable)
+//   service_name: text (nullable)
+//   service_price: numeric (nullable)
+//   date: date (nullable)
+//   start_time: time without time zone (nullable)
+//   status: text (nullable)
+//   previous_date: date (nullable)
+//   days_interval: integer (nullable)
 // Table: v_financial_inconsistencies
 //   source: text (nullable)
 //   id: uuid (nullable)

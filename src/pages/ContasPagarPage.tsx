@@ -50,6 +50,7 @@ export default function ContasPagarPage() {
     amount: '',
     due_date: new Date().toISOString().split('T')[0],
     notes: '',
+    recurrence: false,
   })
 
   const openSheet = () => {
@@ -58,6 +59,7 @@ export default function ContasPagarPage() {
       amount: '',
       due_date: new Date().toISOString().split('T')[0],
       notes: '',
+      recurrence: false,
     })
     setSheetOpen(true)
   }
@@ -65,19 +67,43 @@ export default function ContasPagarPage() {
   const handleSave = async () => {
     if (!form.supplier_id || !form.amount) return toast.error('Preencha fornecedor e valor.')
 
-    await supabase.from('financial_titles').insert([
-      {
-        company_id: company?.id,
-        type: 'payable',
-        status: 'open',
-        original_amount: Number(form.amount),
-        due_date: form.due_date,
-        description: form.notes,
-        supplier_id: form.supplier_id,
-      },
-    ])
+    const inserts = []
+    let currDate = new Date(form.due_date + 'T12:00:00')
 
-    toast.success('Título criado com sucesso')
+    inserts.push({
+      company_id: company?.id,
+      type: 'payable',
+      status: 'open',
+      original_amount: Number(form.amount),
+      due_date: form.due_date,
+      description: form.notes,
+      supplier_id: form.supplier_id,
+    })
+
+    if (form.recurrence) {
+      const startMonth = currDate.getMonth()
+      for (let i = 1; i <= 11 - startMonth; i++) {
+        let nextD = new Date(currDate)
+        nextD.setMonth(currDate.getMonth() + i)
+        inserts.push({
+          company_id: company?.id,
+          type: 'payable',
+          status: 'open',
+          original_amount: Number(form.amount),
+          due_date: nextD.toISOString().split('T')[0],
+          description: form.notes + ` (Parcela ${i + 1})`,
+          supplier_id: form.supplier_id,
+        })
+      }
+    }
+
+    await supabase.from('financial_titles').insert(inserts)
+
+    toast.success(
+      form.recurrence
+        ? 'Títulos recorrentes criados até o fim do ano'
+        : 'Título criado com sucesso',
+    )
     setSheetOpen(false)
     refetch()
   }
@@ -228,6 +254,17 @@ export default function ContasPagarPage() {
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
+            </div>
+            <div className="flex items-center gap-2 mt-4 p-3 border rounded-lg bg-muted/20">
+              <input
+                type="checkbox"
+                id="rec"
+                checked={form.recurrence}
+                onChange={(e) => setForm({ ...form, recurrence: e.target.checked })}
+              />
+              <Label htmlFor="rec" className="cursor-pointer">
+                Repetir mensalmente até Dezembro
+              </Label>
             </div>
             <Button onClick={handleSave} className="w-full mt-4">
               Criar Título

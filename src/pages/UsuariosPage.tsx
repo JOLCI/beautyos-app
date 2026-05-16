@@ -23,7 +23,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { UserPlus, Trash2, KeyRound, Loader2, Edit } from 'lucide-react'
+import { UserPlus, Trash2, KeyRound, Loader2, Edit, Check } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
@@ -52,6 +53,7 @@ export default function UsuariosPage() {
     password: '',
     role: 'atendimento',
     company_id: '',
+    is_attendant: true,
   })
   const [saving, setSaving] = useState(false)
 
@@ -72,6 +74,7 @@ export default function UsuariosPage() {
             password: '',
             role: u.role,
             company_id: u.company_id || '',
+            is_attendant: u.is_attendant ?? true,
           }
         : {
             name: '',
@@ -80,6 +83,7 @@ export default function UsuariosPage() {
             password: '',
             role: 'atendimento',
             company_id: company?.id || '',
+            is_attendant: true,
           },
     )
     setSheetOpen(true)
@@ -97,6 +101,7 @@ export default function UsuariosPage() {
         name: form.name,
         role: form.role,
         company_id: targetCompanyId,
+        is_attendant: form.is_attendant,
       }
 
       if (form.username && form.username !== editing.username) payload.username = form.username
@@ -222,6 +227,7 @@ export default function UsuariosPage() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Usuário</TableHead>
                   <TableHead>Nível</TableHead>
+                  <TableHead>Atendente</TableHead>
                   {isRoot && <TableHead>Unidade</TableHead>}
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -245,6 +251,20 @@ export default function UsuariosPage() {
                       >
                         {u.role === 'root' ? 'Admin Global' : u.role}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {u.is_attendant ? (
+                        <Badge
+                          variant="outline"
+                          className="text-green-600 border-green-200 bg-green-50"
+                        >
+                          <Check className="w-3 h-3 mr-1" /> Sim
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          Não
+                        </Badge>
+                      )}
                     </TableCell>
                     {isRoot && (
                       <TableCell className="text-xs text-muted-foreground truncate max-w-[120px]">
@@ -337,6 +357,13 @@ export default function UsuariosPage() {
                   {isRoot && <SelectItem value="root">Root (Gestor Multilojas)</SelectItem>}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center justify-between border p-3 rounded-lg bg-background">
+              <Label className="cursor-pointer">Atendente (Exibe na agenda)</Label>
+              <Switch
+                checked={form.is_attendant}
+                onCheckedChange={(v) => setForm({ ...form, is_attendant: v })}
+              />
             </div>
             {isRoot && form.role !== 'root' && (
               <div className="space-y-2">

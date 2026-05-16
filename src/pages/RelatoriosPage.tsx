@@ -39,6 +39,8 @@ export default function RelatoriosPage() {
     return d.toISOString().split('T')[0]
   })
 
+  const [methodFilter, setMethodFilter] = useState('ALL')
+
   const { data: transactions } = useQuery<any>('transactions', {
     match: { status: 'confirmed' },
     select: '*, clients(name), suppliers(name)',
@@ -48,7 +50,9 @@ export default function RelatoriosPage() {
     return transactions
       .filter((t: any) => {
         const d = t.transaction_date
-        return d >= startDate && d <= endDate
+        if (d < startDate || d > endDate) return false
+        if (methodFilter !== 'ALL' && t.payment_method !== methodFilter) return false
+        return true
       })
       .sort(
         (a: any, b: any) =>
@@ -124,6 +128,17 @@ export default function RelatoriosPage() {
             onChange={(e) => setEndDate(e.target.value)}
             className="w-auto"
           />
+          <select
+            value={methodFilter}
+            onChange={(e) => setMethodFilter(e.target.value)}
+            className="h-10 px-3 py-2 rounded-md border bg-background text-sm"
+          >
+            <option value="ALL">Todos os Métodos</option>
+            <option value="PIX">PIX</option>
+            <option value="DINHEIRO">Dinheiro</option>
+            <option value="DEBITO">Débito</option>
+            <option value="CREDITO">Crédito</option>
+          </select>
         </div>
       </div>
 
