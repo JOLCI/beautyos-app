@@ -104,7 +104,7 @@ export default function ClienteDetailPage() {
       .update({
         phone: form.phone,
         email: form.email,
-        birthday: form.birthday,
+        birthday: form.birthday || null,
         gender: form.gender,
         notes: form.notes,
       })
