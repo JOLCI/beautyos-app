@@ -41,7 +41,11 @@ import {
   Trash2,
   Edit2,
   X,
+  ShieldAlert,
+  Search,
+  CheckSquare,
 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export default function ConfiguracoesPage() {
   const { company } = usePasskey()
@@ -67,6 +71,148 @@ export default function ConfiguracoesPage() {
     { name: 'Pink', primary: '#ec4899' },
   ]
   const [waQrCode, setWaQrCode] = useState('')
+
+  // Restricted Area State
+  const [raEntityType, setRaEntityType] = useState<'client' | 'supplier' | 'service'>('client')
+  const [raEntityId, setRaEntityId] = useState('')
+  const [raRecords, setRaRecords] = useState<
+    { type: string; id: string; desc: string; date: string; status?: string }[]
+  >([])
+  const [raSelected, setRaSelected] = useState<Set<string>>(new Set())
+  const [raLoading, setRaLoading] = useState(false)
+
+  const { data: clientsList } = useQuery<any>('clients', { match: { is_active: true } })
+  const { data: suppliersList } = useQuery<any>('suppliers', { match: { is_active: true } })
+  const { data: servicesList } = useQuery<any>('services', { match: { is_active: true } })
+
+  const loadRestrictedRecords = async (id: string, type: string) => {
+    if (!id) {
+      setRaRecords([])
+      return
+    }
+    setRaLoading(true)
+    const records: typeof raRecords = []
+
+    if (type === 'client') {
+      const [apps, txs, titles] = await Promise.all([
+        supabase
+          .from('appointments')
+          .select('id, date, status, services(name)')
+          .eq('client_id', id),
+        supabase
+          .from('transactions')
+          .select('id, transaction_date, amount, description, status')
+          .eq('client_id', id),
+        supabase
+          .from('financial_titles')
+          .select('id, due_date, original_amount, description, status')
+          .eq('client_id', id),
+      ])
+      apps.data?.forEach((a: any) =>
+        records.push({
+          id: a.id,
+          type: 'appointment',
+          desc: `Agendamento: ${a.services?.name || 'Serviço'}`,
+          date: a.date,
+          status: a.status,
+        }),
+      )
+      txs.data?.forEach((t: any) =>
+        records.push({
+          id: t.id,
+          type: 'transaction',
+          desc: `Transação: R$ ${t.amount} - ${t.description || 'Sem desc'}`,
+          date: t.transaction_date,
+          status: t.status,
+        }),
+      )
+      titles.data?.forEach((t: any) =>
+        records.push({
+          id: t.id,
+          type: 'title',
+          desc: `Título: R$ ${t.original_amount} - ${t.description || 'Sem desc'}`,
+          date: t.due_date,
+          status: t.status,
+        }),
+      )
+    } else if (type === 'supplier') {
+      const [txs, titles] = await Promise.all([
+        supabase
+          .from('transactions')
+          .select('id, transaction_date, amount, description, status')
+          .eq('supplier_id', id),
+        supabase
+          .from('financial_titles')
+          .select('id, due_date, original_amount, description, status')
+          .eq('supplier_id', id),
+      ])
+      txs.data?.forEach((t: any) =>
+        records.push({
+          id: t.id,
+          type: 'transaction',
+          desc: `Transação: R$ ${t.amount} - ${t.description || 'Sem desc'}`,
+          date: t.transaction_date,
+          status: t.status,
+        }),
+      )
+      titles.data?.forEach((t: any) =>
+        records.push({
+          id: t.id,
+          type: 'title',
+          desc: `Título: R$ ${t.original_amount} - ${t.description || 'Sem desc'}`,
+          date: t.due_date,
+          status: t.status,
+        }),
+      )
+    } else if (type === 'service') {
+      const { data: apps } = await supabase
+        .from('appointments')
+        .select('id, date, status, services(name)')
+        .eq('service_id', id)
+      apps?.forEach((a: any) =>
+        records.push({
+          id: a.id,
+          type: 'appointment',
+          desc: `Agendamento: ${a.services?.name || 'Serviço'}`,
+          date: a.date,
+          status: a.status,
+        }),
+      )
+    }
+
+    setRaRecords(records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
+    setRaSelected(new Set())
+    setRaLoading(false)
+  }
+
+  const executeBulkDelete = async () => {
+    if (raSelected.size === 0) return
+    if (
+      !confirm(
+        `Tem certeza que deseja excluir permanentemente ${raSelected.size} registro(s)? Essa ação apagará dados dependentes (ex: comissões, agendamentos de WhatsApp).`,
+      )
+    )
+      return
+
+    setRaLoading(true)
+    const toDelete = Array.from(raSelected)
+    const apps = toDelete.filter((id) => raRecords.find((r) => r.id === id)?.type === 'appointment')
+    const txs = toDelete.filter((id) => raRecords.find((r) => r.id === id)?.type === 'transaction')
+    const titles = toDelete.filter((id) => raRecords.find((r) => r.id === id)?.type === 'title')
+
+    try {
+      // Due to constraints, order matters: transactions then appointments then titles
+      if (txs.length) await supabase.from('transactions').delete().in('id', txs)
+      if (apps.length) await supabase.from('appointments').delete().in('id', apps)
+      if (titles.length) await supabase.from('financial_titles').delete().in('id', titles)
+
+      toast.success('Registros excluídos com sucesso')
+      loadRestrictedRecords(raEntityId, raEntityType)
+    } catch (e) {
+      toast.error('Erro ao excluir registros')
+    }
+    setRaLoading(false)
+  }
 
   useEffect(() => {
     if (company) {
@@ -259,6 +405,9 @@ export default function ConfiguracoesPage() {
             { id: 'pix', label: 'PIX / Pagamentos', icon: Smartphone },
             { id: 'templates', label: 'Templates', icon: FileText },
             { id: 'aparencia', label: 'Aparência', icon: Palette },
+            ...(profile?.role === 'admin' || profile?.role === 'root'
+              ? [{ id: 'restrita', label: 'Área Restrita', icon: ShieldAlert }]
+              : []),
           ].map((tab) => (
             <TabsTrigger
               key={tab.id}
@@ -271,6 +420,168 @@ export default function ConfiguracoesPage() {
         </TabsList>
 
         <div className="flex-1 min-w-0">
+          <TabsContent value="restrita" className="mt-0">
+            <Card className="border-destructive/20">
+              <CardHeader className="bg-destructive/5 rounded-t-xl">
+                <CardTitle className="text-destructive flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5" /> Área Restrita
+                </CardTitle>
+                <CardDescription>
+                  Limpeza e exclusão em massa de registros. Ações aqui são irreversíveis e acionam
+                  exclusão em cascata (comissões, mensagens agendadas).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-end">
+                  <div className="space-y-2 w-full sm:w-1/3">
+                    <Label>Tipo de Entidade</Label>
+                    <Select
+                      value={raEntityType}
+                      onValueChange={(v: any) => {
+                        setRaEntityType(v)
+                        setRaEntityId('')
+                        setRaRecords([])
+                        setRaSelected(new Set())
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="client">Cliente</SelectItem>
+                        <SelectItem value="supplier">Fornecedor</SelectItem>
+                        <SelectItem value="service">Serviço/Produto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 w-full sm:w-2/3">
+                    <Label>Selecione a Entidade</Label>
+                    <Select
+                      value={raEntityId}
+                      onValueChange={(v) => {
+                        setRaEntityId(v)
+                        loadRestrictedRecords(v, raEntityType)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {raEntityType === 'client' &&
+                          clientsList?.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        {raEntityType === 'supplier' &&
+                          suppliersList?.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        {raEntityType === 'service' &&
+                          servicesList?.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {raEntityId && (
+                  <div className="space-y-4 border rounded-xl overflow-hidden">
+                    <div className="bg-muted/50 p-3 flex items-center justify-between border-b">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={raRecords.length > 0 && raSelected.size === raRecords.length}
+                          onCheckedChange={(c) => {
+                            if (c) setRaSelected(new Set(raRecords.map((r) => r.id)))
+                            else setRaSelected(new Set())
+                          }}
+                        />
+                        <span className="text-sm font-medium">
+                          Selecionar Todos ({raRecords.length})
+                        </span>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={executeBulkDelete}
+                        disabled={raSelected.size === 0 || raLoading}
+                      >
+                        {raLoading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Excluir ({raSelected.size})
+                      </Button>
+                    </div>
+                    <div className="max-h-[400px] overflow-y-auto p-0">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background shadow-sm">
+                          <TableRow>
+                            <TableHead className="w-12"></TableHead>
+                            <TableHead>Data</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {raRecords.map((r) => (
+                            <TableRow key={r.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={raSelected.has(r.id)}
+                                  onCheckedChange={(c) => {
+                                    const next = new Set(raSelected)
+                                    if (c) next.add(r.id)
+                                    else next.delete(r.id)
+                                    setRaSelected(next)
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {new Date(r.date).toLocaleDateString('pt-BR')}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="uppercase text-[10px]">
+                                  {r.type === 'appointment'
+                                    ? 'Agendamento'
+                                    : r.type === 'transaction'
+                                      ? 'Transação'
+                                      : 'Título'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="truncate max-w-[200px]">{r.desc}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="uppercase text-[10px]">
+                                  {r.status || '-'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {raRecords.length === 0 && (
+                            <TableRow>
+                              <TableCell
+                                colSpan={5}
+                                className="text-center py-8 text-muted-foreground"
+                              >
+                                Nenhum registro encontrado para esta entidade.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
           <TabsContent value="empresa" className="mt-0">
             <Card>
               <CardHeader>

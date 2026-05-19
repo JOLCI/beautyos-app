@@ -17,6 +17,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/com
 import { Label } from '@/components/ui/label'
 import { Search, UserPlus, Loader2, Edit2, Trash2, Camera, Check, X } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
+import { formatPhoneForDisplay, formatPhoneForStorage } from '@/lib/utils'
 import {
   Select,
   SelectContent,
@@ -51,17 +52,19 @@ export default function ClientesPage() {
     is_active: true,
   })
 
-  const filtered = (allClients || []).filter((c: any) => {
-    if (!showInactive && c.is_active === false) return false
-    return c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
-  })
+  const filtered = (allClients || [])
+    .filter((c: any) => {
+      if (!showInactive && c.is_active === false) return false
+      return c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
+    })
+    .sort((a: any, b: any) => a.name.localeCompare(b.name))
 
   const openSheet = (c: any = null) => {
     if (c) {
       setEditing(c)
       setForm({
         name: c.name,
-        phone: c.phone,
+        phone: formatPhoneForDisplay(c.phone),
         email: c.email || '',
         birthday: c.birthday || '',
         gender: c.gender || 'female',
@@ -106,6 +109,7 @@ export default function ClientesPage() {
 
     const payload = {
       ...form,
+      phone: formatPhoneForStorage(form.phone),
       birthday: form.birthday || null,
     }
 
@@ -223,7 +227,9 @@ export default function ClientesPage() {
                         <span className="font-medium">{c.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{c.phone}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatPhoneForDisplay(c.phone)}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{c.email || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {c.birthday
@@ -315,7 +321,9 @@ export default function ClientesPage() {
               <Label>Telefone / WhatsApp</Label>
               <Input
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => setForm({ ...form, phone: formatPhoneForDisplay(e.target.value) })}
+                placeholder="(00) 00000-0000"
+                maxLength={15}
               />
             </div>
             <div className="space-y-2">

@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { formatPhoneForDisplay, formatPhoneForStorage } from '@/lib/utils'
 
 export default function FornecedoresPage() {
   const { company } = usePasskey()
@@ -34,13 +35,15 @@ export default function FornecedoresPage() {
     is_active: true,
   })
 
-  const suppliers = (allSuppliers || []).filter((s: any) => s.is_active !== false)
+  const suppliers = (allSuppliers || [])
+    .filter((s: any) => s.is_active !== false)
+    .sort((a: any, b: any) => a.name.localeCompare(b.name))
 
   const openSheet = (s: any = null) => {
     setEditing(s)
     setForm(
       s
-        ? { ...s, is_active: s.is_active !== false }
+        ? { ...s, phone: formatPhoneForDisplay(s.phone), is_active: s.is_active !== false }
         : { name: '', document: '', phone: '', email: '', notes: '', is_active: true },
     )
     setSheetOpen(true)
@@ -48,11 +51,12 @@ export default function FornecedoresPage() {
 
   const handleSave = async () => {
     if (!form.name) return toast.error('Nome é obrigatório')
+    const payload = { ...form, phone: formatPhoneForStorage(form.phone) }
     if (editing) {
-      await supabase.from('suppliers').update(form).eq('id', editing.id)
+      await supabase.from('suppliers').update(payload).eq('id', editing.id)
       toast.success('Fornecedor atualizado')
     } else {
-      await supabase.from('suppliers').insert([{ ...form, company_id: company?.id }])
+      await supabase.from('suppliers').insert([{ ...payload, company_id: company?.id }])
       toast.success('Fornecedor cadastrado')
     }
     setSheetOpen(false)
@@ -96,7 +100,7 @@ export default function FornecedoresPage() {
                   </TableCell>
                   <TableCell>{s.document || '-'}</TableCell>
                   <TableCell>
-                    {s.phone} {s.email && ` / ${s.email}`}
+                    {formatPhoneForDisplay(s.phone)} {s.email && ` / ${s.email}`}
                   </TableCell>
                   <TableCell className="text-right space-x-1">
                     <Button variant="ghost" size="icon" onClick={() => openSheet(s)}>
@@ -151,7 +155,9 @@ export default function FornecedoresPage() {
               <Label>Telefone</Label>
               <Input
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => setForm({ ...form, phone: formatPhoneForDisplay(e.target.value) })}
+                maxLength={15}
+                placeholder="(00) 00000-0000"
               />
             </div>
             <div className="space-y-2">

@@ -60,8 +60,9 @@ export default function UsuariosPage() {
   const [uploading, setUploading] = useState(false)
 
   const filteredUsers = useMemo(() => {
-    if (isRoot) return users
-    return users.filter((u) => u.role !== 'root')
+    let list = users || []
+    if (!isRoot) list = list.filter((u: any) => u.role !== 'root')
+    return [...list].sort((a: any, b: any) => a.name.localeCompare(b.name))
   }, [users, isRoot])
 
   const openSheet = (u: any = null) => {

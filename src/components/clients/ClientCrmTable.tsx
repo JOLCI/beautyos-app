@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Calendar, DollarSign } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -106,15 +107,25 @@ export function ClientCrmTable({ serviceIntervals, transactions }: ClientCrmTabl
                     className={`font-medium ${formatStatus(item.status) === 'Cancelado' ? 'line-through text-muted-foreground' : ''}`}
                   >
                     {item.type === 'service' ? (
-                      <div className="flex flex-col">
-                        <span>Serviço {item.name}</span>
-                        <span className="text-xs text-muted-foreground font-normal">
-                          Realizado em {new Date(item.date).toLocaleDateString('pt-BR')}
-                        </span>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-lg shrink-0">
+                          <Calendar className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span>Serviço {item.name}</span>
+                          <span className="text-xs text-muted-foreground font-normal">
+                            Realizado em {new Date(item.date).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col">
-                        <span>Produto/Outro: {item.name}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-emerald-500/10 p-2 rounded-lg shrink-0">
+                          <DollarSign className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span>Produto/Outro: {item.name}</span>
+                        </div>
                       </div>
                     )}
                   </TableCell>

@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 import { ClientTimeline } from '@/components/clients/ClientTimeline'
 import { ClientCrmTable } from '@/components/clients/ClientCrmTable'
 import { ClientAvatar } from '@/components/clients/ClientAvatar'
+import { formatPhoneForDisplay, formatPhoneForStorage } from '@/lib/utils'
 
 export default function ClienteDetailPage() {
   const { id } = useParams()
@@ -57,7 +58,7 @@ export default function ClienteDetailPage() {
   useEffect(() => {
     if (client) {
       setForm({
-        phone: client.phone || '',
+        phone: formatPhoneForDisplay(client.phone || ''),
         email: client.email || '',
         birthday: client.birthday || '',
         gender: client.gender || 'female',
@@ -102,7 +103,7 @@ export default function ClienteDetailPage() {
     const { error } = await supabase
       .from('clients')
       .update({
-        phone: form.phone,
+        phone: formatPhoneForStorage(form.phone),
         email: form.email,
         birthday: form.birthday || null,
         gender: form.gender,
@@ -175,11 +176,18 @@ export default function ClienteDetailPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">{client.name}</h1>
             <p className="text-muted-foreground mt-1">
-              {client.phone} • {client.email || 'Sem e-mail'}
+              {formatPhoneForDisplay(client.phone)} • {client.email || 'Sem e-mail'}
             </p>
           </div>
         </div>
-        <Button className="rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-sm">
+        <Button
+          className="rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-sm"
+          onClick={() => {
+            const digits = client.phone?.replace(/\D/g, '') || ''
+            if (digits) window.open(`https://wa.me/55${digits}`, '_blank')
+            else toast.error('Cliente sem telefone válido')
+          }}
+        >
           <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
         </Button>
       </div>
@@ -219,7 +227,10 @@ export default function ClienteDetailPage() {
                   <Label>Telefone</Label>
                   <Input
                     value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, phone: formatPhoneForDisplay(e.target.value) })
+                    }
+                    maxLength={15}
                   />
                 </div>
                 <div className="space-y-1">
