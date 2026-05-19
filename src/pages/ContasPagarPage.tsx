@@ -45,16 +45,11 @@ export default function ContasPagarPage() {
   const [paymentTitle, setPaymentTitle] = useState<any>(null)
   const [detailTitle, setDetailTitle] = useState<any>(null)
 
-  const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [saving, setSaving] = useState(false)
-
   const [search, setSearch] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
 
   const [form, setForm] = useState({
     supplier_id: '',
