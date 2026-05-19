@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { TrendingUp, Calendar, AlertTriangle, History, Clock, XCircle } from 'lucide-react'
+import { TrendingUp, Calendar, AlertTriangle, History, Clock, XCircle, User } from 'lucide-react'
 import {
   Line,
   LineChart,
@@ -13,6 +13,7 @@ import {
   CartesianGrid,
 } from 'recharts'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
 import { translateStatus } from '@/lib/utils'
@@ -43,6 +44,26 @@ export default function DashboardPage() {
       return acc
     }, 0)
 
+    const contasAPagarVencidas = titles
+      .filter(
+        (t: any) =>
+          t.type === 'payable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
+      )
+      .reduce(
+        (acc: number, t: any) => acc + (t.open_amount ?? t.original_amount - t.paid_amount),
+        0,
+      )
+
+    const contasAPagarAVencer = titles
+      .filter(
+        (t: any) =>
+          t.type === 'payable' && ['open', 'partial'].includes(t.status) && t.due_date >= today,
+      )
+      .reduce(
+        (acc: number, t: any) => acc + (t.open_amount ?? t.original_amount - t.paid_amount),
+        0,
+      )
+
     const entradasHoje = transactions.reduce((acc: number, t: any) => {
       if (t.status === 'confirmed' && t.type === 'inflow' && t.transaction_date === today) {
         return acc + t.amount
@@ -62,6 +83,8 @@ export default function DashboardPage() {
     return {
       saldo,
       saldoPendente,
+      contasAPagarVencidas,
+      contasAPagarAVencer,
       entradasHoje,
       overdueReceivables,
       appsHoje,
@@ -93,7 +116,7 @@ export default function DashboardPage() {
         {stats.overdueReceivables.length > 0 && isAdminOrRoot && (
           <Alert
             variant="destructive"
-            className="bg-destructive/10 text-destructive border-destructive/20 cursor-pointer hover:bg-destructive/20 transition-colors"
+            className="bg-destructive/10 text-destructive border-destructive/20 cursor-pointer hover:bg-destructive/20 transition-colors shadow-sm"
             onClick={() => navigate(`/${passkey}/financeiro/contas-receber?filter=overdue`)}
           >
             <AlertTriangle className="h-4 w-4" />
@@ -124,7 +147,7 @@ export default function DashboardPage() {
           onClick={() => navigate(`/${passkey}/financeiro/caixa`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Receita Hoje (Confirmada)</CardTitle>
+            <CardTitle className="text-sm font-medium">Receita Hoje</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -144,34 +167,35 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-primary">
               R$ {stats.saldoPendente.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Soma de títulos a receber</p>
+            <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">
+              Títulos a receber
+            </p>
           </CardContent>
         </Card>
 
         <Card
-          className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors bg-destructive/5 border-destructive/20"
+          className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors border-l-4 border-l-destructive"
           onClick={() => navigate(`/${passkey}/financeiro/contas-pagar`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-destructive">A Pagar</CardTitle>
+            <CardTitle className="text-sm font-medium">Contas a Pagar</CardTitle>
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              R${' '}
-              {titles
-                ?.reduce(
-                  (acc: number, t: any) =>
-                    t.type === 'payable' && ['open', 'partial'].includes(t.status)
-                      ? acc + (t.open_amount ?? t.original_amount - t.paid_amount)
-                      : acc,
-                  0,
-                )
-                .toFixed(2)}
+            <div className="flex flex-col">
+              <div className="flex justify-between items-center text-sm mb-1 border-b pb-1">
+                <span className="text-muted-foreground">Vencidas</span>
+                <span className="font-bold text-destructive">
+                  R$ {stats.contasAPagarVencidas.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">A Vencer</span>
+                <span className="font-bold text-primary">
+                  R$ {stats.contasAPagarAVencer.toFixed(2)}
+                </span>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1 text-destructive/80">
-              Soma de contas a pagar
-            </p>
           </CardContent>
         </Card>
 
@@ -199,7 +223,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="md:col-span-2">
+        <Card className="md:col-span-2 shadow-sm">
           <CardHeader>
             <CardTitle>Receita Semanal (Confirmada)</CardTitle>
           </CardHeader>
@@ -237,11 +261,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-1 overflow-hidden flex flex-col">
+        <Card className="md:col-span-1 overflow-hidden flex flex-col shadow-sm">
           <CardHeader>
             <CardTitle>Próximos Atendimentos</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto space-y-4">
+          <CardContent className="flex-1 overflow-y-auto space-y-3">
             {stats.appsHoje.length === 0 ? (
               <p className="text-muted-foreground text-sm text-center mt-8">
                 Nenhum agendamento hoje.
@@ -252,31 +276,44 @@ export default function DashboardPage() {
                 let colorClass = 'border-primary/20 bg-primary/5'
                 let statusClass = 'text-primary border-primary'
                 if (app.status === 'finalizado') {
-                  colorClass = 'border-green-500/20 bg-green-500/5'
-                  statusClass = 'text-green-600 border-green-200 bg-green-50'
+                  colorClass = 'border-green-500/30 bg-green-500/10'
+                  statusClass = 'text-green-700 border-green-300 bg-green-100'
                 }
                 if (app.status === 'cancelado') {
                   colorClass = 'border-destructive/20 bg-destructive/5 opacity-70 line-through'
-                  statusClass = 'text-destructive border-destructive/20'
+                  statusClass = 'text-destructive border-destructive/20 bg-destructive/10'
                 }
 
                 return (
                   <div
                     key={app.id}
                     onClick={() => navigate(`/${passkey}/agenda?date=${app.date}`)}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${colorClass}`}
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:brightness-95 transition-all ${colorClass}`}
                   >
-                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-background shadow-sm font-bold text-xs border">
+                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-background shadow-sm font-bold text-xs border border-border/50">
                       {app.start_time.substring(0, 5)}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] uppercase mt-1 ${statusClass}`}
-                      >
-                        {translateStatus(app.status)}
-                      </Badge>
+                    <div className="flex-1 min-w-0 flex items-center gap-3">
+                      <Avatar className="w-8 h-8 border shadow-sm">
+                        <AvatarImage
+                          src={
+                            cli?.avatar_url ||
+                            `https://img.usecurling.com/ppl/thumbnail?seed=${cli?.id || 'a'}`
+                          }
+                        />
+                        <AvatarFallback>
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] uppercase mt-1 ${statusClass}`}
+                        >
+                          {translateStatus(app.status)}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 )

@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useQuery } from '@/hooks/use-query'
+import { translateStatus } from '@/lib/utils'
 import {
   Edit2,
   Save,
@@ -17,12 +18,13 @@ import {
   Clock,
   X,
   Link as LinkIcon,
+  Trash2,
 } from 'lucide-react'
 
 export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
   const [editMode, setEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ original_amount: 0, due_date: '' })
+  const [form, setForm] = useState({ original_amount: 0, due_date: '', description: '' })
 
   const { data: transactions, refetch: refetchTx } = useQuery<any>('transactions', {
     match: { financial_title_id: title?.id },
@@ -54,6 +56,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
       .update({
         original_amount: newAmount,
         due_date: form.due_date,
+        description: form.description,
       })
       .eq('id', title.id)
 
@@ -106,7 +109,22 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
     setSaving(false)
   }
 
-  if (!title) return null
+  const handleDeleteTitle = async () => {
+    if (title.paid_amount > 0)
+      return toast.error('Não é possível excluir um título com pagamentos vinculados.')
+    if (!confirm('Deseja realmente excluir este registro permanentemente?')) return
+
+    setSaving(true)
+    const { error } = await supabase.from('financial_titles').delete().eq('id', title.id)
+    if (error) {
+      toast.error('Erro ao excluir registro.')
+    } else {
+      toast.success('Registro excluído com sucesso.')
+      if (onUpdate) onUpdate()
+      onOpenChange(false)
+    }
+    setSaving(false)
+  }
 
   const handleEstorno = async (txId: string) => {
     if (
@@ -117,7 +135,6 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
       return
     setSaving(true)
 
-    // Get tx
     const tx = transactions.find((t: any) => t.id === txId)
     if (tx) {
       await supabase.from('transactions').update({ status: 'cancelled' }).eq('id', txId)
@@ -136,15 +153,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
     setSaving(false)
   }
 
-  const handleUpdateDescription = async () => {
-    setSaving(true)
-    await supabase
-      .from('financial_titles')
-      .update({ description: form.description })
-      .eq('id', title.id)
-    toast.success('Descrição atualizada')
-    setSaving(false)
-  }
+  if (!title) return null
 
   const currentOpenAmount = title.open_amount ?? title.original_amount - title.paid_amount
 
@@ -155,11 +164,24 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
           <SheetTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" /> Detalhes do Título
           </SheetTitle>
-          {!editMode && (
-            <Button variant="ghost" size="icon" onClick={() => setEditMode(true)} className="mr-8">
-              <Edit2 className="w-4 h-4" />
-            </Button>
-          )}
+          <div className="flex items-center mr-8">
+            {!editMode && title.paid_amount === 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-destructive hover:bg-destructive/10"
+                onClick={handleDeleteTitle}
+                disabled={saving}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+            {!editMode && (
+              <Button variant="ghost" size="icon" onClick={() => setEditMode(true)}>
+                <Edit2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="space-y-6">
@@ -177,7 +199,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                 <Clock className="w-4 h-4" /> Status
               </span>
               <Badge className={title.status === 'paid' ? 'bg-green-500' : ''}>
-                {title.status.toUpperCase()}
+                {translateStatus(title.status)}
               </Badge>
             </div>
             <div className="flex justify-between items-center text-sm pt-2 border-t">
@@ -223,8 +245,13 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                   className="flex-1"
                   onClick={() => {
                     setEditMode(false)
-                    setForm({ original_amount: title.original_amount, due_date: title.due_date })
+                    setForm({
+                      original_amount: title.original_amount,
+                      due_date: title.due_date,
+                      description: title.description || '',
+                    })
                   }}
+                  disabled={saving}
                 >
                   <X className="w-4 h-4 mr-2" /> Cancelar
                 </Button>
@@ -244,7 +271,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                   <Calendar className="w-4 h-4" /> Vencimento
                 </span>
                 <span className="text-sm font-medium">
-                  {new Date(title.due_date).toLocaleDateString()}
+                  {new Date(title.due_date).toLocaleDateString('pt-BR')}
                 </span>
               </div>
               <div className="space-y-1">
@@ -263,11 +290,11 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                     {transactions.map((tx: any) => (
                       <div
                         key={tx.id}
-                        className="p-3 border rounded-lg bg-background text-sm flex justify-between items-center"
+                        className="p-3 border rounded-lg bg-background shadow-sm text-sm flex justify-between items-center"
                       >
                         <div>
                           <p className="font-medium text-[10px] text-muted-foreground mb-0.5">
-                            {new Date(tx.created_at).toLocaleDateString()}
+                            {new Date(tx.created_at).toLocaleDateString('pt-BR')}
                           </p>
                           <p className="font-semibold text-xs">
                             {tx.ticket_id} • {tx.payment_method}
@@ -289,6 +316,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                               size="sm"
                               onClick={() => handleEstorno(tx.id)}
                               className="h-6 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 px-2"
+                              disabled={saving}
                             >
                               Estornar
                             </Button>

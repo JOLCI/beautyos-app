@@ -77,32 +77,36 @@ export default function ContasReceberPage() {
       },
     ])
 
-    toast.success('Título criado com sucesso')
+    toast.success('Título a receber criado com sucesso')
     setSheetOpen(false)
     refetch()
   }
 
   const today = new Date().toISOString().split('T')[0]
-  const filteredTitles = titles.filter((t: any) => {
-    if (filterParam === 'overdue')
-      return ['open', 'partial'].includes(t.status) && t.due_date < today
-    return true
-  })
+  const filteredTitles = titles
+    .filter((t: any) => {
+      if (filterParam === 'overdue')
+        return ['open', 'partial'].includes(t.status) && t.due_date < today
+      return true
+    })
+    .sort((a: any, b: any) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Títulos a Receber</h1>
-          <p className="text-muted-foreground">Gestão rigorosa de contas a receber e clientes.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Contas a Receber</h1>
+          <p className="text-muted-foreground">
+            Gestão rigorosa de contas a receber e clientes inadimplentes.
+          </p>
         </div>
         <Button onClick={openSheet} className="rounded-full shadow-md">
-          <Plus className="w-4 h-4 mr-2" /> Novo Título
+          <Plus className="w-4 h-4 mr-2" /> Novo Recebível
         </Button>
       </div>
 
       {filterParam === 'overdue' && (
-        <div className="flex justify-between items-center bg-destructive/10 text-destructive p-3 rounded-lg border border-destructive/20 mb-4">
+        <div className="flex justify-between items-center bg-destructive/10 text-destructive p-3 rounded-lg border border-destructive/20 mb-4 shadow-sm">
           <div className="flex items-center gap-2 font-medium">
             <AlertTriangle className="w-4 h-4" /> Exibindo títulos vencidos.
           </div>
@@ -117,7 +121,7 @@ export default function ContasReceberPage() {
         </div>
       )}
 
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -143,19 +147,23 @@ export default function ContasReceberPage() {
                       {t.clients?.name || 'Cliente Removido'}
                     </div>
                     {t.description && (
-                      <div className="text-xs text-muted-foreground mt-1">{t.description}</div>
+                      <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                        {t.description}
+                      </div>
                     )}
                   </TableCell>
-                  <TableCell>{new Date(t.due_date).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(t.due_date).toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell>R$ {t.original_amount.toFixed(2)}</TableCell>
                   <TableCell className="font-bold text-primary">
                     R$ {(t.open_amount ?? t.original_amount - t.paid_amount).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     {t.status === 'paid' ? (
-                      <Badge className="bg-green-500">{translateStatus(t.status)}</Badge>
+                      <Badge className="bg-green-500 uppercase">{translateStatus(t.status)}</Badge>
                     ) : (
-                      <Badge variant="outline">{translateStatus(t.status)}</Badge>
+                      <Badge variant="outline" className="uppercase">
+                        {translateStatus(t.status)}
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -163,7 +171,7 @@ export default function ContasReceberPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-green-600 relative z-10"
+                        className="text-green-600 relative z-10 shadow-sm"
                         onClick={(e) => {
                           e.stopPropagation()
                           setPaymentTitle(t)
@@ -175,6 +183,13 @@ export default function ContasReceberPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredTitles.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Nenhuma conta a receber encontrada.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -210,6 +225,7 @@ export default function ContasReceberPage() {
               <Label>Valor (R$)</Label>
               <Input
                 type="number"
+                step="0.01"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
               />
@@ -229,7 +245,7 @@ export default function ContasReceberPage() {
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
             </div>
-            <Button onClick={handleSave} className="w-full mt-4">
+            <Button onClick={handleSave} className="w-full mt-4 h-12 shadow-elevation">
               Criar Título
             </Button>
           </div>

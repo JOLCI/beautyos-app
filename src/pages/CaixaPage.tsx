@@ -12,9 +12,18 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Wallet, Loader2, Filter } from 'lucide-react'
+import {
+  Wallet,
+  Loader2,
+  Filter,
+  Trash2,
+  ArrowUpRight,
+  ArrowDownRight,
+  AlertTriangle,
+} from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { useAuth } from '@/hooks/use-auth'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
 import { translateStatus } from '@/lib/utils'
@@ -32,6 +41,7 @@ import { Button } from '@/components/ui/button'
 
 export default function CaixaPage() {
   const { company } = usePasskey()
+  const { profile } = useAuth()
   const [searchParams] = useSearchParams()
   const filterParam = searchParams.get('filter')
 
@@ -43,6 +53,9 @@ export default function CaixaPage() {
     order: { column: 'created_at', ascending: false },
     select: '*, clients(name), suppliers(name)',
   })
+
+  const { data: suppliers } = useQuery<any>('suppliers', { match: { is_active: true } })
+  const { data: profiles } = useQuery<any>('profiles')
 
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
   const [statusFilter, setStatusFilter] = useState<string>(
@@ -57,9 +70,12 @@ export default function CaixaPage() {
     desc: '',
     method: 'PIX',
     date: new Date().toISOString().split('T')[0],
+    supplier_id: 'none',
+    profile_id: 'none',
   })
 
   const [closingModalOpen, setClosingModalOpen] = useState(false)
+  const [closureForm, setClosureForm] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!company?.id) return
@@ -93,6 +109,12 @@ export default function CaixaPage() {
   const handleEntrySave = async () => {
     if (!entryForm.amount || !entryForm.desc) return toast.error('Preencha valor e descrição')
 
+    let destDesc = entryForm.desc
+    if (entryType === 'outflow' && entryForm.profile_id !== 'none') {
+      const p = profiles?.find((x: any) => x.id === entryForm.profile_id)
+      if (p) destDesc += ` (Colaborador: ${p.name})`
+    }
+
     const titleRes = await supabase
       .from('financial_titles')
       .insert([
@@ -103,7 +125,8 @@ export default function CaixaPage() {
           original_amount: Number(entryForm.amount),
           paid_amount: Number(entryForm.amount),
           due_date: entryForm.date,
-          description: entryForm.desc,
+          description: destDesc,
+          supplier_id: entryForm.supplier_id !== 'none' ? entryForm.supplier_id : null,
         },
       ])
       .select()
@@ -118,14 +141,75 @@ export default function CaixaPage() {
         status: 'confirmed',
         payment_method: entryForm.method,
         financial_title_id: titleRes.data?.id,
-        description: entryForm.desc,
+        supplier_id: entryForm.supplier_id !== 'none' ? entryForm.supplier_id : null,
+        description: destDesc,
         transaction_date: entryForm.date,
         confirmed_at: new Date().toISOString(),
       },
     ])
 
-    toast.success('Lançamento efetuado com sucesso')
+    toast.success('Lançamento efetuado com reflexo no fluxo de caixa!')
     setEntrySheetOpen(false)
+    refetch()
+  }
+
+  const handleCloseRegister = async () => {
+    const methods = ['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO']
+    const details = methods
+      .map((m) => {
+        const expected =
+          filtered
+            .filter(
+              (t: any) => t.status === 'confirmed' && t.type === 'inflow' && t.payment_method === m,
+            )
+            .reduce((a: number, b: any) => a + b.amount, 0) -
+          filtered
+            .filter(
+              (t: any) =>
+                t.status === 'confirmed' && t.type === 'outflow' && t.payment_method === m,
+            )
+            .reduce((a: number, b: any) => a + b.amount, 0)
+        const verified = Number(closureForm[m] || 0)
+        return { method: m, expected, verified, diff: verified - expected }
+      })
+      .filter((d) => d.expected !== 0 || d.verified !== 0)
+
+    const hasDiff = details.some((d) => Math.abs(d.diff) > 0.01)
+    if (hasDiff) {
+      if (
+        !confirm(
+          'Existem divergências entre o valor registrado e o conferido. Deseja auditar e fechar o caixa mesmo assim?',
+        )
+      )
+        return
+    }
+
+    await supabase.from('cash_closures').insert({
+      company_id: company?.id,
+      closure_date: dateFilter,
+      closed_by: profile?.id,
+      details,
+      notes: hasDiff ? 'Fechamento com divergência detectada.' : 'Fechamento sem divergências.',
+    })
+
+    toast.success('Caixa fechado e conferência registrada com sucesso!')
+    setClosingModalOpen(false)
+  }
+
+  const handleDeleteTx = async (tx: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (
+      !confirm(
+        'Deseja realmente excluir este lançamento manual? (Também excluirá o título financeiro correspondente)',
+      )
+    )
+      return
+
+    if (tx.financial_title_id) {
+      await supabase.from('financial_titles').delete().eq('id', tx.financial_title_id)
+    }
+    await supabase.from('transactions').delete().eq('id', tx.id)
+    toast.success('Lançamento excluído com sucesso')
     refetch()
   }
 
@@ -149,33 +233,54 @@ export default function CaixaPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Caixa e Transações</h1>
-          <p className="text-muted-foreground">Histórico de fluxo de caixa e conciliações.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Caixa e Transações (PDV)</h1>
+          <p className="text-muted-foreground">
+            Controle de entradas, saídas e conferência diária.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
-            className="text-green-600 border-green-200 bg-green-50"
+            className="text-green-600 border-green-200 bg-green-50 shadow-sm"
             onClick={() => {
               setEntryType('inflow')
-              setEntryForm({ ...entryForm, amount: '', desc: '' })
+              setEntryForm({
+                ...entryForm,
+                amount: '',
+                desc: '',
+                supplier_id: 'none',
+                profile_id: 'none',
+              })
               setEntrySheetOpen(true)
             }}
           >
-            + Entrada
+            <ArrowUpRight className="w-4 h-4 mr-1" /> Entrada
           </Button>
           <Button
             variant="outline"
-            className="text-destructive border-red-200 bg-red-50"
+            className="text-destructive border-red-200 bg-red-50 shadow-sm"
             onClick={() => {
               setEntryType('outflow')
-              setEntryForm({ ...entryForm, amount: '', desc: '' })
+              setEntryForm({
+                ...entryForm,
+                amount: '',
+                desc: '',
+                supplier_id: 'none',
+                profile_id: 'none',
+              })
               setEntrySheetOpen(true)
             }}
           >
-            - Saída
+            <ArrowDownRight className="w-4 h-4 mr-1" /> Saída
           </Button>
-          <Button variant="secondary" onClick={() => setClosingModalOpen(true)}>
+          <Button
+            variant="secondary"
+            className="shadow-sm font-semibold"
+            onClick={() => {
+              setClosureForm({})
+              setClosingModalOpen(true)
+            }}
+          >
             Fechar Caixa Dia
           </Button>
           <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border hidden sm:flex">
@@ -186,58 +291,66 @@ export default function CaixaPage() {
               className="bg-transparent text-sm font-medium p-1 outline-none cursor-pointer"
             >
               <option value="all">Todos os Status</option>
-              <option value="confirmed">Apenas Confirmados</option>
-              <option value="pending">Apenas Pendentes (A Confirmar)</option>
+              <option value="confirmed">Confirmados</option>
+              <option value="pending">A Confirmar (Pendentes)</option>
             </select>
           </div>
           <Input
             type="date"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="w-auto font-medium"
+            className="w-auto font-medium shadow-sm"
           />
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-primary/5 border-primary/20">
+        <Card className="bg-primary/5 border-primary/20 shadow-sm">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2 text-primary mb-2">
-              <Wallet className="w-4 h-4" /> Saldo Confirmado do Período
+            <div className="flex items-center gap-2 text-primary mb-2 font-semibold">
+              <Wallet className="w-4 h-4" /> Saldo Confirmado (Dia)
             </div>
-            <div className="text-3xl font-bold">R$ {saldo.toFixed(2)}</div>
+            <div className="text-3xl font-bold tracking-tight">R$ {saldo.toFixed(2)}</div>
           </CardContent>
         </Card>
-        <Card className="bg-green-500/5 border-green-500/20">
+        <Card className="bg-green-500/5 border-green-500/20 shadow-sm">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2 text-green-700 mb-2">Entradas Confirmadas</div>
-            <div className="text-3xl font-bold text-green-700">R$ {totalEntradas.toFixed(2)}</div>
+            <div className="flex items-center gap-2 text-green-700 mb-2 font-semibold">
+              Entradas Confirmadas
+            </div>
+            <div className="text-3xl font-bold text-green-700 tracking-tight">
+              R$ {totalEntradas.toFixed(2)}
+            </div>
           </CardContent>
         </Card>
-        <Card className="bg-destructive/5 border-destructive/20">
+        <Card className="bg-destructive/5 border-destructive/20 shadow-sm">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2 text-destructive mb-2">Saídas Confirmadas</div>
-            <div className="text-3xl font-bold text-destructive">R$ {totalSaidas.toFixed(2)}</div>
+            <div className="flex items-center gap-2 text-destructive mb-2 font-semibold">
+              Saídas Confirmadas
+            </div>
+            <div className="text-3xl font-bold text-destructive tracking-tight">
+              R$ {totalSaidas.toFixed(2)}
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {loading ? (
         <div className="p-8 flex justify-center">
-          <Loader2 className="w-6 h-6 animate-spin" />
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       ) : (
-        <Card>
+        <Card className="shadow-sm">
           <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Hora/Data</TableHead>
-                  <TableHead>Entidade e Origem</TableHead>
+                  <TableHead>Entidade e Descrição</TableHead>
                   <TableHead>Método</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">Valor / Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -252,7 +365,7 @@ export default function CaixaPage() {
                     onClick={() => setSelectedTx(t)}
                   >
                     <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                      {new Date(t.created_at).toLocaleString()}
+                      {new Date(t.created_at).toLocaleString('pt-BR')}
                     </TableCell>
                     <TableCell className="font-medium max-w-[250px]">
                       <FinancialDescription record={t} />
@@ -275,18 +388,30 @@ export default function CaixaPage() {
                     <TableCell>
                       <Badge
                         variant={t.status === 'confirmed' ? 'default' : 'secondary'}
-                        className="text-[10px]"
+                        className="text-[10px] uppercase"
                       >
                         {translateStatus(t.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-bold">R$ {t.amount.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-bold flex items-center justify-end gap-3 h-full pt-3">
+                      <span>R$ {t.amount.toFixed(2)}</span>
+                      {t.origin === 'manual_entry' && t.status !== 'cancelled' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                          onClick={(e) => handleDeleteTx(t, e)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      Nenhuma transação encontrada com os filtros atuais.
+                      Nenhum movimento registrado nesta data com os filtros atuais.
                     </TableCell>
                   </TableRow>
                 )}
@@ -310,7 +435,7 @@ export default function CaixaPage() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>
-              {entryType === 'inflow' ? 'Nova Entrada (Receita)' : 'Nova Saída (Despesa)'}
+              {entryType === 'inflow' ? 'Nova Entrada Manual' : 'Nova Saída (Despesa)'}
             </SheetTitle>
           </SheetHeader>
           <div className="space-y-4 mt-6">
@@ -323,13 +448,55 @@ export default function CaixaPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Descrição</Label>
+              <Label>Descrição / Referência</Label>
               <Input
                 value={entryForm.desc}
                 onChange={(e) => setEntryForm({ ...entryForm, desc: e.target.value })}
-                placeholder="Ex: Pagamento Fornecedor de Água..."
+                placeholder="Ex: Pagamento Extra..."
               />
             </div>
+            {entryType === 'outflow' && (
+              <div className="space-y-4 p-4 border rounded-xl bg-muted/20">
+                <div className="space-y-2">
+                  <Label>Pessoa Destino (Fornecedor)</Label>
+                  <Select
+                    value={entryForm.supplier_id}
+                    onValueChange={(v) => setEntryForm({ ...entryForm, supplier_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Opcional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">-- Nenhum --</SelectItem>
+                      {suppliers?.map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Pessoa Destino (Colaborador)</Label>
+                  <Select
+                    value={entryForm.profile_id}
+                    onValueChange={(v) => setEntryForm({ ...entryForm, profile_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Opcional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">-- Nenhum --</SelectItem>
+                      {profiles?.map((p: any) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Método de Pagamento</Label>
               <Select
@@ -348,28 +515,33 @@ export default function CaixaPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Data</Label>
+              <Label>Data de Competência</Label>
               <Input
                 type="date"
                 value={entryForm.date}
                 onChange={(e) => setEntryForm({ ...entryForm, date: e.target.value })}
               />
             </div>
-            <Button className="w-full mt-4" onClick={handleEntrySave}>
-              Confirmar Lançamento
+            <Button className="w-full mt-4 h-12" onClick={handleEntrySave}>
+              Confirmar Lançamento no Fluxo
             </Button>
           </div>
         </SheetContent>
       </Sheet>
 
       <Sheet open={closingModalOpen} onOpenChange={setClosingModalOpen}>
-        <SheetContent side="right">
+        <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle>
-              Resumo de Caixa: {new Date(dateFilter + 'T12:00:00').toLocaleDateString()}
+              Fechamento de Caixa: {new Date(dateFilter + 'T12:00:00').toLocaleDateString('pt-BR')}
             </SheetTitle>
           </SheetHeader>
           <div className="mt-6 space-y-6">
+            <p className="text-sm text-muted-foreground">
+              Conferência obrigatória por método de pagamento. Digite o valor real em gaveta/conta
+              para auditar.
+            </p>
+
             {['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO'].map((m) => {
               const mIn = filtered
                 .filter(
@@ -383,25 +555,55 @@ export default function CaixaPage() {
                     t.status === 'confirmed' && t.type === 'outflow' && t.payment_method === m,
                 )
                 .reduce((a: number, b: any) => a + b.amount, 0)
+              const net = mIn - mOut
+
               if (mIn === 0 && mOut === 0) return null
+
+              const verifiedVal = closureForm[m] ? Number(closureForm[m]) : 0
+              const diff = verifiedVal - net
+
               return (
-                <div key={m} className="p-4 border rounded-xl bg-muted/20 space-y-2">
-                  <h4 className="font-bold border-b pb-2">{m}</h4>
+                <div
+                  key={m}
+                  className={`p-4 border rounded-xl space-y-3 ${Math.abs(diff) > 0.01 && verifiedVal > 0 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-muted/20'}`}
+                >
+                  <h4 className="font-bold border-b pb-2 flex items-center justify-between">
+                    {m}
+                    {Math.abs(diff) > 0.01 && verifiedVal > 0 && (
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    )}
+                  </h4>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Entradas</span>
-                    <span className="text-green-600 font-medium">R$ {mIn.toFixed(2)}</span>
+                    <span className="text-muted-foreground">Sistema (Registrado)</span>
+                    <span className="font-medium">R$ {net.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Saídas</span>
-                    <span className="text-destructive font-medium">R$ {mOut.toFixed(2)}</span>
+                  <div className="flex justify-between items-center text-sm pt-2">
+                    <span className="font-semibold">Valor Conferido (Real)</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="w-28 text-right font-mono"
+                      placeholder="0.00"
+                      value={closureForm[m] || ''}
+                      onChange={(e) => setClosureForm({ ...closureForm, [m]: e.target.value })}
+                    />
                   </div>
-                  <div className="flex justify-between text-sm font-bold border-t pt-2">
-                    <span>Líquido</span>
-                    <span>R$ {(mIn - mOut).toFixed(2)}</span>
-                  </div>
+                  {verifiedVal > 0 && Math.abs(diff) > 0.01 && (
+                    <div
+                      className={`flex justify-between text-xs font-bold pt-1 ${diff > 0 ? 'text-green-600' : 'text-destructive'}`}
+                    >
+                      <span>Diferença detectada:</span>
+                      <span>
+                        {diff > 0 ? '+' : ''} R$ {diff.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )
             })}
+            <Button className="w-full h-12 mt-4 shadow-elevation" onClick={handleCloseRegister}>
+              Salvar Auditoria de Fechamento
+            </Button>
           </div>
         </SheetContent>
       </Sheet>

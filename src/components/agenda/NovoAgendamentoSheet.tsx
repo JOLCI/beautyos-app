@@ -44,7 +44,7 @@ export function NovoAgendamentoSheet({
   const [profId, setProfId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [startTime, setStartTime] = useState('09:00')
-  const [endTime, setEndTime] = useState('09:30')
+  const [endTime, setEndTime] = useState('')
   const [saving, setSaving] = useState(false)
   const [manualOverride, setManualOverride] = useState(false)
 
@@ -80,37 +80,17 @@ export function NovoAgendamentoSheet({
       setProfId('')
       setDate(initialTime?.date || new Date().toISOString().split('T')[0])
       setStartTime(initialTime?.time || '09:00')
-      setEndTime('09:30')
+      setEndTime('')
       setManualOverride(!!initialTime)
       setShowCancelConfirm(false)
       setCancelReason('')
       setCanceledByClient(false)
     }
-  }, [appointment, open])
-
-  useEffect(() => {
-    if (!manualOverride && profId && date && !appointment) {
-      const profApps =
-        appointments?.filter(
-          (a: any) => a.professional_id === profId && a.date === date && a.status !== 'cancelado',
-        ) || []
-      if (profApps.length > 0) {
-        const latest = profApps.reduce(
-          (max: string, a: any) => (a.end_time > max ? a.end_time : max),
-          '00:00',
-        )
-        const [h, m] = latest.split(':').map(Number)
-        const totalM = h * 60 + m + 15
-        setStartTime(
-          `${String(Math.floor(totalM / 60)).padStart(2, '0')}:${String(totalM % 60).padStart(2, '0')}`,
-        )
-      }
-    }
-  }, [profId, date, appointments, appointment, manualOverride])
+  }, [appointment, open, initialTime])
 
   const totalDuration = useMemo(() => {
     return selectedServices.reduce((acc, id) => {
-      const s = services.find((x: any) => x.id === id)
+      const s = services?.find((x: any) => x.id === id)
       return acc + (s?.duration || 0)
     }, 0)
   }, [selectedServices, services])
@@ -139,13 +119,14 @@ export function NovoAgendamentoSheet({
 
   const checkConflicts = () => {
     if (!profId || !date || !startTime || !endTime) return false
-    const existing = appointments.filter(
-      (a: any) =>
-        a.professional_id === profId &&
-        a.date === date &&
-        a.status !== 'cancelado' &&
-        a.id !== appointment?.id,
-    )
+    const existing =
+      appointments?.filter(
+        (a: any) =>
+          a.professional_id === profId &&
+          a.date === date &&
+          a.status !== 'cancelado' &&
+          a.id !== appointment?.id,
+      ) || []
 
     for (const a of existing) {
       const s1 = startTime
@@ -161,14 +142,15 @@ export function NovoAgendamentoSheet({
   }
 
   const handleSave = async (forceSave = false, overrideStatus?: string) => {
+    if (!endTime) return toast.error('A hora de término é obrigatória.')
+    if (endTime <= startTime)
+      return toast.error('A hora de término deve ser posterior à hora de início.')
+
     if (!forceSave && checkConflicts()) {
-      toast('Conflito de Horário e Profissional', {
+      toast('Conflito de Horário', {
         description:
           'Já existe um agendamento neste dia e horário para o profissional selecionado. Deseja sobrepor?',
-        action: {
-          label: 'Agendar Mesmo Assim',
-          onClick: () => handleSave(true, overrideStatus),
-        },
+        action: { label: 'Agendar Mesmo Assim', onClick: () => handleSave(true, overrideStatus) },
         duration: 10000,
       })
       return
@@ -204,8 +186,7 @@ export function NovoAgendamentoSheet({
       return toast.error('Erro ao salvar agendamento')
     }
 
-    // Schedule Event-Driven WhatsApp Reminders
-    if (company?.id && clientId) {
+    if (company?.id && clientId && clients) {
       const client = clients.find((c: any) => c.id === clientId)
       if (client?.phone) {
         const startDt = new Date(`${date}T${startTime}:00`)
@@ -220,7 +201,7 @@ export function NovoAgendamentoSheet({
           date: dtString,
           dateTime: `${dtString} às ${startTime}`,
           services: selectedServices
-            .map((id) => services.find((s: any) => s.id === id)?.name)
+            .map((id) => services?.find((s: any) => s.id === id)?.name)
             .join(', '),
         }
 
@@ -232,10 +213,7 @@ export function NovoAgendamentoSheet({
             'lembrete_24h',
             reminder24h,
             contextData,
-          ).then((res) => {
-            if (res.error && !res.error.includes('inativo')) toast.error(res.error)
-          })
-
+          )
           resolveAndScheduleWhatsApp(
             company.id,
             clientId,
@@ -243,14 +221,10 @@ export function NovoAgendamentoSheet({
             'lembrete_1h',
             reminder1h,
             contextData,
-          ).then((res) => {
-            if (res.error && !res.error.includes('inativo')) console.error(res.error)
-          })
+          )
         } else if (targetStatus === 'provisional' && !appointment) {
-          // Automated Recurrence Reminder - 7 Days before at 08:00 AM
           const reminder7d = new Date(`${date}T08:00:00`)
           reminder7d.setDate(reminder7d.getDate() - 7)
-
           resolveAndScheduleWhatsApp(
             company.id,
             clientId,
@@ -258,9 +232,7 @@ export function NovoAgendamentoSheet({
             'recorrencia',
             reminder7d.toISOString(),
             contextData,
-          ).then((res) => {
-            if (res.error && !res.error.includes('inativo')) console.error(res.error)
-          })
+          )
         }
       }
     }
@@ -307,7 +279,7 @@ export function NovoAgendamentoSheet({
                 <SelectValue placeholder="Selecione o cliente" />
               </SelectTrigger>
               <SelectContent>
-                {clients.map((c: any) => (
+                {clients?.map((c: any) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
                   </SelectItem>
@@ -317,7 +289,7 @@ export function NovoAgendamentoSheet({
           </div>
 
           <div className="space-y-2">
-            <Label>Profissional</Label>
+            <Label>Profissional (Atendente)</Label>
             <Select value={profId || undefined} onValueChange={setProfId}>
               <SelectTrigger>
                 <SelectValue placeholder="Quem vai atender?" />
@@ -340,7 +312,7 @@ export function NovoAgendamentoSheet({
               </SelectTrigger>
               <SelectContent>
                 {services
-                  .filter((s: any) => s.type === 'service')
+                  ?.filter((s: any) => s.type === 'service')
                   .map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name} ({s.duration}m)
@@ -350,7 +322,7 @@ export function NovoAgendamentoSheet({
             </Select>
             <div className="flex flex-wrap gap-2 pt-2">
               {selectedServices.map((id) => {
-                const s = services.find((x: any) => x.id === id)
+                const s = services?.find((x: any) => x.id === id)
                 if (!s) return null
                 return (
                   <Badge key={id} variant="secondary" className="flex items-center gap-1 py-1">
@@ -391,18 +363,18 @@ export function NovoAgendamentoSheet({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Início</Label>
+              <Label>Hora Início</Label>
               <Input
                 type="time"
                 value={startTime}
                 onChange={(e) => {
                   setStartTime(e.target.value)
-                  setManualOverride(true)
+                  setManualOverride(false)
                 }}
               />
             </div>
             <div className="space-y-2">
-              <Label>Término</Label>
+              <Label>Hora Fim</Label>
               <Input
                 type="time"
                 value={endTime}
@@ -479,7 +451,9 @@ export function NovoAgendamentoSheet({
             {appointment?.status === 'provisional' ? (
               <Button
                 onClick={() => handleSave(false, 'agendado')}
-                disabled={!clientId || selectedServices.length === 0 || !profId || saving}
+                disabled={
+                  !clientId || selectedServices.length === 0 || !profId || !endTime || saving
+                }
                 className="w-full bg-green-600 hover:bg-green-700 text-white shadow-md text-lg h-12"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Confirmar
@@ -488,7 +462,9 @@ export function NovoAgendamentoSheet({
             ) : (
               <Button
                 onClick={() => handleSave(false)}
-                disabled={!clientId || selectedServices.length === 0 || !profId || saving}
+                disabled={
+                  !clientId || selectedServices.length === 0 || !profId || !endTime || saving
+                }
                 className="w-full"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Salvar

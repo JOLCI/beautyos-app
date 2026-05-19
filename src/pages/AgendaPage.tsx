@@ -4,6 +4,7 @@ import { useQuery } from '@/hooks/use-query'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -12,6 +13,7 @@ import {
   ChevronRight,
   CalendarDays,
   LayoutGrid,
+  CalendarRange,
 } from 'lucide-react'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
 import { translateStatus } from '@/lib/utils'
@@ -25,7 +27,7 @@ export default function AgendaPage() {
   const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0]
 
   const [date, setDate] = useState(initialDate)
-  const [view, setView] = useState<'day' | 'week'>('day')
+  const [view, setView] = useState<'day' | 'week' | 'month'>('week')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingApp, setEditingApp] = useState<any>(null)
   const [selectedTimeForNew, setSelectedTimeForNew] = useState<{
@@ -49,7 +51,8 @@ export default function AgendaPage() {
 
   const changeDate = (days: number) => {
     const d = new Date(date + 'T12:00:00')
-    d.setDate(d.getDate() + days)
+    if (view === 'month') d.setMonth(d.getMonth() + (days > 0 ? 1 : -1))
+    else d.setDate(d.getDate() + days)
     setDate(d.toISOString().split('T')[0])
   }
 
@@ -105,12 +108,12 @@ export default function AgendaPage() {
             )
 
             return (
-              <div key={h} className="flex border-b border-border/50 min-h-[5rem] group">
-                <div className="w-14 py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50">
+              <div key={h} className="flex border-b border-border/50 min-h-[5.5rem] group">
+                <div className="w-14 py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50 bg-muted/10">
                   {timeStr}
                 </div>
                 <div
-                  className="flex-1 p-1 flex flex-col gap-1 relative bg-background hover:bg-muted/10 cursor-pointer transition-colors"
+                  className="flex-1 p-1.5 flex flex-col gap-1.5 relative bg-background hover:bg-muted/10 cursor-pointer transition-colors"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       openSheet(null, { date: currentDateStr, time: timeStr })
@@ -150,39 +153,49 @@ export default function AgendaPage() {
                           e.stopPropagation()
                           openSheet(a)
                         }}
-                        className={`flex-1 flex flex-col justify-between border shadow-sm rounded p-2 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full`}
+                        className={`flex-1 flex flex-col border shadow-sm rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full`}
                       >
-                        <div>
-                          <div className="flex items-center justify-between gap-1 mb-1">
-                            <span className="font-semibold text-xs truncate flex-1">
-                              {cli?.name || 'Cliente'}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className={`text-[8px] px-1 py-0 h-4 uppercase ${isProvisional ? 'text-primary' : ''}`}
-                            >
-                              {translateStatus(a.status)}
-                            </Badge>
-                          </div>
-                          <div className="text-[10px] text-muted-foreground leading-tight truncate">
-                            {srvs.map((s: any) => s.name).join(', ') || 'Serviço'}
-                          </div>
-                          <div className="text-[10px] font-medium mt-1 flex justify-between items-center text-primary">
-                            <span>
-                              {a.start_time.slice(0, 5)} - {a.end_time.slice(0, 5)}
-                            </span>
-                            <span className="truncate max-w-[80px] ml-1">
-                              {prof?.name?.split(' ')[0]}
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Avatar className="w-6 h-6 border shadow-sm">
+                            <AvatarImage
+                              src={
+                                cli?.avatar_url ||
+                                `https://img.usecurling.com/ppl/thumbnail?seed=${cli?.id || 'a'}`
+                              }
+                            />
+                            <AvatarFallback className="text-[10px]">
+                              {cli?.name?.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-bold text-xs truncate flex-1 leading-tight">
+                            {cli?.name || 'Cliente'}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] px-1.5 py-0 h-4 uppercase ${isProvisional ? 'text-primary' : ''}`}
+                          >
+                            {translateStatus(a.status)}
+                          </Badge>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground leading-tight line-clamp-1 mb-1.5">
+                          {srvs.map((s: any) => s.name).join(', ') || 'Serviço'}
+                        </div>
+                        <div className="text-[10px] font-semibold flex justify-between items-center text-primary/80 mt-auto bg-muted/30 p-1 rounded">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {a.start_time.slice(0, 5)} -{' '}
+                            {a.end_time.slice(0, 5)}
+                          </span>
+                          <span className="truncate max-w-[80px] text-right font-medium">
+                            {prof?.name?.split(' ')[0]}
+                          </span>
                         </div>
                       </div>
                     )
                   })}
                   {apps.length === 0 && (
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
-                      <span className="text-xs font-medium text-muted-foreground bg-background/80 px-2 py-1 rounded">
-                        <Plus className="inline w-3 h-3" /> Agendar
+                      <span className="text-xs font-semibold text-muted-foreground bg-background/90 px-3 py-1.5 rounded-full shadow-sm border border-border">
+                        <Plus className="inline w-3 h-3 mr-1" /> Agendar
                       </span>
                     </div>
                   )}
@@ -195,8 +208,99 @@ export default function AgendaPage() {
     )
   }
 
+  const renderMonthGrid = () => {
+    const d = new Date(date + 'T12:00:00')
+    const year = d.getFullYear()
+    const month = d.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+
+    const startDate = new Date(firstDay)
+    startDate.setDate(startDate.getDate() - startDate.getDay())
+
+    const weeks = []
+    let current = new Date(startDate)
+
+    while (current <= lastDay || current.getDay() !== 0) {
+      const week = []
+      for (let i = 0; i < 7; i++) {
+        week.push(new Date(current))
+        current.setDate(current.getDate() + 1)
+      }
+      weeks.push(week)
+    }
+
+    return (
+      <div className="flex flex-col h-full bg-muted/10">
+        <div className="grid grid-cols-7 border-b bg-muted/30 shrink-0">
+          {daysOfWeek.map((day) => (
+            <div key={day} className="p-2 text-center text-sm font-semibold">
+              {day.slice(0, 3)}
+            </div>
+          ))}
+        </div>
+        <div className="flex-1 flex flex-col min-h-0">
+          {weeks.map((week, wIdx) => (
+            <div
+              key={wIdx}
+              className="flex-1 grid grid-cols-7 border-b last:border-b-0 min-h-[100px]"
+            >
+              {week.map((day, dIdx) => {
+                const dayStr = day.toISOString().split('T')[0]
+                const isCurrentMonth = day.getMonth() === month
+                const isToday = dayStr === todayStr
+                const dayApps = appointments?.filter((a: any) => a.date === dayStr) || []
+
+                return (
+                  <div
+                    key={dIdx}
+                    className={`border-r last:border-r-0 p-1 md:p-2 cursor-pointer hover:bg-muted/30 transition-colors flex flex-col ${!isCurrentMonth ? 'opacity-40 bg-muted/20' : 'bg-background'}`}
+                    onClick={() => {
+                      setDate(dayStr)
+                      setView('day')
+                    }}
+                  >
+                    <div className="flex justify-between items-center mb-1 md:mb-2">
+                      <span
+                        className={`text-xs md:text-sm font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground' : ''}`}
+                      >
+                        {day.getDate()}
+                      </span>
+                      {dayApps.length > 0 && (
+                        <span className="text-[10px] font-bold text-muted-foreground">
+                          {dayApps.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+                      {dayApps.slice(0, 4).map((a: any, i: number) => (
+                        <div
+                          key={i}
+                          className="text-[9px] md:text-[10px] truncate px-1 py-0.5 rounded bg-primary/10 text-primary font-medium border border-primary/20"
+                        >
+                          {a.start_time.slice(0, 5)} -{' '}
+                          {clients?.find((c: any) => c.id === a.client_id)?.name?.split(' ')[0]}
+                        </div>
+                      ))}
+                      {dayApps.length > 4 && (
+                        <div className="text-[9px] text-muted-foreground text-center font-bold">
+                          +{dayApps.length - 4} mais
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const datesToRender = useMemo(() => {
     if (view === 'day') return [date]
+    if (view === 'month') return []
     const curr = new Date(date + 'T12:00:00')
     const day = curr.getDay()
     const diff = curr.getDate() - day + (day === 0 ? -6 : 1)
@@ -214,9 +318,9 @@ export default function AgendaPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Agenda</h1>
-          <p className="text-muted-foreground">Clique num horário para criar ou editar.</p>
+          <p className="text-muted-foreground">Gerencie os atendimentos do salão.</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <div className="flex bg-muted/50 p-1 rounded-lg border">
             <Button
               variant={view === 'day' ? 'secondary' : 'ghost'}
@@ -224,7 +328,7 @@ export default function AgendaPage() {
               onClick={() => setView('day')}
               className="h-8"
             >
-              <CalendarDays className="w-4 h-4 mr-2" /> Dia
+              <CalendarDays className="w-4 h-4 mr-2 hidden sm:inline" /> Dia
             </Button>
             <Button
               variant={view === 'week' ? 'secondary' : 'ghost'}
@@ -232,7 +336,15 @@ export default function AgendaPage() {
               onClick={() => setView('week')}
               className="h-8"
             >
-              <LayoutGrid className="w-4 h-4 mr-2" /> Semana
+              <LayoutGrid className="w-4 h-4 mr-2 hidden sm:inline" /> Semana
+            </Button>
+            <Button
+              variant={view === 'month' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setView('month')}
+              className="h-8"
+            >
+              <CalendarRange className="w-4 h-4 mr-2 hidden sm:inline" /> Mês
             </Button>
           </div>
           <Button onClick={() => openSheet()} className="rounded-full shadow-md ml-auto sm:ml-0">
@@ -246,12 +358,21 @@ export default function AgendaPage() {
         <div className="flex items-center justify-between p-4 border-b shrink-0 bg-muted/10">
           <div className="flex items-center gap-4">
             <CalendarIcon className="w-5 h-5 text-primary" />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-transparent font-medium outline-none border-none cursor-pointer text-lg"
-            />
+            {view === 'month' ? (
+              <span className="font-bold text-lg capitalize">
+                {new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', {
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </span>
+            ) : (
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="bg-transparent font-medium outline-none border-none cursor-pointer text-lg"
+              />
+            )}
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -278,6 +399,8 @@ export default function AgendaPage() {
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
+        ) : view === 'month' ? (
+          renderMonthGrid()
         ) : (
           <div className="flex-1 overflow-auto bg-muted/5">
             <div className="flex min-w-max">

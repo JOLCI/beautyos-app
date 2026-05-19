@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { UserPlus, Trash2, KeyRound, Loader2, Edit, Check } from 'lucide-react'
+import { UserPlus, Trash2, KeyRound, Loader2, Edit, Check, Camera } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -54,10 +54,11 @@ export default function UsuariosPage() {
     role: 'atendimento',
     company_id: '',
     is_attendant: true,
+    avatar_url: '',
   })
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
-  // Filter out root users from company-level user management if not root
   const filteredUsers = useMemo(() => {
     if (isRoot) return users
     return users.filter((u) => u.role !== 'root')
@@ -69,12 +70,13 @@ export default function UsuariosPage() {
       u
         ? {
             name: u.name,
-            email: '', // Not fetched in profiles, leave blank to not update
+            email: '',
             username: u.username,
             password: '',
             role: u.role,
             company_id: u.company_id || '',
             is_attendant: u.is_attendant ?? true,
+            avatar_url: u.avatar_url || '',
           }
         : {
             name: '',
@@ -84,15 +86,33 @@ export default function UsuariosPage() {
             role: 'atendimento',
             company_id: company?.id || '',
             is_attendant: true,
+            avatar_url: '',
           },
     )
     setSheetOpen(true)
   }
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `${company?.id}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('avatars').upload(path, file)
+    if (error) {
+      toast.error('Erro ao subir foto')
+      setUploading(false)
+      return
+    }
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
+    setForm({ ...form, avatar_url: urlData.publicUrl })
+    setUploading(false)
+    toast.success('Foto carregada com sucesso')
+  }
+
   const handleSave = async () => {
     setSaving(true)
 
-    // Only allow setting company_id for root, else enforce current company
     const targetCompanyId = isRoot ? form.company_id : company?.id
 
     if (editing) {
@@ -113,31 +133,14 @@ export default function UsuariosPage() {
       })
 
       if (error || !data?.success) {
-        const errorMsg = data?.error || error?.message || ''
-        let displayError = errorMsg
-
-        if (
-          errorMsg.toLowerCase().includes('password should be at least') ||
-          errorMsg.toLowerCase().includes('weak_password') ||
-          errorMsg.toLowerCase().includes('senha')
-        ) {
-          displayError = 'A senha deve ter pelo menos 6 caracteres.'
-        } else if (
-          errorMsg.toLowerCase().includes('unable to validate email address') ||
-          errorMsg.toLowerCase().includes('invalid format') ||
-          errorMsg.toLowerCase().includes('invalid email')
-        ) {
-          displayError = 'Formato de e-mail inválido.'
-        } else if (
-          errorMsg.toLowerCase().includes('already registered') ||
-          errorMsg.toLowerCase().includes('unique constraint') ||
-          errorMsg.toLowerCase().includes('already in use')
-        ) {
-          displayError = 'Este e-mail ou nome de usuário já está em uso.'
-        }
-
-        toast.error('Erro ao atualizar usuário', { description: displayError })
+        toast.error('Erro ao atualizar usuário', { description: data?.error || error?.message })
       } else {
+        if (form.avatar_url !== editing.avatar_url) {
+          await supabase
+            .from('profiles')
+            .update({ avatar_url: form.avatar_url })
+            .eq('id', editing.id)
+        }
         toast.success('Usuário atualizado com sucesso')
         setSheetOpen(false)
         refetch()
@@ -147,31 +150,14 @@ export default function UsuariosPage() {
         body: { ...form, company_id: targetCompanyId },
       })
       if (error || !data?.success) {
-        const errorMsg = data?.error || error?.message || ''
-        let displayError = errorMsg
-
-        if (
-          errorMsg.toLowerCase().includes('password should be at least') ||
-          errorMsg.toLowerCase().includes('weak_password') ||
-          errorMsg.toLowerCase().includes('senha')
-        ) {
-          displayError = 'A senha deve ter pelo menos 6 caracteres.'
-        } else if (
-          errorMsg.toLowerCase().includes('unable to validate email address') ||
-          errorMsg.toLowerCase().includes('invalid format') ||
-          errorMsg.toLowerCase().includes('invalid email')
-        ) {
-          displayError = 'Formato de e-mail inválido.'
-        } else if (
-          errorMsg.toLowerCase().includes('already registered') ||
-          errorMsg.toLowerCase().includes('unique constraint') ||
-          errorMsg.toLowerCase().includes('already in use')
-        ) {
-          displayError = 'Este e-mail ou nome de usuário já está em uso.'
-        }
-
-        toast.error('Erro ao criar usuário', { description: displayError })
+        toast.error('Erro ao criar usuário', { description: data?.error || error?.message })
       } else {
+        if (form.avatar_url && data.user?.id) {
+          await supabase
+            .from('profiles')
+            .update({ avatar_url: form.avatar_url })
+            .eq('id', data.user.id)
+        }
         toast.success('Usuário criado com sucesso')
         setSheetOpen(false)
         refetch()
@@ -196,6 +182,7 @@ export default function UsuariosPage() {
 
   const isSubmitDisabled =
     saving ||
+    uploading ||
     !form.name ||
     !form.username ||
     (editing ? false : !form.email) ||
@@ -204,7 +191,7 @@ export default function UsuariosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Equipe e Acessos</h1>
           <p className="text-muted-foreground">Gerencie o acesso da sua equipe ao sistema.</p>
@@ -238,6 +225,12 @@ export default function UsuariosPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
+                          <AvatarImage
+                            src={
+                              u.avatar_url ||
+                              `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                            }
+                          />
                           <AvatarFallback>{u.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <span className="font-medium">{u.name}</span>
@@ -299,6 +292,38 @@ export default function UsuariosPage() {
             <SheetTitle>{editing ? 'Editar Usuário' : 'Novo Usuário'}</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 flex-1">
+            <div className="flex justify-center mb-6">
+              <div className="relative group">
+                <Avatar className="h-24 w-24 border-2 border-background shadow-md">
+                  <AvatarImage
+                    src={
+                      form.avatar_url ||
+                      `https://img.usecurling.com/ppl/medium?seed=${editing?.id || 'new'}`
+                    }
+                  />
+                  <AvatarFallback className="text-2xl">{form.name.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+                <Label
+                  htmlFor="avatar-upload-user"
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <Camera className="w-6 h-6" />
+                  )}
+                </Label>
+                <input
+                  id="avatar-upload-user"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                  disabled={uploading || saving}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input
@@ -358,9 +383,12 @@ export default function UsuariosPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between border p-3 rounded-lg bg-background">
-              <Label className="cursor-pointer">Atendente (Exibe na agenda)</Label>
+            <div className="flex items-center justify-between border p-3 rounded-lg bg-background shadow-sm">
+              <Label className="cursor-pointer font-medium" htmlFor="is-attendant">
+                Atendente (Exibe na agenda)
+              </Label>
               <Switch
+                id="is-attendant"
                 checked={form.is_attendant}
                 onCheckedChange={(v) => setForm({ ...form, is_attendant: v })}
               />
