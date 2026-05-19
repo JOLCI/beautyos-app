@@ -38,6 +38,7 @@ export default function ClientesPage() {
     phone: '',
     email: '',
     birthday: '',
+    gender: 'female',
     avatar_url: '',
     is_active: true,
   })
@@ -55,6 +56,7 @@ export default function ClientesPage() {
         phone: c.phone,
         email: c.email || '',
         birthday: c.birthday || '',
+        gender: c.gender || 'female',
         avatar_url: c.avatar_url || '',
         is_active: c.is_active !== false,
       })
@@ -65,6 +67,7 @@ export default function ClientesPage() {
         phone: '',
         email: '',
         birthday: '',
+        gender: 'female',
         avatar_url: '',
         is_active: true,
       })
@@ -212,7 +215,7 @@ export default function ClientesPage() {
                           <AvatarImage
                             src={
                               c.avatar_url ||
-                              `https://img.usecurling.com/ppl/thumbnail?gender=female&seed=${c.id}`
+                              `https://img.usecurling.com/ppl/thumbnail?gender=${c.gender === 'male' ? 'male' : 'female'}&seed=${c.id}`
                             }
                           />
                           <AvatarFallback>{c.name.charAt(0)}</AvatarFallback>
@@ -323,13 +326,28 @@ export default function ClientesPage() {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Data de Nascimento</Label>
-              <Input
-                type="date"
-                value={form.birthday}
-                onChange={(e) => setForm({ ...form, birthday: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data de Nascimento</Label>
+                <Input
+                  type="date"
+                  value={form.birthday}
+                  onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Gênero</Label>
+                <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="female">Feminino</SelectItem>
+                    <SelectItem value="male">Masculino</SelectItem>
+                    <SelectItem value="other">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex items-center justify-between border p-3 rounded-lg bg-background shadow-sm mt-4">

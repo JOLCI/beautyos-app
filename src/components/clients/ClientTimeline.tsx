@@ -49,7 +49,7 @@ export function ClientTimeline({
     transactions?.forEach((t: any) =>
       events.push({
         type: 'transaction',
-        date: t.created_at,
+        date: t.transaction_date ? `${t.transaction_date}T12:00:00` : t.created_at,
         data: t,
         icon: DollarSign,
         color: 'text-green-500',
@@ -159,8 +159,17 @@ export function ClientTimeline({
                         <p className="text-xs text-muted-foreground">
                           {ev.data.payment_method} • {ev.data.ticket_id}
                         </p>
+                        {ev.data.metadata?.items && ev.data.metadata.items.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {ev.data.metadata.items.map((it: any, idx: number) => (
+                              <p key={idx} className="text-[10px] text-muted-foreground">
+                                • {it.quantity || 1}x {it.name}
+                              </p>
+                            ))}
+                          </div>
+                        )}
                         <Badge
-                          className={`text-[10px] mt-1 uppercase no-underline ${getStatusColor(formatStatus(ev.data.status))}`}
+                          className={`text-[10px] mt-2 uppercase no-underline ${getStatusColor(formatStatus(ev.data.status))}`}
                         >
                           {formatStatus(ev.data.status)}
                         </Badge>

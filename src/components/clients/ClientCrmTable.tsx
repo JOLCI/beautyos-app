@@ -47,15 +47,30 @@ export function ClientCrmTable({ serviceIntervals, transactions }: ClientCrmTabl
 
     transactions?.forEach((t: any) => {
       if (t.type === 'inflow') {
-        items.push({
-          id: t.id,
-          date: t.transaction_date,
-          name: t.description,
-          price: t.amount,
-          status: t.status,
-          interval: null,
-          type: 'product',
-        })
+        const tItems = t.metadata?.items
+        if (tItems && tItems.length > 0) {
+          tItems.forEach((item: any, index: number) => {
+            items.push({
+              id: `${t.id}-${index}`,
+              date: t.transaction_date,
+              name: item.name,
+              price: item.price,
+              status: t.status,
+              interval: null,
+              type: 'product',
+            })
+          })
+        } else {
+          items.push({
+            id: t.id,
+            date: t.transaction_date,
+            name: t.description || 'Outros (Sem itens detalhados)',
+            price: t.amount,
+            status: t.status,
+            interval: null,
+            type: 'product',
+          })
+        }
       }
     })
 

@@ -297,7 +297,13 @@ export function CheckoutSheet({
       .single()
 
     if (appointmentId) {
-      await supabase.from('appointments').update({ status: 'finalizado' }).eq('id', appointmentId)
+      await supabase
+        .from('appointments')
+        .update({
+          status: 'finalizado',
+          service_ids: pricedItems.map((i: any) => i.id),
+        })
+        .eq('id', appointmentId)
 
       // Post-Service Follow-up
       if (company?.id && activeClient?.phone) {

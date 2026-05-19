@@ -188,14 +188,14 @@ export default function AgendaPage() {
                           e.stopPropagation()
                           openSheet(a)
                         }}
-                        className={`flex flex-col border shadow-sm rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full min-h-[4.5rem]`}
+                        className={`flex flex-col border shadow-sm rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full min-h-[5.5rem]`}
                       >
-                        <div className="flex items-start gap-2 mb-2">
+                        <div className="flex items-start gap-2 mb-2 flex-1">
                           <Avatar className="w-7 h-7 border shadow-sm shrink-0">
                             <AvatarImage
                               src={
                                 cli?.avatar_url ||
-                                `https://img.usecurling.com/ppl/thumbnail?seed=${cli?.id || 'a'}`
+                                `https://img.usecurling.com/ppl/thumbnail?gender=${cli?.gender === 'male' ? 'male' : 'female'}&seed=${cli?.id || 'a'}`
                               }
                             />
                             <AvatarFallback className="text-xs">
@@ -203,36 +203,36 @@ export default function AgendaPage() {
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex flex-col flex-1 min-w-0">
-                            <div className="flex justify-between items-start gap-1">
-                              <span className="font-bold text-xs break-words leading-tight">
-                                {cli?.name || 'Cliente'}
-                              </span>
-                              <Badge
-                                variant="outline"
-                                className={`text-[9px] px-1.5 py-0 h-4 uppercase whitespace-nowrap shrink-0 ${isProvisional ? 'text-primary' : ''}`}
-                              >
-                                {translateStatus(a.status)}
-                              </Badge>
-                            </div>
-                            <div className="text-[11px] text-muted-foreground leading-snug break-words mt-0.5">
+                            <span className="font-bold text-xs break-words leading-tight truncate">
+                              {cli?.name || 'Cliente'}
+                            </span>
+                            <div className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mt-0.5">
                               {srvs.map((s: any) => s.name).join(', ') || 'Serviço'}
                             </div>
                           </div>
                         </div>
-                        <div className="text-[10px] font-semibold flex justify-between items-center text-primary/80 mt-auto bg-muted/30 p-1 rounded gap-1">
-                          <span className="flex items-center gap-1 truncate shrink-0">
-                            <Clock className="w-3 h-3" /> {a.start_time.slice(0, 5)}
-                          </span>
-                          <div className="flex items-center gap-1.5 justify-end min-w-0">
-                            <span className="truncate text-right font-medium">
-                              {prof?.name?.split(' ')[0]}
+                        <div className="flex flex-col gap-1.5 mt-auto">
+                          <Badge
+                            variant="outline"
+                            className={`w-fit text-[9px] px-1.5 py-0 h-4 uppercase bg-background/50 ${isProvisional ? 'text-primary' : ''}`}
+                          >
+                            {translateStatus(a.status)}
+                          </Badge>
+                          <div className="text-[10px] font-semibold flex justify-between items-center text-primary/80 bg-muted/30 p-1 rounded gap-1">
+                            <span className="flex items-center gap-1 truncate shrink-0">
+                              <Clock className="w-3 h-3" /> {a.start_time.slice(0, 5)}
                             </span>
-                            <Avatar className="w-4 h-4 shadow-sm border border-primary/20 shrink-0">
-                              <AvatarImage src={prof?.avatar_url} />
-                              <AvatarFallback className="text-[8px]">
-                                {prof?.name?.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
+                            <div className="flex items-center gap-1.5 justify-end min-w-0">
+                              <span className="truncate text-right font-medium">
+                                {prof?.name?.split(' ')[0]}
+                              </span>
+                              <Avatar className="w-4 h-4 shadow-sm border border-primary/20 shrink-0">
+                                <AvatarImage src={prof?.avatar_url} />
+                                <AvatarFallback className="text-[8px]">
+                                  {prof?.name?.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                            </div>
                           </div>
                         </div>
                       </div>

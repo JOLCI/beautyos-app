@@ -152,51 +152,53 @@ export default function ContasPagarPage() {
         </Button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 bg-muted/20 p-4 rounded-xl border">
-        <div className="flex-1">
+      <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-xl border">
+        <div className="w-full">
           <Label className="text-xs mb-1 block">Buscar</Label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Fornecedor, nota, valor..."
-              className="pl-9 bg-background"
+              className="pl-9 bg-background w-full"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
         </div>
-        <div className="w-full md:w-40">
-          <Label className="text-xs mb-1 block">Status</Label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="bg-background">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="open">Aberto</SelectItem>
-              <SelectItem value="partial">Parcial</SelectItem>
-              <SelectItem value="paid">Pago</SelectItem>
-              <SelectItem value="cancelled">Cancelado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-full md:w-40">
-          <Label className="text-xs mb-1 block">Data Inicial</Label>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="bg-background"
-          />
-        </div>
-        <div className="w-full md:w-40">
-          <Label className="text-xs mb-1 block">Data Final</Label>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="bg-background"
-          />
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="w-full md:w-48">
+            <Label className="text-xs mb-1 block">Status</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="open">Aberto</SelectItem>
+                <SelectItem value="partial">Parcial</SelectItem>
+                <SelectItem value="paid">Pago</SelectItem>
+                <SelectItem value="cancelled">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full md:w-48">
+            <Label className="text-xs mb-1 block">Data Inicial</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="w-full md:w-48">
+            <Label className="text-xs mb-1 block">Data Final</Label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-background"
+            />
+          </div>
         </div>
       </div>
 

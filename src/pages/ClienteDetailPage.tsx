@@ -7,6 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ArrowLeft, Save, MessageCircle, Loader2, Camera } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
@@ -37,6 +44,7 @@ export default function ClienteDetailPage() {
     phone: '',
     email: '',
     birthday: '',
+    gender: 'female',
     notes: '',
     avatar_url: '',
   })
@@ -51,6 +59,7 @@ export default function ClienteDetailPage() {
         phone: client.phone || '',
         email: client.email || '',
         birthday: client.birthday || '',
+        gender: client.gender || 'female',
         notes: client.notes || '',
         avatar_url: client.avatar_url || '',
       })
@@ -91,7 +100,13 @@ export default function ClienteDetailPage() {
     setSaving(true)
     const { error } = await supabase
       .from('clients')
-      .update({ phone: form.phone, email: form.email, birthday: form.birthday, notes: form.notes })
+      .update({
+        phone: form.phone,
+        email: form.email,
+        birthday: form.birthday,
+        gender: form.gender,
+        notes: form.notes,
+      })
       .eq('id', id)
     if (!error) {
       toast.success('Dados salvos')
@@ -137,7 +152,7 @@ export default function ClienteDetailPage() {
               <AvatarImage
                 src={
                   client.avatar_url ||
-                  `https://img.usecurling.com/ppl/thumbnail?gender=female&seed=${client.id}`
+                  `https://img.usecurling.com/ppl/thumbnail?gender=${client.gender === 'male' ? 'male' : 'female'}&seed=${client.id}`
                 }
               />
               <AvatarFallback className="text-xl">{client.name.charAt(0)}</AvatarFallback>
@@ -219,13 +234,31 @@ export default function ClienteDetailPage() {
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label>Data de Nascimento</Label>
-                  <Input
-                    type="date"
-                    value={form.birthday}
-                    onChange={(e) => setForm({ ...form, birthday: e.target.value })}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>Nascimento</Label>
+                    <Input
+                      type="date"
+                      value={form.birthday}
+                      onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Gênero</Label>
+                    <Select
+                      value={form.gender}
+                      onValueChange={(v) => setForm({ ...form, gender: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="female">Feminino</SelectItem>
+                        <SelectItem value="male">Masculino</SelectItem>
+                        <SelectItem value="other">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label>Observações Gerais</Label>
