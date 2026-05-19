@@ -14,6 +14,7 @@ import {
   CalendarDays,
   LayoutGrid,
   CalendarRange,
+  Clock,
 } from 'lucide-react'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
 import { translateStatus } from '@/lib/utils'
