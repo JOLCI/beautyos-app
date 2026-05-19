@@ -7,9 +7,17 @@ import { translateStatus } from '@/lib/utils'
 
 export const formatStatus = (status: string) => {
   const s = status?.toLowerCase() || ''
-  if (['completed', 'finalizado', 'paid', 'pago', 'sent'].includes(s)) return 'Finalizado'
-  if (['cancelled', 'cancelado', 'failed'].includes(s)) return 'Cancelado'
+  if (['completed', 'finalizado', 'paid', 'pago', 'sent', 'confirmed'].includes(s))
+    return 'Finalizado'
+  if (['cancelled', 'cancelado', 'failed', 'estornado'].includes(s)) return 'Cancelado'
+  if (['pending', 'open', 'agendado', 'partial'].includes(s)) return 'Pendente'
   return 'Aberto'
+}
+
+const getStatusColor = (statusStr: string) => {
+  if (statusStr === 'Finalizado') return 'bg-green-500 text-white border-green-600'
+  if (statusStr === 'Cancelado') return 'bg-destructive text-white border-destructive'
+  return 'bg-amber-500 text-white border-amber-600'
 }
 
 interface ClientTimelineProps {
@@ -32,7 +40,7 @@ export function ClientTimeline({
     appointments?.forEach((a: any) =>
       events.push({
         type: 'appointment',
-        date: a.created_at,
+        date: `${a.date}T${a.start_time}`,
         data: a,
         icon: Calendar,
         color: 'text-blue-500',
@@ -120,18 +128,11 @@ export function ClientTimeline({
                     {ev.type === 'appointment' && (
                       <div>
                         <p className="font-medium text-foreground">
-                          {new Date(ev.data.date).toLocaleDateString('pt-BR')} às{' '}
+                          {new Date(ev.data.date + 'T12:00:00').toLocaleDateString('pt-BR')} às{' '}
                           {ev.data.start_time.slice(0, 5)}
                         </p>
                         <Badge
-                          variant={
-                            formatStatus(ev.data.status) === 'Finalizado'
-                              ? 'default'
-                              : formatStatus(ev.data.status) === 'Cancelado'
-                                ? 'destructive'
-                                : 'secondary'
-                          }
-                          className="text-[10px] mt-1 uppercase"
+                          className={`text-[10px] mt-1 uppercase ${getStatusColor(formatStatus(ev.data.status))}`}
                         >
                           {formatStatus(ev.data.status)}
                         </Badge>
@@ -143,9 +144,12 @@ export function ClientTimeline({
                         <p className="font-medium text-foreground">
                           R$ {ev.data.amount.toFixed(2)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {ev.data.payment_method} • {translateStatus(ev.data.status)}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{ev.data.payment_method}</p>
+                        <Badge
+                          className={`text-[10px] mt-1 uppercase ${getStatusColor(formatStatus(ev.data.status))}`}
+                        >
+                          {formatStatus(ev.data.status)}
+                        </Badge>
                       </div>
                     )}
 
@@ -155,9 +159,14 @@ export function ClientTimeline({
                           R$ {ev.data.original_amount.toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Venc.: {new Date(ev.data.due_date).toLocaleDateString('pt-BR')} •{' '}
-                          {translateStatus(ev.data.status)}
+                          Venc.:{' '}
+                          {new Date(ev.data.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
                         </p>
+                        <Badge
+                          className={`text-[10px] mt-1 uppercase ${getStatusColor(formatStatus(ev.data.status))}`}
+                        >
+                          {formatStatus(ev.data.status)}
+                        </Badge>
                       </div>
                     )}
 

@@ -40,7 +40,7 @@ export function AppSidebar() {
   const navigation = [
     { name: 'Painel', href: `/${passkey}/dashboard`, icon: LayoutDashboard },
     { name: 'Agenda', href: `/${passkey}/agenda`, icon: CalendarDays },
-    { name: 'Caixa (PDV)', href: `/${passkey}/atendimento/novo`, icon: Wallet },
+    { name: 'Finalizar Vendas/Caixa', href: `/${passkey}/atendimento/novo`, icon: Wallet },
     { name: 'Clientes', href: `/${passkey}/clientes`, icon: Users },
     { name: 'Serviços/Produtos', href: `/${passkey}/servicos`, icon: Scissors },
     { name: 'Estoque', href: `/${passkey}/estoque`, icon: Package },

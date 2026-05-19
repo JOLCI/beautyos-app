@@ -36,8 +36,7 @@ export default function ClientesPage() {
     name: '',
     phone: '',
     email: '',
-    birthday_day: '',
-    birthday_month: '',
+    birthday: '',
     avatar_url: '',
     is_active: true,
   })
@@ -54,8 +53,7 @@ export default function ClientesPage() {
         name: c.name,
         phone: c.phone,
         email: c.email || '',
-        birthday_day: c.birthday_day?.toString() || '',
-        birthday_month: c.birthday_month?.toString() || '',
+        birthday: c.birthday || '',
         avatar_url: c.avatar_url || '',
         is_active: c.is_active !== false,
       })
@@ -65,8 +63,7 @@ export default function ClientesPage() {
         name: '',
         phone: '',
         email: '',
-        birthday_day: '',
-        birthday_month: '',
+        birthday: '',
         avatar_url: '',
         is_active: true,
       })
@@ -96,8 +93,7 @@ export default function ClientesPage() {
 
     const payload = {
       ...form,
-      birthday_day: form.birthday_day ? parseInt(form.birthday_day) : null,
-      birthday_month: form.birthday_month ? parseInt(form.birthday_month) : null,
+      birthday: form.birthday || null,
     }
 
     if (editing) {
@@ -190,7 +186,7 @@ export default function ClientesPage() {
                           <AvatarImage
                             src={
                               c.avatar_url ||
-                              `https://img.usecurling.com/ppl/thumbnail?seed=${c.id}`
+                              `https://img.usecurling.com/ppl/thumbnail?gender=female&seed=${c.id}`
                             }
                           />
                           <AvatarFallback>{c.name.charAt(0)}</AvatarFallback>
@@ -201,8 +197,8 @@ export default function ClientesPage() {
                     <TableCell className="text-muted-foreground">{c.phone}</TableCell>
                     <TableCell className="text-muted-foreground">{c.email || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {c.birthday_day && c.birthday_month
-                        ? `${String(c.birthday_day).padStart(2, '0')}/${String(c.birthday_month).padStart(2, '0')}`
+                      {c.birthday
+                        ? new Date(c.birthday + 'T12:00:00').toLocaleDateString('pt-BR')
                         : '-'}
                     </TableCell>
                     <TableCell>
@@ -279,17 +275,6 @@ export default function ClientesPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between border p-3 rounded-lg bg-background shadow-sm mb-4">
-              <Label className="cursor-pointer font-medium" htmlFor="is-active-client">
-                Status Ativo
-              </Label>
-              <Switch
-                id="is-active-client"
-                checked={form.is_active}
-                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-              />
-            </div>
-
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input
@@ -312,29 +297,24 @@ export default function ClientesPage() {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Dia Aniv.</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={form.birthday_day}
-                  onChange={(e) => setForm({ ...form, birthday_day: e.target.value })}
-                  placeholder="Ex: 15"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Mês Aniv.</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={form.birthday_month}
-                  onChange={(e) => setForm({ ...form, birthday_month: e.target.value })}
-                  placeholder="Ex: 08"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Data de Nascimento</Label>
+              <Input
+                type="date"
+                value={form.birthday}
+                onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between border p-3 rounded-lg bg-background shadow-sm mt-4">
+              <Label className="cursor-pointer font-medium" htmlFor="is-active-client">
+                Ativo
+              </Label>
+              <Switch
+                id="is-active-client"
+                checked={form.is_active}
+                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+              />
             </div>
           </div>
           <SheetFooter className="mt-8">

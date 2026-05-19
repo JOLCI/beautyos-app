@@ -201,7 +201,15 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
               <span className="text-muted-foreground flex items-center gap-2">
                 <Clock className="w-4 h-4" /> Status
               </span>
-              <Badge className={title.status === 'paid' ? 'bg-green-500' : ''}>
+              <Badge
+                className={
+                  title.status === 'paid'
+                    ? 'bg-green-500 text-white'
+                    : title.status === 'cancelled'
+                      ? 'bg-destructive text-white'
+                      : 'bg-amber-500 text-white'
+                }
+              >
                 {translateStatus(title.status)}
               </Badge>
             </div>

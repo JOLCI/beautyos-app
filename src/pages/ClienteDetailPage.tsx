@@ -122,7 +122,8 @@ export default function ClienteDetailPage() {
             <Avatar className="h-20 w-20 border-2 border-background shadow-sm">
               <AvatarImage
                 src={
-                  client.avatar_url || `https://img.usecurling.com/ppl/thumbnail?seed=${client.id}`
+                  client.avatar_url ||
+                  `https://img.usecurling.com/ppl/thumbnail?gender=female&seed=${client.id}`
                 }
               />
               <AvatarFallback className="text-xl">{client.name.charAt(0)}</AvatarFallback>

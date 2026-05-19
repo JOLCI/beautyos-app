@@ -420,7 +420,7 @@ export function CheckoutSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="sm:max-w-[560px] w-full flex flex-col h-full p-0">
-        <div className="p-6 pb-2 border-b">
+        <div className="p-4 sm:p-6 sm:pb-2 border-b shrink-0">
           <SheetHeader>
             <SheetTitle>Finalizar Cobrança</SheetTitle>
           </SheetHeader>
@@ -497,184 +497,191 @@ export function CheckoutSheet({
             </Button>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div className="space-y-2">
-              <Label>Cliente Vinculado (Opcional para Caixa)</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger
-                  className={
-                    isScheduled && clientId === 'avulso' ? 'border-amber-500 ring-amber-500' : ''
-                  }
-                >
-                  <SelectValue placeholder="Venda Avulsa (Anônimo)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="avulso">-- Venda Avulsa --</SelectItem>
-                  {clients.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isScheduled && clientId === 'avulso' && (
-                <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
-                  <Info className="w-3 h-3" /> Obrigatório para faturamento agendado
-                </p>
-              )}
-              {isNewClient && actualClientId && (
-                <Badge
-                  variant="default"
-                  className="bg-amber-500 hover:bg-amber-600 mt-2 animate-in fade-in w-full justify-center"
-                >
-                  ✨ Cliente Primeira Vez
-                </Badge>
-              )}
-              {!isNewClient && newServices.length > 0 && actualClientId && (
-                <Badge
-                  variant="secondary"
-                  className="mt-2 animate-in fade-in border-purple-200 bg-purple-50 text-purple-700 w-full justify-center whitespace-normal text-center"
-                >
-                  ✨ Primeiro Checkout para: {newServices.join(', ')}
-                </Badge>
-              )}
-            </div>
-            <div className="bg-muted/50 p-4 rounded-xl border">
-              <div className="space-y-3 mb-4">
-                {pricedItems.map((it: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center text-sm border-b border-border/50 pb-2"
+          <>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+              <div className="space-y-2">
+                <Label>Cliente Vinculado (Opcional para Caixa)</Label>
+                <Select value={clientId} onValueChange={setClientId}>
+                  <SelectTrigger
+                    className={
+                      isScheduled && clientId === 'avulso' ? 'border-amber-500 ring-amber-500' : ''
+                    }
                   >
-                    <span className="font-medium">{it.name}</span>
-                    <span>R$ {it.finalPrice.toFixed(2)}</span>
-                  </div>
-                ))}
+                    <SelectValue placeholder="Venda Avulsa (Anônimo)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="avulso">-- Venda Avulsa --</SelectItem>
+                    {clients.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isScheduled && clientId === 'avulso' && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
+                    <Info className="w-3 h-3" /> Obrigatório para faturamento agendado
+                  </p>
+                )}
+                {isNewClient && actualClientId && (
+                  <Badge
+                    variant="default"
+                    className="bg-amber-500 hover:bg-amber-600 mt-2 animate-in fade-in w-full justify-center"
+                  >
+                    ✨ Cliente Primeira Vez
+                  </Badge>
+                )}
+                {!isNewClient && newServices.length > 0 && actualClientId && (
+                  <Badge
+                    variant="secondary"
+                    className="mt-2 animate-in fade-in border-purple-200 bg-purple-50 text-purple-700 w-full justify-center whitespace-normal text-center"
+                  >
+                    ✨ Primeiro Checkout para: {newServices.join(', ')}
+                  </Badge>
+                )}
               </div>
-              <Separator className="my-3" />
-              <div className="space-y-3 mt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-sm">Tipo de Desconto</span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={discountType === 'fixed' ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={() => setDiscountType('fixed')}
+              <div className="bg-muted/50 p-4 rounded-xl border">
+                <div className="space-y-3 mb-4">
+                  {pricedItems.map((it: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between items-center text-sm border-b border-border/50 pb-2"
                     >
-                      R$
-                    </Button>
-                    <Button
-                      variant={discountType === 'percentage' ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={() => setDiscountType('percentage')}
-                    >
-                      %
-                    </Button>
+                      <span className="font-medium">{it.name}</span>
+                      <span>R$ {it.finalPrice.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+                <Separator className="my-3" />
+                <div className="space-y-3 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Tipo de Desconto</span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={discountType === 'fixed' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => setDiscountType('fixed')}
+                      >
+                        R$
+                      </Button>
+                      <Button
+                        variant={discountType === 'percentage' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => setDiscountType('percentage')}
+                      >
+                        %
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Valor do Desconto</span>
+                    <div className="flex items-center gap-2">
+                      {discountType === 'percentage' && Number(discount) > 0 && (
+                        <span className="text-xs text-muted-foreground font-semibold">
+                          (-R$ {discountValue.toFixed(2)})
+                        </span>
+                      )}
+                      <Input
+                        type="number"
+                        className="w-24 h-8 text-right font-mono"
+                        value={discount}
+                        onChange={(e) => setDiscount(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground text-sm">Valor do Desconto</span>
-                  <div className="flex items-center gap-2">
-                    {discountType === 'percentage' && Number(discount) > 0 && (
-                      <span className="text-xs text-muted-foreground font-semibold">
-                        (-R$ {discountValue.toFixed(2)})
-                      </span>
-                    )}
+                <Separator className="my-3" />
+                <div className="flex justify-between text-xl font-bold">
+                  <span>Total Final</span>
+                  <span className="text-primary">R$ {finalTotal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 border rounded-xl bg-muted/20">
+                <Label className="flex items-center gap-2 text-sm font-semibold">
+                  <Camera className="w-4 h-4 text-primary" /> Anexar Evidência (Foto)
+                </Label>
+                <div className="flex items-center gap-4">
+                  {photoData && (
+                    <div className="w-16 h-16 rounded-md overflow-hidden border border-border">
+                      <img src={photoData} alt="Evidência" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex-1">
                     <Input
-                      type="number"
-                      className="w-24 h-8 text-right font-mono"
-                      value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handlePhotoUpload}
+                      className="text-xs file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                     />
                   </div>
                 </div>
               </div>
-              <Separator className="my-3" />
-              <div className="flex justify-between text-xl font-bold">
-                <span>Total Final</span>
-                <span className="text-primary">R$ {finalTotal.toFixed(2)}</span>
-              </div>
-            </div>
 
-            <div className="space-y-3 p-4 border rounded-xl bg-muted/20">
-              <Label className="flex items-center gap-2 text-sm font-semibold">
-                <Camera className="w-4 h-4 text-primary" /> Anexar Evidência (Foto)
-              </Label>
-              <div className="flex items-center gap-4">
-                {photoData && (
-                  <div className="w-16 h-16 rounded-md overflow-hidden border border-border">
-                    <img src={photoData} alt="Evidência" className="w-full h-full object-cover" />
+              <RadioGroup
+                value={method}
+                onValueChange={setMethod}
+                className="grid grid-cols-3 gap-3"
+              >
+                {[
+                  { id: 'PIX', l: 'PIX' },
+                  { id: 'PIX AGENDADO', l: 'PIX AGENDADO' },
+                  { id: 'DINHEIRO', l: 'DINHEIRO' },
+                  { id: 'DEBITO', l: 'DÉBITO' },
+                  { id: 'CREDITO', l: 'CRÉDITO' },
+                  { id: 'CONVENIO', l: 'CONVÊNIO' },
+                ].map((o) => (
+                  <div
+                    key={o.id}
+                    onClick={() => setMethod(o.id)}
+                    className={cn(
+                      'border-2 rounded-xl p-3 text-center cursor-pointer flex items-center justify-center min-h-[3.5rem] transition-colors',
+                      method === o.id ? 'border-primary bg-primary/5 text-primary' : '',
+                    )}
+                  >
+                    <RadioGroupItem value={o.id} id={o.id} className="sr-only" />
+                    <Label className="cursor-pointer font-bold text-[11px] sm:text-xs text-center leading-tight">
+                      {o.l}
+                    </Label>
                   </div>
-                )}
-                <div className="flex-1">
+                ))}
+              </RadioGroup>
+
+              {method === 'CREDITO' && (
+                <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
+                  <Label>Número de Parcelas</Label>
                   <Input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoUpload}
-                    className="text-xs file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    type="number"
+                    min="1"
+                    value={installments}
+                    onChange={(e) => setInstallments(e.target.value)}
                   />
                 </div>
-              </div>
-            </div>
-
-            <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'PIX', l: 'PIX' },
-                { id: 'PIX AGENDADO', l: 'PIX AGENDADO' },
-                { id: 'DINHEIRO', l: 'DINHEIRO' },
-                { id: 'DEBITO', l: 'DÉBITO' },
-                { id: 'CREDITO', l: 'CRÉDITO' },
-                { id: 'CONVENIO', l: 'CONVÊNIO' },
-              ].map((o) => (
-                <div
-                  key={o.id}
-                  onClick={() => setMethod(o.id)}
-                  className={cn(
-                    'border-2 rounded-xl p-3 text-center cursor-pointer flex items-center justify-center min-h-[3.5rem] transition-colors',
-                    method === o.id ? 'border-primary bg-primary/5 text-primary' : '',
-                  )}
-                >
-                  <RadioGroupItem value={o.id} id={o.id} className="sr-only" />
-                  <Label className="cursor-pointer font-bold text-[11px] sm:text-xs text-center leading-tight">
-                    {o.l}
-                  </Label>
+              )}
+              {(method === 'PIX AGENDADO' || method === 'CONVENIO') && (
+                <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
+                  <Label>Data de Vencimento</Label>
+                  <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Um lembrete via WhatsApp será agendado automaticamente.
+                  </p>
                 </div>
-              ))}
-            </RadioGroup>
-
-            {method === 'CREDITO' && (
-              <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
-                <Label>Número de Parcelas</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={installments}
-                  onChange={(e) => setInstallments(e.target.value)}
-                />
-              </div>
-            )}
-            {(method === 'PIX AGENDADO' || method === 'CONVENIO') && (
-              <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
-                <Label>Data de Vencimento</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Um lembrete via WhatsApp será agendado automaticamente.
-                </p>
-              </div>
-            )}
-
-            <Button
-              onClick={() => handleFinish(false)}
-              disabled={status === 'waiting' || !canFinish}
-              className="w-full h-14 text-lg rounded-full shadow-elevation mt-4"
-            >
-              {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-              {method === 'PIX' ? 'Gerar PIX Automático' : 'Finalizar Atendimento'}
-            </Button>
-          </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-background shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+              <Button
+                onClick={() => handleFinish(false)}
+                disabled={status === 'waiting' || !canFinish}
+                className="w-full h-12 text-base sm:text-lg rounded-full shadow-elevation"
+              >
+                {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+                {method === 'PIX' ? 'Gerar PIX Automático' : 'Finalizar Atendimento'}
+              </Button>
+            </div>
+          </>
         )}
       </SheetContent>
     </Sheet>

@@ -32,7 +32,7 @@ import RootCompaniesPage from './pages/RootCompaniesPage'
 import NotFound from './pages/NotFound'
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+  <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
       <AuthProvider>
         <TooltipProvider>

@@ -406,17 +406,6 @@ export default function ServicosPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between border p-3 rounded-lg bg-background shadow-sm">
-              <Label className="cursor-pointer font-medium" htmlFor="is-active-switch">
-                Status Ativo
-              </Label>
-              <Switch
-                id="is-active-switch"
-                checked={form.is_active}
-                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-              />
-            </div>
-
             <div className="space-y-2">
               <Label>Nome</Label>
               <Input
@@ -566,6 +555,17 @@ export default function ServicosPage() {
                 )}
               </div>
             )}
+
+            <div className="flex items-center justify-between border p-3 rounded-lg bg-background shadow-sm mt-4">
+              <Label className="cursor-pointer font-medium" htmlFor="is-active-switch">
+                Ativo
+              </Label>
+              <Switch
+                id="is-active-switch"
+                checked={form.is_active}
+                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+              />
+            </div>
           </div>
           <SheetFooter className="mt-8">
             <Button className="w-full h-12 text-lg" onClick={handleSave} disabled={uploading}>

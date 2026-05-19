@@ -392,8 +392,13 @@ export default function CaixaPage() {
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={t.status === 'confirmed' ? 'default' : 'secondary'}
-                        className="text-[10px] uppercase"
+                        className={`text-[10px] uppercase ${
+                          t.status === 'confirmed'
+                            ? 'bg-green-500 text-white'
+                            : t.status === 'cancelled'
+                              ? 'bg-destructive text-white'
+                              : 'bg-amber-500 text-white'
+                        }`}
                       >
                         {translateStatus(t.status)}
                       </Badge>

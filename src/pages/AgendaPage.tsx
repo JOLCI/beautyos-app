@@ -139,12 +139,12 @@ export default function AgendaPage() {
             )
 
             return (
-              <div key={h} className="flex border-b border-border/50 min-h-[5.5rem] group">
-                <div className="w-14 py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50 bg-muted/10">
+              <div key={h} className="flex border-b border-border/50 h-auto min-h-[5.5rem] group">
+                <div className="w-14 py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50 bg-muted/10 shrink-0">
                   {timeStr}
                 </div>
                 <div
-                  className="flex-1 p-1.5 flex flex-col gap-1.5 relative bg-background hover:bg-muted/10 cursor-pointer transition-colors"
+                  className="flex-1 p-1.5 flex flex-col gap-1.5 relative bg-background hover:bg-muted/10 cursor-pointer transition-colors min-w-0"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       openSheet(null, { date: currentDateStr, time: timeStr })
@@ -165,10 +165,11 @@ export default function AgendaPage() {
                     const isCanceled = a.status === 'cancelado'
                     const isProvisional = a.status === 'provisional'
 
-                    let cardClass = 'border-l-primary bg-card hover:-translate-y-0.5'
+                    let cardClass =
+                      'border-l-amber-500 bg-amber-500/10 border-amber-500 hover:-translate-y-0.5'
                     if (isCanceled)
                       cardClass =
-                        'border-l-muted bg-muted/40 opacity-70 line-through text-muted-foreground'
+                        'border-l-destructive bg-destructive/10 opacity-70 line-through text-destructive'
                     else if (isProvisional)
                       cardClass =
                         'border-dashed border-2 border-primary/50 bg-primary/5 shadow-none'

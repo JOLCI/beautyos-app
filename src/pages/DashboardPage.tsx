@@ -76,7 +76,10 @@ export default function DashboardPage() {
         t.type === 'receivable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
     )
 
-    const appsHoje = appointments.filter((a: any) => a.date === today && a.status !== 'provisional')
+    const appsHoje = appointments.filter(
+      (a: any) =>
+        a.date === today && ['agendado', 'confirmado', 'em_atendimento'].includes(a.status),
+    )
     const totalApps = appsHoje.length
     const cancelledApps = appsHoje.filter((a: any) => a.status === 'cancelado').length
 
@@ -300,13 +303,17 @@ export default function DashboardPage() {
                 const cli = clients?.find((c: any) => c.id === app.client_id)
                 let colorClass = 'border-primary/20 bg-primary/5'
                 let statusClass = 'text-primary border-primary'
-                if (app.status === 'finalizado') {
+                if (['finalizado', 'completed', 'paid'].includes(app.status?.toLowerCase())) {
                   colorClass = 'border-green-500/30 bg-green-500/10'
                   statusClass = 'text-green-700 border-green-300 bg-green-100'
-                }
-                if (app.status === 'cancelado') {
+                } else if (
+                  ['cancelado', 'cancelled', 'failed'].includes(app.status?.toLowerCase())
+                ) {
                   colorClass = 'border-destructive/20 bg-destructive/5 opacity-70 line-through'
                   statusClass = 'text-destructive border-destructive/20 bg-destructive/10'
+                } else {
+                  colorClass = 'border-amber-500/30 bg-amber-500/10'
+                  statusClass = 'text-amber-700 border-amber-300 bg-amber-100'
                 }
 
                 return (

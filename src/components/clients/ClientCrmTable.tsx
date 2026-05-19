@@ -17,9 +17,16 @@ interface ClientCrmTableProps {
 
 const formatStatus = (status: string) => {
   const s = status?.toLowerCase() || ''
-  if (['completed', 'finalizado', 'paid', 'pago'].includes(s)) return 'Finalizado'
-  if (['cancelled', 'cancelado'].includes(s)) return 'Cancelado'
+  if (['completed', 'finalizado', 'paid', 'pago', 'confirmed'].includes(s)) return 'Finalizado'
+  if (['cancelled', 'cancelado', 'failed', 'estornado'].includes(s)) return 'Cancelado'
+  if (['pending', 'open', 'agendado', 'partial'].includes(s)) return 'Pendente'
   return 'Aberto'
+}
+
+const getStatusColor = (statusStr: string) => {
+  if (statusStr === 'Finalizado') return 'bg-green-500 text-white border-green-600'
+  if (statusStr === 'Cancelado') return 'bg-destructive text-white border-destructive'
+  return 'bg-amber-500 text-white border-amber-600'
 }
 
 export function ClientCrmTable({ serviceIntervals, transactions }: ClientCrmTableProps) {
@@ -91,15 +98,7 @@ export function ClientCrmTable({ serviceIntervals, transactions }: ClientCrmTabl
                   </TableCell>
                   <TableCell>R$ {Number(item.price || 0).toFixed(2)}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        formatStatus(item.status) === 'Cancelado'
-                          ? 'destructive'
-                          : formatStatus(item.status) === 'Finalizado'
-                            ? 'default'
-                            : 'secondary'
-                      }
-                    >
+                    <Badge className={getStatusColor(formatStatus(item.status))}>
                       {formatStatus(item.status)}
                     </Badge>
                   </TableCell>

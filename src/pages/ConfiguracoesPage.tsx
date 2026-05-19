@@ -58,6 +58,14 @@ export default function ConfiguracoesPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
 
   const [waStatus, setWaStatus] = useState<'disconnected' | 'waiting' | 'connected'>('disconnected')
+
+  const THEMES = [
+    { name: 'Rosa (Padrão)', primary: '#e11d48' },
+    { name: 'Lilás', primary: '#a855f7' },
+    { name: 'Menta', primary: '#10b981' },
+    { name: 'Azul Claro', primary: '#0ea5e9' },
+    { name: 'Pink', primary: '#ec4899' },
+  ]
   const [waQrCode, setWaQrCode] = useState('')
 
   useEffect(() => {
@@ -661,7 +669,7 @@ export default function ConfiguracoesPage() {
                 <div className="flex gap-8">
                   <div className="space-y-2">
                     <Label>Cor Primária (Destaques)</Label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mb-2">
                       <Input
                         type="color"
                         value={primaryColor}
@@ -669,6 +677,18 @@ export default function ConfiguracoesPage() {
                         className="w-16 h-10 p-1"
                       />
                       <Input value={primaryColor} readOnly className="font-mono w-28" />
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {THEMES.map((t) => (
+                        <button
+                          key={t.name}
+                          type="button"
+                          onClick={() => setPrimaryColor(t.primary)}
+                          className={`w-8 h-8 rounded-full border-2 shadow-sm transition-all hover:scale-110 ${primaryColor === t.primary ? 'ring-2 ring-offset-2 ring-primary border-transparent' : 'border-border'}`}
+                          style={{ backgroundColor: t.primary }}
+                          title={t.name}
+                        />
+                      ))}
                     </div>
                   </div>
                   <div className="space-y-2">

@@ -163,9 +163,15 @@ export default function ContasReceberPage() {
                   </TableCell>
                   <TableCell>
                     {t.status === 'paid' ? (
-                      <Badge className="bg-green-500 uppercase">{translateStatus(t.status)}</Badge>
+                      <Badge className="bg-green-500 text-white uppercase border-green-600">
+                        {translateStatus(t.status)}
+                      </Badge>
+                    ) : t.status === 'cancelled' ? (
+                      <Badge className="bg-destructive text-white uppercase border-destructive">
+                        {translateStatus(t.status)}
+                      </Badge>
                     ) : (
-                      <Badge variant="outline" className="uppercase">
+                      <Badge className="bg-amber-500 text-white uppercase border-amber-600">
                         {translateStatus(t.status)}
                       </Badge>
                     )}
