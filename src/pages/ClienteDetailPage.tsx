@@ -21,6 +21,7 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
 import { ClientTimeline } from '@/components/clients/ClientTimeline'
 import { ClientCrmTable } from '@/components/clients/ClientCrmTable'
+import { ClientAvatar } from '@/components/clients/ClientAvatar'
 
 export default function ClienteDetailPage() {
   const { id } = useParams()
@@ -148,15 +149,10 @@ export default function ClienteDetailPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-6 rounded-2xl border shadow-sm relative overflow-hidden">
         <div className="flex items-center gap-4 relative z-10">
           <div className="relative group">
-            <Avatar className="h-20 w-20 border-2 border-background shadow-sm">
-              <AvatarImage
-                src={
-                  client.avatar_url ||
-                  `https://img.usecurling.com/ppl/thumbnail?gender=${client.gender === 'male' ? 'male' : 'female'}&seed=${client.id}`
-                }
-              />
-              <AvatarFallback className="text-xl">{client.name.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <ClientAvatar
+              client={client}
+              className="h-20 w-20 border-2 border-background shadow-sm"
+            />
             <Label
               htmlFor="avatar-upload"
               className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"

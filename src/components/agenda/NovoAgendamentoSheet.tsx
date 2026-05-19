@@ -302,7 +302,21 @@ export function NovoAgendamentoSheet({
           <SheetDescription>Reserve múltiplos serviços em um único horário.</SheetDescription>
         </SheetHeader>
 
-        <div className={`space-y-4 ${showCancelConfirm ? 'opacity-50 pointer-events-none' : ''}`}>
+        {appointment?.status === 'finalizado' && (
+          <div className="mb-6 p-4 border border-blue-200 bg-blue-50 text-blue-800 rounded-xl space-y-2 text-sm">
+            <div className="flex items-center gap-2 font-bold">
+              <AlertCircle className="w-4 h-4" /> Agendamento Finalizado
+            </div>
+            <p>
+              Este agendamento foi finalizado e faturado. Para editá-lo, é necessário cancelar o
+              registro financeiro (transação) vinculado no histórico do cliente.
+            </p>
+          </div>
+        )}
+
+        <div
+          className={`space-y-4 ${showCancelConfirm || appointment?.status === 'finalizado' ? 'opacity-50 pointer-events-none' : ''}`}
+        >
           <div className="space-y-2">
             <Label>Cliente</Label>
             <Select value={clientId || undefined} onValueChange={setClientId}>
@@ -346,8 +360,21 @@ export function NovoAgendamentoSheet({
                   <SelectItem key={p.id} value={p.id}>
                     <div className="flex items-center gap-2">
                       <Avatar className="w-5 h-5 border">
-                        <AvatarImage src={p.avatar_url} />
-                        <AvatarFallback className="text-[10px]">{p.name?.charAt(0)}</AvatarFallback>
+                        {p.avatar_url && <AvatarImage src={p.avatar_url} />}
+                        <AvatarFallback className="bg-muted text-muted-foreground text-[10px]">
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-3/4 h-3/4 opacity-60"
+                          >
+                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        </AvatarFallback>
                       </Avatar>
                       {p.name}
                     </div>
@@ -505,7 +532,12 @@ export function NovoAgendamentoSheet({
               <Button
                 onClick={() => handleSave(false, 'agendado')}
                 disabled={
-                  !clientId || selectedServices.length === 0 || !profId || !endTime || saving
+                  !clientId ||
+                  selectedServices.length === 0 ||
+                  !profId ||
+                  !endTime ||
+                  saving ||
+                  appointment?.status === 'finalizado'
                 }
                 className="w-full bg-green-600 hover:bg-green-700 text-white shadow-md text-lg h-12"
               >
@@ -516,7 +548,12 @@ export function NovoAgendamentoSheet({
               <Button
                 onClick={() => handleSave(false)}
                 disabled={
-                  !clientId || selectedServices.length === 0 || !profId || !endTime || saving
+                  !clientId ||
+                  selectedServices.length === 0 ||
+                  !profId ||
+                  !endTime ||
+                  saving ||
+                  appointment?.status === 'finalizado'
                 }
                 className="w-full"
               >

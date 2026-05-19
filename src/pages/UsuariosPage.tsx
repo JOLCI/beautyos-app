@@ -225,13 +225,21 @@ export default function UsuariosPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
-                          <AvatarImage
-                            src={
-                              u.avatar_url ||
-                              `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                            }
-                          />
-                          <AvatarFallback>{u.name.charAt(0)}</AvatarFallback>
+                          {u.avatar_url && <AvatarImage src={u.avatar_url} />}
+                          <AvatarFallback className="bg-muted text-muted-foreground">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="w-1/2 h-1/2 opacity-60"
+                            >
+                              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                              <circle cx="12" cy="7" r="4" />
+                            </svg>
+                          </AvatarFallback>
                         </Avatar>
                         <span className="font-medium">{u.name}</span>
                       </div>
@@ -295,13 +303,21 @@ export default function UsuariosPage() {
             <div className="flex justify-center mb-6">
               <div className="relative group">
                 <Avatar className="h-24 w-24 border-2 border-background shadow-md">
-                  <AvatarImage
-                    src={
-                      form.avatar_url ||
-                      `https://img.usecurling.com/ppl/medium?seed=${editing?.id || 'new'}`
-                    }
-                  />
-                  <AvatarFallback className="text-2xl">{form.name.charAt(0) || 'U'}</AvatarFallback>
+                  {form.avatar_url && <AvatarImage src={form.avatar_url} />}
+                  <AvatarFallback className="bg-muted text-muted-foreground">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="w-1/2 h-1/2 opacity-60"
+                    >
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </AvatarFallback>
                 </Avatar>
                 <Label
                   htmlFor="avatar-upload-user"

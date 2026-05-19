@@ -191,17 +191,10 @@ export default function AgendaPage() {
                         className={`flex flex-col border shadow-sm rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full min-h-[5.5rem]`}
                       >
                         <div className="flex items-start gap-2 mb-2 flex-1">
-                          <Avatar className="w-7 h-7 border shadow-sm shrink-0">
-                            <AvatarImage
-                              src={
-                                cli?.avatar_url ||
-                                `https://img.usecurling.com/ppl/thumbnail?gender=${cli?.gender === 'male' ? 'male' : 'female'}&seed=${cli?.id || 'a'}`
-                              }
-                            />
-                            <AvatarFallback className="text-xs">
-                              {cli?.name?.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <ClientAvatar
+                            client={cli}
+                            className="w-7 h-7 border shadow-sm shrink-0"
+                          />
                           <div className="flex flex-col flex-1 min-w-0">
                             <span className="font-bold text-xs break-words leading-tight truncate">
                               {cli?.name || 'Cliente'}
@@ -227,9 +220,20 @@ export default function AgendaPage() {
                                 {prof?.name?.split(' ')[0]}
                               </span>
                               <Avatar className="w-4 h-4 shadow-sm border border-primary/20 shrink-0">
-                                <AvatarImage src={prof?.avatar_url} />
-                                <AvatarFallback className="text-[8px]">
-                                  {prof?.name?.charAt(0)}
+                                {prof?.avatar_url && <AvatarImage src={prof?.avatar_url} />}
+                                <AvatarFallback className="bg-muted text-muted-foreground text-[8px]">
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="w-3/4 h-3/4 opacity-60"
+                                  >
+                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                                    <circle cx="12" cy="7" r="4" />
+                                  </svg>
                                 </AvatarFallback>
                               </Avatar>
                             </div>

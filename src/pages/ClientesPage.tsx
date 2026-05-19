@@ -27,6 +27,7 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { ClientAvatar } from '@/components/clients/ClientAvatar'
 
 export default function ClientesPage() {
   const { passkey } = useParams()
@@ -218,15 +219,7 @@ export default function ClientesPage() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border">
-                          <AvatarImage
-                            src={
-                              c.avatar_url ||
-                              `https://img.usecurling.com/ppl/thumbnail?gender=${c.gender === 'male' ? 'male' : 'female'}&seed=${c.id}`
-                            }
-                          />
-                          <AvatarFallback>{c.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
+                        <ClientAvatar client={c} className="h-9 w-9 border" />
                         <span className="font-medium">{c.name}</span>
                       </div>
                     </TableCell>
@@ -286,10 +279,10 @@ export default function ClientesPage() {
           <div className="space-y-4">
             <div className="flex justify-center mb-6">
               <div className="relative">
-                <Avatar className="h-24 w-24 border-2 border-border shadow-sm">
-                  <AvatarImage src={form.avatar_url || ''} />
-                  <AvatarFallback className="text-2xl">{form.name.charAt(0) || '?'}</AvatarFallback>
-                </Avatar>
+                <ClientAvatar
+                  client={{ ...form, id: editing?.id }}
+                  className="h-24 w-24 border-2 border-border shadow-sm"
+                />
                 <Label
                   htmlFor="avatar-upload"
                   className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full cursor-pointer hover:bg-primary/90 transition-colors shadow-md"
