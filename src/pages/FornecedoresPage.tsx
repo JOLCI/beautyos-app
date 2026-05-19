@@ -15,20 +15,34 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Plus, Edit2, Trash2, Truck } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
 
 export default function FornecedoresPage() {
   const { company } = usePasskey()
-  const { data: suppliers, refetch } = useQuery<any>('suppliers', { match: { is_active: true } })
+  const { data: allSuppliers, refetch } = useQuery<any>('suppliers')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
-  const [form, setForm] = useState({ name: '', document: '', phone: '', email: '', notes: '' })
+  const [form, setForm] = useState({
+    name: '',
+    document: '',
+    phone: '',
+    email: '',
+    notes: '',
+    is_active: true,
+  })
+
+  const suppliers = (allSuppliers || []).filter((s: any) => s.is_active !== false)
 
   const openSheet = (s: any = null) => {
     setEditing(s)
-    setForm(s || { name: '', document: '', phone: '', email: '', notes: '' })
+    setForm(
+      s
+        ? { ...s, is_active: s.is_active !== false }
+        : { name: '', document: '', phone: '', email: '', notes: '', is_active: true },
+    )
     setSheetOpen(true)
   }
 
@@ -109,6 +123,16 @@ export default function FornecedoresPage() {
             <SheetTitle>{editing ? 'Editar' : 'Novo Fornecedor'}</SheetTitle>
           </SheetHeader>
           <div className="space-y-4">
+            <div className="flex items-center justify-between border p-3 rounded-lg bg-background shadow-sm mb-4">
+              <Label className="cursor-pointer font-medium" htmlFor="is-active-supplier">
+                Status Ativo
+              </Label>
+              <Switch
+                id="is-active-supplier"
+                checked={form.is_active}
+                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+              />
+            </div>
             <div className="space-y-2">
               <Label>Nome</Label>
               <Input

@@ -15,7 +15,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
-import { Search, UserPlus, Loader2, Edit2, Trash2, Camera } from 'lucide-react'
+import { Search, UserPlus, Loader2, Edit2, Trash2, Camera, Check, X } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
@@ -24,16 +25,13 @@ export default function ClientesPage() {
   const { passkey } = useParams()
   const { company } = usePasskey()
   const navigate = useNavigate()
-  const {
-    data: clients,
-    loading,
-    refetch,
-  } = useQuery<any>('clients', { match: { is_active: true } })
+  const { data: allClients, loading, refetch } = useQuery<any>('clients')
 
   const [search, setSearch] = useState('')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
   const [uploading, setUploading] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -41,11 +39,13 @@ export default function ClientesPage() {
     birthday_day: '',
     birthday_month: '',
     avatar_url: '',
+    is_active: true,
   })
 
-  const filtered = clients.filter(
-    (c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search),
-  )
+  const filtered = (allClients || []).filter((c: any) => {
+    if (!showInactive && c.is_active === false) return false
+    return c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
+  })
 
   const openSheet = (c: any = null) => {
     if (c) {
@@ -57,6 +57,7 @@ export default function ClientesPage() {
         birthday_day: c.birthday_day?.toString() || '',
         birthday_month: c.birthday_month?.toString() || '',
         avatar_url: c.avatar_url || '',
+        is_active: c.is_active !== false,
       })
     } else {
       setEditing(null)
@@ -67,6 +68,7 @@ export default function ClientesPage() {
         birthday_day: '',
         birthday_month: '',
         avatar_url: '',
+        is_active: true,
       })
     }
     setSheetOpen(true)
@@ -146,6 +148,16 @@ export default function ClientesPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <div className="flex items-center gap-2 ml-4 mt-3 sm:mt-0">
+            <Switch
+              id="show-inactive-clients"
+              checked={showInactive}
+              onCheckedChange={setShowInactive}
+            />
+            <Label htmlFor="show-inactive-clients" className="cursor-pointer text-sm">
+              Exibir Inativos
+            </Label>
+          </div>
         </div>
 
         {loading ? (
@@ -161,14 +173,15 @@ export default function ClientesPage() {
                   <TableHead>Contato</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Aniversário</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((c) => (
+                {filtered.map((c: any) => (
                   <TableRow
                     key={c.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={`cursor-pointer hover:bg-muted/50 ${c.is_active === false ? 'opacity-60' : ''}`}
                     onClick={() => navigate(`/${passkey}/clientes/${c.id}`)}
                   >
                     <TableCell>
@@ -192,6 +205,17 @@ export default function ClientesPage() {
                         ? `${String(c.birthday_day).padStart(2, '0')}/${String(c.birthday_month).padStart(2, '0')}`
                         : '-'}
                     </TableCell>
+                    <TableCell>
+                      {c.is_active === false ? (
+                        <span className="text-[10px] uppercase font-bold text-destructive flex items-center gap-1">
+                          <X className="w-3 h-3" /> Inativo
+                        </span>
+                      ) : (
+                        <span className="text-[10px] uppercase font-bold text-green-600 flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Ativo
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button
                         variant="ghost"
@@ -203,14 +227,16 @@ export default function ClientesPage() {
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive"
-                        onClick={(e) => handleDelete(c.id, e)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {c.is_active !== false && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={(e) => handleDelete(c.id, e)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -251,6 +277,17 @@ export default function ClientesPage() {
                   disabled={uploading}
                 />
               </div>
+            </div>
+
+            <div className="flex items-center justify-between border p-3 rounded-lg bg-background shadow-sm mb-4">
+              <Label className="cursor-pointer font-medium" htmlFor="is-active-client">
+                Status Ativo
+              </Label>
+              <Switch
+                id="is-active-client"
+                checked={form.is_active}
+                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+              />
             </div>
 
             <div className="space-y-2">
