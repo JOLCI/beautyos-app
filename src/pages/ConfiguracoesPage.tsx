@@ -54,6 +54,8 @@ export default function ConfiguracoesPage() {
   const [name, setName] = useState('')
   const [passkey, setPasskey] = useState('')
   const [settings, setSettings] = useState<any>({})
+  const [logoUrl, setLogoUrl] = useState('')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
 
   const [waStatus, setWaStatus] = useState<'disconnected' | 'waiting' | 'connected'>('disconnected')
   const [waQrCode, setWaQrCode] = useState('')
@@ -65,6 +67,7 @@ export default function ConfiguracoesPage() {
       setName(company.name || '')
       setPasskey(company.passkey || '')
       setSettings(company.settings || {})
+      setLogoUrl(company.logo_url || '')
     }
   }, [company])
 
@@ -95,6 +98,24 @@ export default function ConfiguracoesPage() {
 
   const [tplForm, setTplForm] = useState({ template_key: '', body: '' })
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !company) return
+    setUploadingLogo(true)
+    const ext = file.name.split('.').pop()
+    const path = `logos/${company.id}_${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('avatars').upload(path, file)
+    if (error) {
+      toast.error('Erro ao subir logo')
+      setUploadingLogo(false)
+      return
+    }
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
+    setLogoUrl(urlData.publicUrl)
+    setUploadingLogo(false)
+    toast.success('Logo carregada com sucesso')
+  }
+
   const updateSetting = (key: string, value: any) => setSettings({ ...settings, [key]: value })
 
   const saveSettings = async () => {
@@ -106,14 +127,20 @@ export default function ConfiguracoesPage() {
       primary_color: primaryColor,
       secondary_color: secondaryColor,
       settings,
+      logo_url: logoUrl,
     }
 
     if (profile?.role === 'root') {
       payload.passkey = passkey.toUpperCase().replace(/\s+/g, '')
     }
 
-    await supabase.from('companies').update(payload).eq('id', company.id)
-    toast.success('Configurações salvas')
+    const { error } = await supabase.from('companies').update(payload).eq('id', company.id)
+    if (error) {
+      toast.error('Erro ao salvar configurações')
+    } else {
+      toast.success('Configurações salvas com sucesso')
+      setTimeout(() => window.location.reload(), 1000)
+    }
   }
 
   const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
@@ -128,8 +155,16 @@ export default function ConfiguracoesPage() {
     const novosSettings = { ...settings, business_hours: hours }
     setSettings(novosSettings)
 
-    await supabase.from('companies').update({ settings: novosSettings }).eq('id', company.id)
-    toast.success('Horários salvos e atualizados com sucesso')
+    const { error } = await supabase
+      .from('companies')
+      .update({ settings: novosSettings })
+      .eq('id', company.id)
+    if (error) {
+      toast.error('Erro ao salvar horários')
+    } else {
+      toast.success('Horários salvos e atualizados com sucesso')
+      setTimeout(() => window.location.reload(), 1000)
+    }
   }
 
   const connectWhatsApp = async () => {
@@ -225,16 +260,46 @@ export default function ConfiguracoesPage() {
                 <CardTitle>Empresa</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Nome do Salão</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>CNPJ</Label>
-                  <Input
-                    value={settings.cnpj || ''}
-                    onChange={(e) => updateSetting('cnpj', e.target.value)}
-                  />
+                <div className="flex flex-col sm:flex-row gap-6 items-start">
+                  <div className="space-y-2 flex flex-col items-center shrink-0">
+                    <Label>Logomarca</Label>
+                    <div className="relative group cursor-pointer mt-2">
+                      <div className="w-24 h-24 rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden bg-muted/30">
+                        {logoUrl ? (
+                          <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <Building2 className="w-8 h-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-xl cursor-pointer">
+                        {uploadingLogo ? (
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                        ) : (
+                          <span className="text-xs font-medium">Alterar</span>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleLogoUpload}
+                          disabled={uploadingLogo}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex-1 w-full space-y-4">
+                    <div className="space-y-2">
+                      <Label>Nome do Salão</Label>
+                      <Input value={name} onChange={(e) => setName(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>CNPJ</Label>
+                      <Input
+                        value={settings.cnpj || ''}
+                        onChange={(e) => updateSetting('cnpj', e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Passkey de Acesso</Label>

@@ -211,14 +211,21 @@ export default function AgendaPage() {
                         <div className="text-[11px] text-muted-foreground leading-tight line-clamp-1 mb-1.5">
                           {srvs.map((s: any) => s.name).join(', ') || 'Serviço'}
                         </div>
-                        <div className="text-[10px] font-semibold flex justify-between items-center text-primary/80 mt-auto bg-muted/30 p-1 rounded">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {a.start_time.slice(0, 5)} -{' '}
-                            {a.end_time.slice(0, 5)}
+                        <div className="text-[10px] font-semibold flex justify-between items-center text-primary/80 mt-auto bg-muted/30 p-1 rounded gap-1">
+                          <span className="flex items-center gap-1 truncate shrink-0">
+                            <Clock className="w-3 h-3" /> {a.start_time.slice(0, 5)}
                           </span>
-                          <span className="truncate max-w-[80px] text-right font-medium">
-                            {prof?.name?.split(' ')[0]}
-                          </span>
+                          <div className="flex items-center gap-1.5 justify-end min-w-0">
+                            <span className="truncate text-right font-medium">
+                              {prof?.name?.split(' ')[0]}
+                            </span>
+                            <Avatar className="w-4 h-4 shadow-sm border border-primary/20 shrink-0">
+                              <AvatarImage src={prof?.avatar_url} />
+                              <AvatarFallback className="text-[8px]">
+                                {prof?.name?.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
                         </div>
                       </div>
                     )
@@ -337,12 +344,24 @@ export default function AgendaPage() {
     const diff = curr.getDate() - day + (day === 0 ? -6 : 1)
     const startOfWeek = new Date(curr.setDate(diff))
 
-    return Array.from({ length: 7 }).map((_, i) => {
+    const allDays = Array.from({ length: 7 }).map((_, i) => {
       const d = new Date(startOfWeek)
       d.setDate(d.getDate() + i)
       return d.toISOString().split('T')[0]
     })
-  }, [date, view])
+
+    if (view === 'week') {
+      return allDays.filter((dStr) => {
+        const d = new Date(dStr + 'T12:00:00')
+        const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][
+          d.getDay()
+        ]
+        const config = businessHours[dayName] || { open: true }
+        return config.open
+      })
+    }
+    return allDays
+  }, [date, view, businessHours])
 
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-100px)]">

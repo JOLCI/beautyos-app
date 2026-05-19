@@ -24,8 +24,10 @@ import {
   Legend,
 } from 'recharts'
 import { FileText, TrendingUp, TrendingDown, Wallet, Download, Printer } from 'lucide-react'
+import { usePasskey } from '@/contexts/PasskeyContext'
 
 export default function RelatoriosPage() {
+  const { company } = usePasskey()
   const [startDate, setStartDate] = useState(() => {
     const d = new Date()
     d.setDate(1)
@@ -109,7 +111,17 @@ export default function RelatoriosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="hidden print:flex items-center gap-4 mb-8 border-b pb-4">
+        {company?.logo_url && (
+          <img src={company.logo_url} alt="Logo" className="w-16 h-16 object-cover rounded-lg" />
+        )}
+        <div>
+          <h2 className="text-2xl font-bold">{company?.name}</h2>
+          <p className="text-muted-foreground">Relatório Financeiro</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Relatórios Financeiros</h1>
           <p className="text-muted-foreground">Análise de fluxo de caixa consolidado.</p>

@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 
 export function AppHeader() {
   const { isMobile } = useSidebar()
@@ -44,9 +45,14 @@ export function AppHeader() {
               <span className="text-sm font-medium hidden sm:inline-block max-w-[120px] truncate">
                 {profile?.name}
               </span>
-              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                <UserIcon className="w-3 h-3" />
-              </div>
+              <Avatar className="w-6 h-6">
+                <AvatarImage src={profile?.avatar_url} />
+                <AvatarFallback>
+                  <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                    <UserIcon className="w-3 h-3" />
+                  </div>
+                </AvatarFallback>
+              </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
