@@ -35,7 +35,10 @@ export function CheckoutSheet({
 
   const [clientId, setClientId] = useState('avulso')
   const [method, setMethod] = useState('PIX')
+  // Estado para armazenar o valor do desconto inserido
   const [discount, setDiscount] = useState('0')
+  // Estado para definir se o desconto é em valor fixo (R$) ou percentual (%)
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed')
 
   const [installments, setInstallments] = useState('1')
   const [dueDate, setDueDate] = useState(() => {
@@ -80,8 +83,15 @@ export function CheckoutSheet({
     [items, activeClient],
   )
 
+  // Calcula o valor total bruto dos itens no carrinho
   const total = pricedItems.reduce((acc: any, i: any) => acc + i.finalPrice, 0)
-  const finalTotal = total - Number(discount || 0)
+
+  // Calcula o valor real do desconto a ser aplicado
+  const discountValue =
+    discountType === 'percentage' ? total * (Number(discount || 0) / 100) : Number(discount || 0)
+
+  // Calcula o total final subtraindo o desconto do valor bruto
+  const finalTotal = Math.max(0, total - discountValue)
 
   const isScheduled = method === 'PIX AGENDADO' || method === 'CONVENIO'
   const canFinish = pricedItems.length > 0 && (!isScheduled || actualClientId)
@@ -103,6 +113,7 @@ export function CheckoutSheet({
     return d.toISOString().split('T')[0]
   }, [minRecurrence])
 
+  // Função para deduzir o estoque de um produto ou composição
   const deductStock = async (serviceId: string, quantity: number) => {
     const { data: inv } = await supabase
       .from('inventory')
@@ -127,6 +138,7 @@ export function CheckoutSheet({
     }
   }
 
+  // Função responsável por consolidar a transação financeira no banco de dados e dar baixa nos itens
   const finalizeTransaction = async (methodUsed: string, isPending: boolean) => {
     const now = new Date().toISOString()
     const isImmediate = ['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO'].includes(methodUsed)
@@ -211,7 +223,9 @@ export function CheckoutSheet({
               price: i.finalPrice,
               quantity: 1,
             })),
-            discount: Number(discount || 0),
+            discount: discountValue,
+            discount_type: discountType,
+            discount_raw: Number(discount || 0),
           },
         },
       ])
@@ -249,6 +263,7 @@ export function CheckoutSheet({
     setStatus('success')
   }
 
+  // Função que inicia o processo de finalização do checkout, tratando também pagamentos via PIX integrado
   const handleFinish = async (forceManual = false) => {
     if (isScheduled && !actualClientId) {
       return toast.error('Obrigatório selecionar um cliente para faturamento agendado.')
@@ -281,6 +296,7 @@ export function CheckoutSheet({
     }
   }
 
+  // Função para agendar um retorno provisório baseado na recorrência do serviço
   const handleCreateProvisional = async () => {
     if (!company?.id || !actualClientId || !suggestedDate) return
 
@@ -432,14 +448,44 @@ export function CheckoutSheet({
                 ))}
               </div>
               <Separator className="my-3" />
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-muted-foreground text-sm">Desconto Extra (R$)</span>
-                <Input
-                  type="number"
-                  className="w-24 h-8 text-right"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                />
+              <div className="space-y-3 mt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-sm">Tipo de Desconto</span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={discountType === 'fixed' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setDiscountType('fixed')}
+                    >
+                      R$
+                    </Button>
+                    <Button
+                      variant={discountType === 'percentage' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setDiscountType('percentage')}
+                    >
+                      %
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground text-sm">Valor do Desconto</span>
+                  <div className="flex items-center gap-2">
+                    {discountType === 'percentage' && Number(discount) > 0 && (
+                      <span className="text-xs text-muted-foreground font-semibold">
+                        (-R$ {discountValue.toFixed(2)})
+                      </span>
+                    )}
+                    <Input
+                      type="number"
+                      className="w-24 h-8 text-right font-mono"
+                      value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
               <Separator className="my-3" />
               <div className="flex justify-between text-xl font-bold">

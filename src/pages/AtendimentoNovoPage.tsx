@@ -114,7 +114,7 @@ export default function AtendimentoNovoPage() {
                             <div className="text-sm text-muted-foreground flex items-center gap-3 mt-1">
                               <span className="flex items-center gap-1">
                                 <CalendarIcon className="w-3 h-3" />{' '}
-                                {new Date(a.date).toLocaleDateString()}
+                                {new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" /> {a.start_time.slice(0, 5)}

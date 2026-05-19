@@ -52,6 +52,7 @@ export default function ContasReceberPage() {
     notes: '',
   })
 
+  // Função para abrir o painel lateral de criação de nova conta a receber
   const openSheet = () => {
     setForm({
       client_id: '',
@@ -62,6 +63,7 @@ export default function ContasReceberPage() {
     setSheetOpen(true)
   }
 
+  // Função que registra o título a receber no banco de dados
   const handleSave = async () => {
     if (!form.client_id || !form.amount) return toast.error('Preencha cliente e valor.')
 
@@ -152,7 +154,9 @@ export default function ContasReceberPage() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>{new Date(t.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>
+                    {new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                  </TableCell>
                   <TableCell>R$ {t.original_amount.toFixed(2)}</TableCell>
                   <TableCell className="font-bold text-primary">
                     R$ {(t.open_amount ?? t.original_amount - t.paid_amount).toFixed(2)}

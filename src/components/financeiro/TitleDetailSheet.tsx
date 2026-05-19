@@ -42,6 +42,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
     }
   }, [title])
 
+  // Função para salvar atualizações no título e re-agendar lembretes no WhatsApp
   const handleSave = async () => {
     setSaving(true)
     const newAmount = Number(form.original_amount)
@@ -109,6 +110,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
     setSaving(false)
   }
 
+  // Função responsável por excluir um título se não houver pagamentos vinculados
   const handleDeleteTitle = async () => {
     if (title.paid_amount > 0)
       return toast.error('Não é possível excluir um título com pagamentos vinculados.')
@@ -126,6 +128,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
     setSaving(false)
   }
 
+  // Função de estorno: cancela a transação e reverte o valor do pagamento no título
   const handleEstorno = async (txId: string) => {
     if (
       !confirm(
@@ -271,7 +274,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                   <Calendar className="w-4 h-4" /> Vencimento
                 </span>
                 <span className="text-sm font-medium">
-                  {new Date(title.due_date).toLocaleDateString('pt-BR')}
+                  {new Date(title.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
                 </span>
               </div>
               <div className="space-y-1">
@@ -294,7 +297,7 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                       >
                         <div>
                           <p className="font-medium text-[10px] text-muted-foreground mb-0.5">
-                            {new Date(tx.created_at).toLocaleDateString('pt-BR')}
+                            {new Date(tx.created_at).toLocaleString('pt-BR')}
                           </p>
                           <p className="font-semibold text-xs">
                             {tx.ticket_id} • {tx.payment_method}

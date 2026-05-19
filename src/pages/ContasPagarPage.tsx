@@ -53,6 +53,7 @@ export default function ContasPagarPage() {
     recurrence: false,
   })
 
+  // Função para abrir o painel lateral para criação de uma nova conta a pagar
   const openSheet = () => {
     setForm({
       supplier_id: '',
@@ -64,6 +65,7 @@ export default function ContasPagarPage() {
     setSheetOpen(true)
   }
 
+  // Função para salvar a nova despesa no banco de dados, com suporte a parcelamento recorrente
   const handleSave = async () => {
     if (!form.supplier_id || !form.amount) return toast.error('Preencha fornecedor e valor.')
 
@@ -176,7 +178,9 @@ export default function ContasPagarPage() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>{new Date(t.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>
+                    {new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                  </TableCell>
                   <TableCell>R$ {t.original_amount.toFixed(2)}</TableCell>
                   <TableCell className="font-bold text-destructive">
                     R$ {(t.open_amount ?? t.original_amount - t.paid_amount).toFixed(2)}

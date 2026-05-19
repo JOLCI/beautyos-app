@@ -97,6 +97,7 @@ export default function CaixaPage() {
     }
   }, [company?.id, refetch])
 
+  // Filtra as transações baseando-se na data informada e no status selecionado
   const filtered = useMemo(() => {
     return txs.filter((t: any) => {
       const d = t.transaction_date
@@ -106,6 +107,7 @@ export default function CaixaPage() {
     })
   }, [txs, dateFilter, statusFilter])
 
+  // Função responsável por salvar um lançamento manual de entrada ou saída
   const handleEntrySave = async () => {
     if (!entryForm.amount || !entryForm.desc) return toast.error('Preencha valor e descrição')
 
@@ -153,6 +155,7 @@ export default function CaixaPage() {
     refetch()
   }
 
+  // Função para executar o fechamento do caixa diário realizando auditoria
   const handleCloseRegister = async () => {
     const methods = ['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO']
     const details = methods
@@ -196,6 +199,7 @@ export default function CaixaPage() {
     setClosingModalOpen(false)
   }
 
+  // Função para excluir um lançamento financeiro manual, caso não existam conflitos
   const handleDeleteTx = async (tx: any, e: React.MouseEvent) => {
     e.stopPropagation()
     if (
@@ -461,7 +465,10 @@ export default function CaixaPage() {
                   <Label>Pessoa Destino (Fornecedor)</Label>
                   <Select
                     value={entryForm.supplier_id}
-                    onValueChange={(v) => setEntryForm({ ...entryForm, supplier_id: v })}
+                    onValueChange={(v) => {
+                      // Se selecionar fornecedor, removemos o vínculo com colaborador
+                      setEntryForm({ ...entryForm, supplier_id: v, profile_id: 'none' })
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Opcional" />
@@ -477,21 +484,26 @@ export default function CaixaPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Pessoa Destino (Colaborador)</Label>
+                  <Label>Pessoa Destino (Colaborador / Atendente)</Label>
                   <Select
                     value={entryForm.profile_id}
-                    onValueChange={(v) => setEntryForm({ ...entryForm, profile_id: v })}
+                    onValueChange={(v) => {
+                      // Se selecionar colaborador, removemos o vínculo com fornecedor
+                      setEntryForm({ ...entryForm, profile_id: v, supplier_id: 'none' })
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Opcional" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">-- Nenhum --</SelectItem>
-                      {profiles?.map((p: any) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
+                      {profiles
+                        ?.filter((p: any) => p.is_attendant)
+                        .map((p: any) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -532,14 +544,23 @@ export default function CaixaPage() {
       <Sheet open={closingModalOpen} onOpenChange={setClosingModalOpen}>
         <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>
-              Fechamento de Caixa: {new Date(dateFilter + 'T12:00:00').toLocaleDateString('pt-BR')}
-            </SheetTitle>
+            <SheetTitle>Fechamento de Caixa</SheetTitle>
           </SheetHeader>
           <div className="mt-6 space-y-6">
+            <div className="flex justify-between items-center bg-muted/20 p-3 rounded-lg border">
+              <Label className="font-semibold">Data de Conferência</Label>
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-auto shadow-sm"
+              />
+            </div>
+
             <p className="text-sm text-muted-foreground">
               Conferência obrigatória por método de pagamento. Digite o valor real em gaveta/conta
-              para auditar.
+              para auditar a data de{' '}
+              {new Date(dateFilter + 'T12:00:00').toLocaleDateString('pt-BR')}.
             </p>
 
             {['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO'].map((m) => {

@@ -209,7 +209,7 @@ export default function EstoquePage() {
                     return (
                       <TableRow key={m.id}>
                         <TableCell className="text-xs">
-                          {new Date(m.created_at).toLocaleString()}
+                          {new Date(m.created_at).toLocaleString('pt-BR')}
                         </TableCell>
                         <TableCell>{prod?.name || 'Desconhecido'}</TableCell>
                         <TableCell>
