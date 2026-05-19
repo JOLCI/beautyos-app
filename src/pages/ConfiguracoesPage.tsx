@@ -68,6 +68,18 @@ export default function ConfiguracoesPage() {
       setPasskey(company.passkey || '')
       setSettings(company.settings || {})
       setLogoUrl(company.logo_url || '')
+
+      const daysArr = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+      if (company.settings?.business_hours) {
+        setHours(company.settings.business_hours)
+      } else {
+        setHours(
+          daysArr.reduce(
+            (acc, d) => ({ ...acc, [d]: { open: true, start: '08:00', end: '19:00' } }),
+            {},
+          ),
+        )
+      }
     }
   }, [company])
 
@@ -144,10 +156,7 @@ export default function ConfiguracoesPage() {
   }
 
   const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
-  const [hours, setHours] = useState<any>(
-    settings.business_hours ||
-      days.reduce((acc, d) => ({ ...acc, [d]: { open: true, start: '08:00', end: '19:00' } }), {}),
-  )
+  const [hours, setHours] = useState<any>({})
 
   // Salva especificamente os horários de funcionamento garantindo a persistência imediata
   const saveHours = async () => {

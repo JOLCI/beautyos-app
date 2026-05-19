@@ -287,12 +287,14 @@ export default function AgendaPage() {
                 const dayStr = day.toISOString().split('T')[0]
                 const isCurrentMonth = day.getMonth() === month
                 const isToday = dayStr === todayStr
+                const dayName = daysOfWeek[day.getDay()]
+                const config = businessHours[dayName] || { open: true }
                 const dayApps = appointments?.filter((a: any) => a.date === dayStr) || []
 
                 return (
                   <div
                     key={dIdx}
-                    className={`border-r last:border-r-0 p-1 md:p-2 cursor-pointer hover:bg-muted/30 transition-colors flex flex-col ${!isCurrentMonth ? 'opacity-40 bg-muted/20' : 'bg-background'}`}
+                    className={`border-r last:border-r-0 p-1 md:p-2 cursor-pointer hover:bg-muted/30 transition-colors flex flex-col ${!isCurrentMonth || !config.open ? 'opacity-40 bg-muted/20' : 'bg-background'}`}
                     onClick={() => {
                       setDate(dayStr)
                       setView('day')

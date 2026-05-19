@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
 import {
   Select,
@@ -266,6 +267,31 @@ export function NovoAgendamentoSheet({
     onOpenChange(false)
   }
 
+  const isNewClient = useMemo(() => {
+    if (!clientId || !appointments) return false
+    const past = appointments.filter(
+      (a: any) => a.client_id === clientId && a.status === 'finalizado' && a.id !== appointment?.id,
+    )
+    return past.length === 0
+  }, [clientId, appointments, appointment])
+
+  const newServices = useMemo(() => {
+    if (!clientId || !appointments || selectedServices.length === 0) return []
+    const past = appointments.filter(
+      (a: any) => a.client_id === clientId && a.status === 'finalizado' && a.id !== appointment?.id,
+    )
+    const pastServiceIds = new Set(
+      past.flatMap((a: any) =>
+        a.service_ids?.length ? a.service_ids : a.service_id ? [a.service_id] : [],
+      ),
+    )
+
+    return selectedServices
+      .filter((id: string) => !pastServiceIds.has(id))
+      .map((id: string) => services?.find((s: any) => s.id === id)?.name)
+      .filter(Boolean)
+  }, [clientId, selectedServices, appointments, services, appointment])
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="sm:max-w-md overflow-y-auto max-h-screen">
@@ -289,6 +315,22 @@ export function NovoAgendamentoSheet({
                 ))}
               </SelectContent>
             </Select>
+            {isNewClient && clientId && (
+              <Badge
+                variant="default"
+                className="bg-amber-500 hover:bg-amber-600 mt-1 animate-in fade-in"
+              >
+                ✨ Cliente Primeira Vez
+              </Badge>
+            )}
+            {!isNewClient && newServices.length > 0 && (
+              <Badge
+                variant="secondary"
+                className="mt-1 animate-in fade-in border-purple-200 bg-purple-50 text-purple-700"
+              >
+                ✨ Primeiro agendamento para: {newServices.join(', ')}
+              </Badge>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -300,7 +342,13 @@ export function NovoAgendamentoSheet({
               <SelectContent>
                 {availableProfessionals.map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                    <div className="flex items-center gap-2">
+                      <Avatar className="w-5 h-5 border">
+                        <AvatarImage src={p.avatar_url} />
+                        <AvatarFallback className="text-[10px]">{p.name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      {p.name}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -41,6 +42,7 @@ export function CheckoutSheet({
   const { company } = usePasskey()
   const { profile } = useAuth()
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
+  const { data: appointments } = useQuery<any>('appointments')
 
   const [clientId, setClientId] = useState('avulso')
   const [method, setMethod] = useState('PIX')
@@ -122,6 +124,33 @@ export function CheckoutSheet({
 
   const isScheduled = method === 'PIX AGENDADO' || method === 'CONVENIO'
   const canFinish = pricedItems.length > 0 && (!isScheduled || actualClientId)
+
+  const isNewClient = useMemo(() => {
+    if (!actualClientId || !appointments) return false
+    const past = appointments.filter(
+      (a: any) =>
+        a.client_id === actualClientId && a.status === 'finalizado' && a.id !== appointmentId,
+    )
+    return past.length === 0
+  }, [actualClientId, appointments, appointmentId])
+
+  const newServices = useMemo(() => {
+    if (!actualClientId || !appointments || pricedItems.length === 0) return []
+    const past = appointments.filter(
+      (a: any) =>
+        a.client_id === actualClientId && a.status === 'finalizado' && a.id !== appointmentId,
+    )
+    const pastServiceIds = new Set(
+      past.flatMap((a: any) =>
+        a.service_ids?.length ? a.service_ids : a.service_id ? [a.service_id] : [],
+      ),
+    )
+
+    return pricedItems
+      .filter((i: any) => !pastServiceIds.has(i.id))
+      .map((i: any) => i.name)
+      .filter(Boolean)
+  }, [actualClientId, pricedItems, appointments, appointmentId])
 
   const minRecurrence = useMemo(() => {
     let min = 0
@@ -492,6 +521,22 @@ export function CheckoutSheet({
                 <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
                   <Info className="w-3 h-3" /> Obrigatório para faturamento agendado
                 </p>
+              )}
+              {isNewClient && actualClientId && (
+                <Badge
+                  variant="default"
+                  className="bg-amber-500 hover:bg-amber-600 mt-2 animate-in fade-in w-full justify-center"
+                >
+                  ✨ Cliente Primeira Vez
+                </Badge>
+              )}
+              {!isNewClient && newServices.length > 0 && actualClientId && (
+                <Badge
+                  variant="secondary"
+                  className="mt-2 animate-in fade-in border-purple-200 bg-purple-50 text-purple-700 w-full justify-center whitespace-normal text-center"
+                >
+                  ✨ Primeiro Checkout para: {newServices.join(', ')}
+                </Badge>
               )}
             </div>
             <div className="bg-muted/50 p-4 rounded-xl border">

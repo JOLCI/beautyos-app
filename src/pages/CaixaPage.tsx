@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import {
   Wallet,
@@ -501,7 +502,15 @@ export default function CaixaPage() {
                         ?.filter((p: any) => p.is_attendant)
                         .map((p: any) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name}
+                            <div className="flex items-center gap-2">
+                              <Avatar className="w-5 h-5 border">
+                                <AvatarImage src={p.avatar_url} />
+                                <AvatarFallback className="text-[10px]">
+                                  {p.name?.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {p.name}
+                            </div>
                           </SelectItem>
                         ))}
                     </SelectContent>
