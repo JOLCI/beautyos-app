@@ -20,6 +20,19 @@ import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
 import { translateStatus } from '@/lib/utils'
 import { usePasskey } from '@/contexts/PasskeyContext'
 
+const ClientAvatar = ({ client, className }: { client?: any; className?: string }) => {
+  return (
+    <Avatar className={className}>
+      {client?.avatar_url && (
+        <AvatarImage src={client.avatar_url} alt={client?.name || 'Cliente'} />
+      )}
+      <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+        {client?.name?.substring(0, 2).toUpperCase() || 'CL'}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
 export default function AgendaPage() {
   const navigate = useNavigate()
   const { passkey } = useParams()
