@@ -138,7 +138,7 @@ export default function ContasPagarPage() {
       }
       return true
     })
-    .sort((a: any, b: any) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+    .sort((a: any, b: any) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())
 
   return (
     <div className="space-y-6">

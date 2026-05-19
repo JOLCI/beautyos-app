@@ -51,7 +51,7 @@ export default function CaixaPage() {
     loading,
     refetch,
   } = useQuery<any>('transactions', {
-    order: { column: 'created_at', ascending: false },
+    order: { column: 'transaction_date', ascending: false },
     select: '*, clients(name), suppliers(name)',
   })
 
@@ -350,7 +350,7 @@ export default function CaixaPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Hora/Data</TableHead>
+                  <TableHead>Data (Lançamento)</TableHead>
                   <TableHead>Entidade e Descrição</TableHead>
                   <TableHead>Método</TableHead>
                   <TableHead>Tipo</TableHead>
@@ -370,7 +370,7 @@ export default function CaixaPage() {
                     onClick={() => setSelectedTx(t)}
                   >
                     <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                      {new Date(t.created_at).toLocaleString('pt-BR')}
+                      {new Date(t.transaction_date + 'T12:00:00').toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell className="font-medium max-w-[250px]">
                       <FinancialDescription record={t} />

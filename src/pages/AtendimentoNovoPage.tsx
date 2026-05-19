@@ -14,6 +14,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { CheckoutSheet } from '@/components/atendimento/CheckoutSheet'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function AtendimentoNovoPage() {
   const [searchParams] = useSearchParams()
@@ -27,6 +28,7 @@ export default function AtendimentoNovoPage() {
   const [selectedApp, setSelectedApp] = useState<any>(null)
   const [cart, setCart] = useState<any[]>([])
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [dateFilter, setDateFilter] = useState('hoje')
 
   useEffect(() => {
     if (appointmentId && appointments.length > 0 && !selectedApp) {
@@ -54,16 +56,24 @@ export default function AtendimentoNovoPage() {
   }
 
   const filteredApps = useMemo(() => {
-    return appointments.filter((a: any) => {
-      const cli = clients.find((c: any) => c.id === a.client_id)
-      const term = search.toLowerCase()
-      return (
-        cli?.name.toLowerCase().includes(term) ||
-        a.date.includes(term) ||
-        a.start_time.includes(term)
-      )
-    })
-  }, [appointments, clients, search])
+    const today = new Date().toISOString().split('T')[0]
+    return appointments
+      .filter((a: any) => {
+        if (dateFilter === 'hoje' && a.date !== today) return false
+
+        const cli = clients.find((c: any) => c.id === a.client_id)
+        const term = search.toLowerCase()
+        return (
+          cli?.name.toLowerCase().includes(term) ||
+          a.date.includes(term) ||
+          a.start_time.includes(term)
+        )
+      })
+      .sort((a: any, b: any) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date)
+        return a.start_time.localeCompare(b.start_time)
+      })
+  }, [appointments, clients, search, dateFilter])
 
   const total = cart.reduce((acc, curr) => acc + (curr.price || 0), 0)
 
@@ -79,7 +89,13 @@ export default function AtendimentoNovoPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-6">
           <Card>
-            <div className="p-4 border-b border-border bg-muted/20">
+            <div className="p-4 border-b border-border bg-muted/20 space-y-4">
+              <Tabs value={dateFilter} onValueChange={setDateFilter} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="hoje">Hoje</TabsTrigger>
+                  <TabsTrigger value="todos">Todos</TabsTrigger>
+                </TabsList>
+              </Tabs>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input

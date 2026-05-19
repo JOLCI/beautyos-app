@@ -33,12 +33,14 @@ export default function EstoquePage() {
     match: { type: 'product', is_active: true },
   })
 
-  const filteredProducts = products.filter((p: any) => {
-    if (filterParam !== 'low_stock') return true
-    const inv = inventory.find((i: any) => i.service_id === p.id)
-    if (!inv) return true // not initialized is considered zero/low stock
-    return inv.quantity <= inv.min_quantity
-  })
+  const filteredProducts = products
+    .filter((p: any) => {
+      if (filterParam !== 'low_stock') return true
+      const inv = inventory.find((i: any) => i.service_id === p.id)
+      if (!inv) return true // not initialized is considered zero/low stock
+      return inv.quantity <= inv.min_quantity
+    })
+    .sort((a: any, b: any) => a.name.localeCompare(b.name))
 
   const adjustStock = async (invId: string, type: 'in' | 'out', currentQty: number) => {
     const qty = parseInt(
