@@ -22,9 +22,10 @@ import {
 } from '@/components/ui/select'
 import { useQuery } from '@/hooks/use-query'
 import { supabase } from '@/lib/supabase/client'
+import { useNavigate } from 'react-router-dom'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
-import { Loader2, X, Clock, AlertCircle } from 'lucide-react'
+import { Loader2, X, Clock, AlertCircle, ShoppingCart } from 'lucide-react'
 import { resolveAndScheduleWhatsApp } from '@/lib/whatsapp'
 
 export function NovoAgendamentoSheet({
@@ -53,6 +54,7 @@ export function NovoAgendamentoSheet({
   const [cancelReason, setCancelReason] = useState('')
   const [canceledByClient, setCanceledByClient] = useState(false)
 
+  const navigate = useNavigate()
   const availableProfessionals = useMemo(() => {
     return professionals?.filter((p: any) => p.role !== 'root' && p.is_attendant) || []
   }, [professionals])
@@ -525,13 +527,28 @@ export function NovoAgendamentoSheet({
             {appointment &&
               appointment.status !== 'cancelado' &&
               appointment.status !== 'finalizado' && (
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowCancelConfirm(true)}
-                  className="w-full"
-                >
-                  Cancelar Agendamento
-                </Button>
+                <div className="flex flex-col gap-2 w-full mt-2">
+                  <Button
+                    variant="outline"
+                    className="w-full bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      onOpenChange(false)
+                      navigate(
+                        `/${company?.passkey}/atendimento/novo?client_id=${clientId}&appointment_id=${appointment.id}`,
+                      )
+                    }}
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" /> Finalizar Vendas / Caixa
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowCancelConfirm(true)}
+                    className="w-full"
+                  >
+                    Cancelar Agendamento
+                  </Button>
+                </div>
               )}
           </SheetFooter>
         )}

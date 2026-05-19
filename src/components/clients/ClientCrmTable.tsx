@@ -87,13 +87,20 @@ export function ClientCrmTable({ serviceIntervals, transactions }: ClientCrmTabl
               {consumoList.map((item: any, i: number) => (
                 <TableRow key={`${item.id}-${i}`}>
                   <TableCell>{new Date(item.date).toLocaleDateString('pt-BR')}</TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell
+                    className={`font-medium ${formatStatus(item.status) === 'Cancelado' ? 'line-through text-muted-foreground' : ''}`}
+                  >
                     {item.type === 'service' ? (
-                      <span>
-                        Serviço {item.name} em {new Date(item.date).toLocaleDateString('pt-BR')}
-                      </span>
+                      <div className="flex flex-col">
+                        <span>Serviço {item.name}</span>
+                        <span className="text-xs text-muted-foreground font-normal">
+                          Realizado em {new Date(item.date).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
                     ) : (
-                      <span>Produto/Outro: {item.name}</span>
+                      <div className="flex flex-col">
+                        <span>Produto/Outro: {item.name}</span>
+                      </div>
                     )}
                   </TableCell>
                   <TableCell>R$ {Number(item.price || 0).toFixed(2)}</TableCell>

@@ -303,13 +303,31 @@ export function TitleDetailSheet({ open, onOpenChange, title, onUpdate }: any) {
                         key={tx.id}
                         className="p-3 border rounded-lg bg-background shadow-sm text-sm flex justify-between items-center"
                       >
-                        <div>
+                        <div className="flex-1 mr-2 min-w-0">
                           <p className="font-medium text-[10px] text-muted-foreground mb-0.5">
                             {new Date(tx.created_at).toLocaleString('pt-BR')}
                           </p>
                           <p className="font-semibold text-xs">
                             {tx.ticket_id} • {tx.payment_method}
                           </p>
+                          {(tx.description ||
+                            (tx.metadata?.items && tx.metadata.items.length > 0)) && (
+                            <div className="mt-1">
+                              {tx.metadata?.items ? (
+                                <ul className="text-[10px] text-muted-foreground list-disc pl-3">
+                                  {tx.metadata.items.map((it: any, idx: number) => (
+                                    <li key={idx} className="truncate">
+                                      {it.name} - R$ {Number(it.price || 0).toFixed(2)}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {tx.description}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           <span

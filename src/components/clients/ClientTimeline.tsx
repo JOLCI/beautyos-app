@@ -126,13 +126,19 @@ export function ClientTimeline({
                     </div>
 
                     {ev.type === 'appointment' && (
-                      <div>
+                      <div
+                        className={
+                          formatStatus(ev.data.status) === 'Cancelado'
+                            ? 'line-through opacity-70'
+                            : ''
+                        }
+                      >
                         <p className="font-medium text-foreground">
                           {new Date(ev.data.date + 'T12:00:00').toLocaleDateString('pt-BR')} às{' '}
                           {ev.data.start_time.slice(0, 5)}
                         </p>
                         <Badge
-                          className={`text-[10px] mt-1 uppercase ${getStatusColor(formatStatus(ev.data.status))}`}
+                          className={`text-[10px] mt-1 uppercase no-underline ${getStatusColor(formatStatus(ev.data.status))}`}
                         >
                           {formatStatus(ev.data.status)}
                         </Badge>
@@ -140,13 +146,21 @@ export function ClientTimeline({
                     )}
 
                     {ev.type === 'transaction' && (
-                      <div>
+                      <div
+                        className={
+                          formatStatus(ev.data.status) === 'Cancelado'
+                            ? 'line-through opacity-70'
+                            : ''
+                        }
+                      >
                         <p className="font-medium text-foreground">
                           R$ {ev.data.amount.toFixed(2)}
                         </p>
-                        <p className="text-xs text-muted-foreground">{ev.data.payment_method}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {ev.data.payment_method} • {ev.data.ticket_id}
+                        </p>
                         <Badge
-                          className={`text-[10px] mt-1 uppercase ${getStatusColor(formatStatus(ev.data.status))}`}
+                          className={`text-[10px] mt-1 uppercase no-underline ${getStatusColor(formatStatus(ev.data.status))}`}
                         >
                           {formatStatus(ev.data.status)}
                         </Badge>
@@ -154,7 +168,13 @@ export function ClientTimeline({
                     )}
 
                     {ev.type === 'title' && (
-                      <div>
+                      <div
+                        className={
+                          formatStatus(ev.data.status) === 'Cancelado'
+                            ? 'line-through opacity-70'
+                            : ''
+                        }
+                      >
                         <p className="font-medium text-foreground">
                           R$ {ev.data.original_amount.toFixed(2)}
                         </p>
@@ -163,7 +183,7 @@ export function ClientTimeline({
                           {new Date(ev.data.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
                         </p>
                         <Badge
-                          className={`text-[10px] mt-1 uppercase ${getStatusColor(formatStatus(ev.data.status))}`}
+                          className={`text-[10px] mt-1 uppercase no-underline ${getStatusColor(formatStatus(ev.data.status))}`}
                         >
                           {formatStatus(ev.data.status)}
                         </Badge>

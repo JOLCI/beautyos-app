@@ -43,6 +43,7 @@ export default function ClienteDetailPage() {
   const [anamnesis, setAnamnesis] = useState('')
   const [customPrices, setCustomPrices] = useState<Record<string, number>>({})
   const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (client) {
@@ -87,6 +88,7 @@ export default function ClienteDetailPage() {
   }
 
   const saveDados = async () => {
+    setSaving(true)
     const { error } = await supabase
       .from('clients')
       .update({ phone: form.phone, email: form.email, birthday: form.birthday, notes: form.notes })
@@ -94,20 +96,32 @@ export default function ClienteDetailPage() {
     if (!error) {
       toast.success('Dados salvos')
       refetch()
+    } else {
+      toast.error('Erro ao salvar dados')
     }
+    setSaving(false)
   }
 
   const saveAnamnesis = async () => {
-    await supabase
+    setSaving(true)
+    const { error } = await supabase
       .from('clients')
       .update({ anamnesis: { notes: anamnesis } })
       .eq('id', id)
-    toast.success('Anamnese atualizada')
+    if (!error) toast.success('Anamnese atualizada')
+    else toast.error('Erro ao salvar anamnese')
+    setSaving(false)
   }
 
   const savePrices = async () => {
-    await supabase.from('clients').update({ special_prices: customPrices }).eq('id', id)
-    toast.success('Preços especiais atualizados')
+    setSaving(true)
+    const { error } = await supabase
+      .from('clients')
+      .update({ special_prices: customPrices })
+      .eq('id', id)
+    if (!error) toast.success('Preços especiais atualizados')
+    else toast.error('Erro ao salvar preços')
+    setSaving(false)
   }
 
   return (
@@ -220,8 +234,13 @@ export default function ClienteDetailPage() {
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
-                <Button onClick={saveDados}>
-                  <Save className="w-4 h-4 mr-2" /> Salvar Cadastro
+                <Button onClick={saveDados} disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}{' '}
+                  Salvar Cadastro
                 </Button>
               </CardContent>
             </Card>
@@ -239,8 +258,13 @@ export default function ClienteDetailPage() {
                   placeholder="Descreva aqui alergias, preferências e histórico clínico do cliente..."
                   onChange={(e) => setAnamnesis(e.target.value)}
                 />
-                <Button onClick={saveAnamnesis}>
-                  <Save className="w-4 h-4 mr-2" /> Salvar Anamnese
+                <Button onClick={saveAnamnesis} disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}{' '}
+                  Salvar Anamnese
                 </Button>
               </CardContent>
             </Card>
@@ -271,8 +295,13 @@ export default function ClienteDetailPage() {
                     />
                   </div>
                 ))}
-                <Button onClick={savePrices} className="mt-4 w-full">
-                  <Save className="w-4 h-4 mr-2" /> Salvar Preços
+                <Button onClick={savePrices} className="mt-4 w-full" disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}{' '}
+                  Salvar Preços
                 </Button>
               </CardContent>
             </Card>

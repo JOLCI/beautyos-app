@@ -119,7 +119,7 @@ export default function AgendaPage() {
     return (
       <div
         key={currentDateStr}
-        className="flex-1 min-w-[120px] md:min-w-0 border-r last:border-r-0 flex flex-col"
+        className="flex-1 min-w-[200px] md:min-w-[150px] border-r last:border-r-0 flex flex-col"
       >
         <div className="p-2 text-center border-b font-medium bg-muted/30 sticky top-0 z-10 backdrop-blur-sm flex flex-col items-center gap-1">
           <span className="capitalize text-sm">{dataFormatada}</span>
@@ -139,12 +139,15 @@ export default function AgendaPage() {
             )
 
             return (
-              <div key={h} className="flex border-b border-border/50 h-auto min-h-[5.5rem] group">
-                <div className="w-14 py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50 bg-muted/10 shrink-0">
+              <div
+                key={h}
+                className="flex border-b border-border/50 h-auto min-h-[6rem] group items-stretch"
+              >
+                <div className="w-12 py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50 bg-muted/10 shrink-0 flex items-center justify-center">
                   {timeStr}
                 </div>
                 <div
-                  className="flex-1 p-1.5 flex flex-col gap-1.5 relative bg-background hover:bg-muted/10 cursor-pointer transition-colors min-w-0"
+                  className="flex-1 p-2 flex flex-col gap-2 relative bg-background hover:bg-muted/10 cursor-pointer transition-colors min-w-0"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       openSheet(null, { date: currentDateStr, time: timeStr })
@@ -185,32 +188,36 @@ export default function AgendaPage() {
                           e.stopPropagation()
                           openSheet(a)
                         }}
-                        className={`flex-1 flex flex-col border shadow-sm rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full`}
+                        className={`flex flex-col border shadow-sm rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full min-h-[4.5rem]`}
                       >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <Avatar className="w-6 h-6 border shadow-sm">
+                        <div className="flex items-start gap-2 mb-2">
+                          <Avatar className="w-7 h-7 border shadow-sm shrink-0">
                             <AvatarImage
                               src={
                                 cli?.avatar_url ||
                                 `https://img.usecurling.com/ppl/thumbnail?seed=${cli?.id || 'a'}`
                               }
                             />
-                            <AvatarFallback className="text-[10px]">
+                            <AvatarFallback className="text-xs">
                               {cli?.name?.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-bold text-xs truncate flex-1 leading-tight">
-                            {cli?.name || 'Cliente'}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className={`text-[9px] px-1.5 py-0 h-4 uppercase ${isProvisional ? 'text-primary' : ''}`}
-                          >
-                            {translateStatus(a.status)}
-                          </Badge>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground leading-tight line-clamp-1 mb-1.5">
-                          {srvs.map((s: any) => s.name).join(', ') || 'Serviço'}
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-1">
+                              <span className="font-bold text-xs break-words leading-tight">
+                                {cli?.name || 'Cliente'}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] px-1.5 py-0 h-4 uppercase whitespace-nowrap shrink-0 ${isProvisional ? 'text-primary' : ''}`}
+                              >
+                                {translateStatus(a.status)}
+                              </Badge>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground leading-snug break-words mt-0.5">
+                              {srvs.map((s: any) => s.name).join(', ') || 'Serviço'}
+                            </div>
+                          </div>
                         </div>
                         <div className="text-[10px] font-semibold flex justify-between items-center text-primary/80 mt-auto bg-muted/30 p-1 rounded gap-1">
                           <span className="flex items-center gap-1 truncate shrink-0">
@@ -456,7 +463,7 @@ export default function AgendaPage() {
           renderMonthGrid()
         ) : (
           <div className="flex-1 overflow-auto bg-muted/5">
-            <div className={`flex h-full ${view === 'week' ? 'w-full' : 'min-w-max'}`}>
+            <div className="flex h-full min-w-max">
               {datesToRender.map((dStr) => renderDayColumn(dStr))}
             </div>
           </div>

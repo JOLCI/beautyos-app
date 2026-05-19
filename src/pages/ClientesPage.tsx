@@ -32,6 +32,7 @@ export default function ClientesPage() {
   const [editing, setEditing] = useState<any>(null)
   const [uploading, setUploading] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -90,6 +91,7 @@ export default function ClientesPage() {
 
   const handleSave = async () => {
     if (!form.name || !form.phone) return toast.error('Nome e telefone são obrigatórios')
+    setSaving(true)
 
     const payload = {
       ...form,
@@ -98,15 +100,39 @@ export default function ClientesPage() {
 
     if (editing) {
       const { error } = await supabase.from('clients').update(payload).eq('id', editing.id)
-      if (error) return toast.error(error.message)
+      if (error) {
+        toast.error(error.message)
+        setSaving(false)
+        return
+      }
       toast.success('Cliente atualizado')
     } else {
+      // Check for exact duplicate name and phone in the same company
+      const { data: existing } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('company_id', company?.id)
+        .eq('name', payload.name)
+        .eq('phone', payload.phone)
+        .single()
+
+      if (existing) {
+        toast.error('Já existe um cliente com este nome e telefone.')
+        setSaving(false)
+        return
+      }
+
       const { error } = await supabase
         .from('clients')
         .insert([{ ...payload, company_id: company?.id }])
-      if (error) return toast.error(error.message)
+      if (error) {
+        toast.error(error.message)
+        setSaving(false)
+        return
+      }
       toast.success('Cliente cadastrado')
     }
+    setSaving(false)
     setSheetOpen(false)
     refetch()
   }
@@ -318,8 +344,8 @@ export default function ClientesPage() {
             </div>
           </div>
           <SheetFooter className="mt-8">
-            <Button className="w-full" onClick={handleSave} disabled={uploading}>
-              Salvar Cliente
+            <Button className="w-full" onClick={handleSave} disabled={uploading || saving}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Salvar Cliente
             </Button>
           </SheetFooter>
         </SheetContent>
