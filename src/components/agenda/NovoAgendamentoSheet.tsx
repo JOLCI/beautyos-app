@@ -141,19 +141,22 @@ export function NovoAgendamentoSheet({
     return false
   }
 
+  // Função responsável por salvar ou atualizar o agendamento
   const handleSave = async (forceSave = false, overrideStatus?: string) => {
     if (!endTime) return toast.error('A hora de término é obrigatória.')
     if (endTime <= startTime)
       return toast.error('A hora de término deve ser posterior à hora de início.')
 
+    // Validação de conflito de horários com alerta bloqueante
     if (!forceSave && checkConflicts()) {
-      toast('Conflito de Horário', {
-        description:
-          'Já existe um agendamento neste dia e horário para o profissional selecionado. Deseja sobrepor?',
-        action: { label: 'Agendar Mesmo Assim', onClick: () => handleSave(true, overrideStatus) },
-        duration: 10000,
-      })
-      return
+      const confirmacao = window.confirm(
+        '🚨 CONFLITO DE HORÁRIO 🚨\n\nJá existe um agendamento neste dia e horário para o atendente selecionado.\n\nDeseja salvar mesmo assim e sobrepor o horário?',
+      )
+      if (confirmacao) {
+        return handleSave(true, overrideStatus)
+      } else {
+        return
+      }
     }
 
     setSaving(true)

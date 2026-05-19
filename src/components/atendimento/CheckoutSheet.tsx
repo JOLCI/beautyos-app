@@ -12,7 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CheckCircle2, QrCode, Loader2, Copy, AlertCircle, Info, CalendarClock } from 'lucide-react'
+import {
+  CheckCircle2,
+  QrCode,
+  Loader2,
+  Copy,
+  AlertCircle,
+  Info,
+  CalendarClock,
+  Camera,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
@@ -50,6 +59,9 @@ export function CheckoutSheet({
   const [status, setStatus] = useState<'idle' | 'waiting' | 'success'>('idle')
   const [pixPayload, setPixPayload] = useState('')
   const [provisionalCreated, setProvisionalCreated] = useState(false)
+  const [recurrenceDate, setRecurrenceDate] = useState('')
+  const [recurrenceTime, setRecurrenceTime] = useState('09:00')
+  const [photoData, setPhotoData] = useState<string | null>(null)
 
   useEffect(() => {
     if (initialClientId && open && clientId === 'avulso') setClientId(initialClientId)
@@ -59,10 +71,25 @@ export function CheckoutSheet({
       setClientId('avulso')
       setDiscount('0')
       setProvisionalCreated(false)
+      setRecurrenceDate('')
+      setRecurrenceTime('09:00')
+      setPhotoData(null)
     }
   }, [initialClientId, open])
 
   const actualClientId = clientId === 'avulso' ? '' : clientId
+
+  // Função para processar o upload da imagem de evidência (Câmera ou Galeria)
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        setPhotoData(ev.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const activeClient = useMemo(
     () => clients.find((c: any) => c.id === actualClientId),
@@ -112,6 +139,13 @@ export function CheckoutSheet({
     d.setDate(d.getDate() + minRecurrence)
     return d.toISOString().split('T')[0]
   }, [minRecurrence])
+
+  // Preenche a data de recorrência inicialmente com a data sugerida
+  useEffect(() => {
+    if (suggestedDate && !recurrenceDate) {
+      setRecurrenceDate(suggestedDate)
+    }
+  }, [suggestedDate, recurrenceDate])
 
   // Função para deduzir o estoque de um produto ou composição
   const deductStock = async (serviceId: string, quantity: number) => {
@@ -226,6 +260,7 @@ export function CheckoutSheet({
             discount: discountValue,
             discount_type: discountType,
             discount_raw: Number(discount || 0),
+            photo_evidence: photoData, // Armazena a foto em base64 caso tenha sido enviada
           },
         },
       ])
@@ -296,19 +331,25 @@ export function CheckoutSheet({
     }
   }
 
-  // Função para agendar um retorno provisório baseado na recorrência do serviço
+  // Função para pré-agendar o retorno (recorrência) com base na data/hora informada
   const handleCreateProvisional = async () => {
-    if (!company?.id || !actualClientId || !suggestedDate) return
+    if (!company?.id || !actualClientId || !recurrenceDate) return
 
-    // We infer professional from the first service or profile for simplicity
+    // Estima a duração
+    const duration = 60
+    const [h, m] = recurrenceTime.split(':').map(Number)
+    const endH = Math.floor((h * 60 + m + duration) / 60)
+    const endM = (h * 60 + m + duration) % 60
+    const endTimeStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`
+
     const { data: newApp, error } = await supabase
       .from('appointments')
       .insert({
         company_id: company.id,
         client_id: actualClientId,
-        date: suggestedDate,
-        start_time: '09:00:00',
-        end_time: '10:00:00',
+        date: recurrenceDate,
+        start_time: recurrenceTime + ':00',
+        end_time: endTimeStr,
         status: 'provisional',
         service_ids: pricedItems.map((i: any) => i.id),
       })
@@ -320,15 +361,19 @@ export function CheckoutSheet({
     toast.success('Retorno provisório pré-agendado!')
     setProvisionalCreated(true)
 
-    // Schedule WA 7 days before
+    // Agendar lembrete via WhatsApp 7 dias antes do retorno
     if (activeClient?.phone) {
-      const reminderDt = new Date(suggestedDate)
+      const reminderDt = new Date(recurrenceDate)
       reminderDt.setDate(reminderDt.getDate() - 7)
       reminderDt.setHours(8, 0, 0, 0)
 
+      const parts = recurrenceDate.split('-')
+      const dtBr = `${parts[2]}/${parts[1]}/${parts[0]}`
+
       const contextData = {
         clientName: activeClient.name,
-        date: new Date(suggestedDate).toLocaleDateString(),
+        date: dtBr,
+        dateTime: `${dtBr} às ${recurrenceTime}`,
       }
       resolveAndScheduleWhatsApp(
         company.id,
@@ -368,11 +413,25 @@ export function CheckoutSheet({
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Com base nos serviços, a próxima visita ideal seria em aproximadamente{' '}
-                  <strong>{minRecurrence} dias</strong>.
+                  <strong>{minRecurrence} dias</strong>. Modifique a data e hora se necessário:
                 </p>
+                <div className="flex gap-2 mb-4">
+                  <Input
+                    type="date"
+                    value={recurrenceDate}
+                    onChange={(e) => setRecurrenceDate(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="time"
+                    value={recurrenceTime}
+                    onChange={(e) => setRecurrenceTime(e.target.value)}
+                    className="w-24"
+                  />
+                </div>
                 <div className="flex gap-2">
                   <Button onClick={handleCreateProvisional} className="flex-1 shadow-md">
-                    Pré-agendar para {new Date(suggestedDate).toLocaleDateString()}
+                    Confirmar Pré-Agendamento
                   </Button>
                 </div>
               </div>
@@ -491,6 +550,28 @@ export function CheckoutSheet({
               <div className="flex justify-between text-xl font-bold">
                 <span>Total Final</span>
                 <span className="text-primary">R$ {finalTotal.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4 border rounded-xl bg-muted/20">
+              <Label className="flex items-center gap-2 text-sm font-semibold">
+                <Camera className="w-4 h-4 text-primary" /> Anexar Evidência (Foto)
+              </Label>
+              <div className="flex items-center gap-4">
+                {photoData && (
+                  <div className="w-16 h-16 rounded-md overflow-hidden border border-border">
+                    <img src={photoData} alt="Evidência" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoUpload}
+                    className="text-xs file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  />
+                </div>
               </div>
             </div>
 

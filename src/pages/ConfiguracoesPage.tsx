@@ -122,9 +122,14 @@ export default function ConfiguracoesPage() {
       days.reduce((acc, d) => ({ ...acc, [d]: { open: true, start: '08:00', end: '19:00' } }), {}),
   )
 
-  const saveHours = () => {
-    updateSetting('business_hours', hours)
-    saveSettings()
+  // Salva especificamente os horários de funcionamento garantindo a persistência imediata
+  const saveHours = async () => {
+    if (!company) return
+    const novosSettings = { ...settings, business_hours: hours }
+    setSettings(novosSettings)
+
+    await supabase.from('companies').update({ settings: novosSettings }).eq('id', company.id)
+    toast.success('Horários salvos e atualizados com sucesso')
   }
 
   const connectWhatsApp = async () => {

@@ -66,24 +66,47 @@ export default function AgendaPage() {
     return businessHours[dayName] || { open: true, start: '08:00', end: '19:00' }
   }
 
+  // Calcula a porcentagem de ocupação do dia
+  const calcularOcupacao = (apps: any[], config: any) => {
+    if (!config.open || !config.start || !config.end) return 0
+    const startH = parseInt(config.start.split(':')[0])
+    const endH = parseInt(config.end.split(':')[0])
+    const totalMinutosAbertos = (endH - startH) * 60
+    if (totalMinutosAbertos <= 0) return 0
+
+    let minutosUsados = 0
+    apps.forEach((a) => {
+      if (a.status !== 'cancelado' && a.status !== 'provisional') {
+        const sh = parseInt(a.start_time.split(':')[0] || '0')
+        const sm = parseInt(a.start_time.split(':')[1] || '0')
+        const eh = parseInt(a.end_time.split(':')[0] || '0')
+        const em = parseInt(a.end_time.split(':')[1] || '0')
+        minutosUsados += eh * 60 + em - (sh * 60 + sm)
+      }
+    })
+
+    return Math.min(100, Math.round((minutosUsados / totalMinutosAbertos) * 100))
+  }
+
+  // Renderiza a coluna de um dia específico na agenda
   const renderDayColumn = (currentDateStr: string) => {
     const config = getDayConfig(currentDateStr)
     const dayApps = appointments?.filter((a: any) => a.date === currentDateStr) || []
+
+    const dataFormatada = new Date(currentDateStr + 'T12:00:00').toLocaleDateString('pt-BR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+    })
 
     if (!config.open) {
       return (
         <div
           key={currentDateStr}
-          className="flex-1 min-w-[250px] p-4 text-center text-muted-foreground bg-muted/20 border-r last:border-r-0"
+          className="flex-1 min-w-[120px] md:min-w-0 p-4 text-center text-muted-foreground bg-muted/20 border-r last:border-r-0 flex flex-col items-center"
         >
-          <div className="font-medium mb-4">
-            {new Date(currentDateStr + 'T12:00:00').toLocaleDateString('pt-BR', {
-              weekday: 'short',
-              day: '2-digit',
-              month: '2-digit',
-            })}
-          </div>
-          Fechado
+          <div className="font-medium mb-4 capitalize">{dataFormatada}</div>
+          <span className="text-xs font-semibold bg-muted px-2 py-1 rounded-md">Fechado</span>
         </div>
       )
     }
@@ -91,15 +114,22 @@ export default function AgendaPage() {
     const startH = parseInt(config.start.split(':')[0])
     const endH = parseInt(config.end.split(':')[0])
     const hours = Array.from({ length: endH - startH + 1 }, (_, i) => i + startH)
+    const ocupacao = calcularOcupacao(dayApps, config)
 
     return (
-      <div key={currentDateStr} className="flex-1 min-w-[250px] border-r last:border-r-0">
-        <div className="p-3 text-center border-b font-medium bg-muted/30 sticky top-0 z-10 backdrop-blur-sm">
-          {new Date(currentDateStr + 'T12:00:00').toLocaleDateString('pt-BR', {
-            weekday: 'short',
-            day: '2-digit',
-            month: '2-digit',
-          })}
+      <div
+        key={currentDateStr}
+        className="flex-1 min-w-[120px] md:min-w-0 border-r last:border-r-0 flex flex-col"
+      >
+        <div className="p-2 text-center border-b font-medium bg-muted/30 sticky top-0 z-10 backdrop-blur-sm flex flex-col items-center gap-1">
+          <span className="capitalize text-sm">{dataFormatada}</span>
+          <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+            <div
+              className={`h-full ${ocupacao > 80 ? 'bg-destructive' : ocupacao > 50 ? 'bg-amber-500' : 'bg-primary'}`}
+              style={{ width: `${ocupacao}%` }}
+            />
+          </div>
+          <span className="text-[9px] text-muted-foreground">{ocupacao}% Ocupado</span>
         </div>
         <div className="relative">
           {hours.map((h) => {
@@ -404,7 +434,7 @@ export default function AgendaPage() {
           renderMonthGrid()
         ) : (
           <div className="flex-1 overflow-auto bg-muted/5">
-            <div className="flex min-w-max">
+            <div className={`flex h-full ${view === 'week' ? 'w-full' : 'min-w-max'}`}>
               {datesToRender.map((dStr) => renderDayColumn(dStr))}
             </div>
           </div>

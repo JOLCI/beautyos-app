@@ -93,16 +93,41 @@ export default function DashboardPage() {
     }
   }, [transactions, titles, appointments, today])
 
+  // Calcula os dados do gráfico de receita da semana atual baseando-se nas transações reais
   const chartData = useMemo(() => {
-    return [
-      { name: 'Seg', total: 400 },
-      { name: 'Ter', total: 300 },
-      { name: 'Qua', total: 550 },
-      { name: 'Qui', total: 200 },
-      { name: 'Sex', total: 800 },
-      { name: 'Sáb', total: 1200 },
+    const data = [
+      { name: 'Seg', total: 0 },
+      { name: 'Ter', total: 0 },
+      { name: 'Qua', total: 0 },
+      { name: 'Qui', total: 0 },
+      { name: 'Sex', total: 0 },
+      { name: 'Sáb', total: 0 },
       { name: 'Dom', total: 0 },
     ]
+    if (!transactions) return data
+
+    const hoje = new Date()
+    const diaSemana = hoje.getDay() // 0 é Domingo, 1 é Segunda...
+
+    // Encontrar o início da semana (Segunda-feira)
+    const inicioSemana = new Date(hoje)
+    const diff = diaSemana === 0 ? -6 : 1 - diaSemana
+    inicioSemana.setDate(hoje.getDate() + diff)
+    inicioSemana.setHours(0, 0, 0, 0)
+
+    transactions.forEach((t: any) => {
+      if (t.status === 'confirmed' && t.type === 'inflow' && t.transaction_date) {
+        const txData = new Date(t.transaction_date + 'T12:00:00')
+        // Verifica se a transação está na semana atual
+        if (txData >= inicioSemana) {
+          const idxDia = txData.getDay() // 0 = Dom, 1 = Seg ...
+          const idxArray = idxDia === 0 ? 6 : idxDia - 1 // Mapeia Seg=0 até Dom=6
+          data[idxArray].total += t.amount
+        }
+      }
+    })
+
+    return data
   }, [transactions])
 
   return (
