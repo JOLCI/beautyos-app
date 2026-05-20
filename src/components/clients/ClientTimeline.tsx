@@ -77,7 +77,21 @@ export function ClientTimeline({ clientId, waSchedules }: ClientTimelineProps) {
         color: 'text-emerald-500 bg-emerald-50 border-emerald-200',
       }),
     )
-    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    return events.sort((a, b) => {
+      const timeA = new Date(a.date).getTime()
+      const timeB = new Date(b.date).getTime()
+      if (timeA !== timeB) return timeB - timeA
+
+      const weight = (t: string) => {
+        if (t === 'transação') return 3
+        if (t === 'título') return 2
+        if (t === 'agendamento') return 1
+        return 0
+      }
+
+      return weight(b.type) - weight(a.type)
+    })
   }, [timelineData, waSchedules, appointments, transactions])
 
   return (

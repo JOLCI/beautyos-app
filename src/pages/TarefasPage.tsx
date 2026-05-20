@@ -80,6 +80,10 @@ export default function TarefasPage() {
   }
 
   const confirmDelete = (task: any) => {
+    if (task.status === 'completed') {
+      toast.error('Tarefas concluídas não podem ser deletadas.')
+      return
+    }
     setTaskToDelete(task)
     setDeleteOpen(true)
   }
@@ -88,7 +92,6 @@ export default function TarefasPage() {
     if (!taskToDelete) return
     setSaving(true)
 
-    // Deleta a tarefa (Apenas se o criado_por for o logado e não concluída - já validado na interface, mas reforçamos)
     const { error } = await supabase
       .from('tasks')
       .delete()
@@ -99,7 +102,6 @@ export default function TarefasPage() {
     if (error) {
       toast.error('Erro ao deletar: ' + error.message)
     } else {
-      // Registrar log de auditoria
       await supabase.from('financial_audit_logs').insert([
         {
           company_id: company?.id,
@@ -262,7 +264,7 @@ export default function TarefasPage() {
                   .map((t: any) => (
                     <div
                       key={t.id}
-                      className="p-4 border border-green-200 bg-green-50/50 rounded-xl shadow-sm space-y-3 opacity-70"
+                      className="p-4 border border-green-200 bg-green-50/50 rounded-xl shadow-sm space-y-3 opacity-70 relative group"
                     >
                       <div>
                         <div className="flex justify-between items-start mb-1">

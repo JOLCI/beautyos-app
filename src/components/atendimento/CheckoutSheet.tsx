@@ -39,6 +39,9 @@ export function CheckoutSheet({
   const { data: clients } = useQuery<any>('clients', { match: { is_active: true } })
   const { data: appointments } = useQuery<any>('appointments')
 
+  const appointment = appointments?.find((a: any) => a.id === appointmentId)
+  const isAlreadyPaid = appointment?.processado_pdv === true
+
   const [clientId, setClientId] = useState('avulso')
   const { data: paymentMethods } = useQuery<any>('payment_methods', {
     match: { ativo: true },
@@ -216,7 +219,19 @@ export function CheckoutSheet({
     setStatus('success')
   }
 
+  const finalizeAlreadyPaid = async () => {
+    if (appointmentId) {
+      setStatus('waiting')
+      await supabase.from('appointments').update({ status: 'finalizado' }).eq('id', appointmentId)
+      setStatus('success')
+    }
+  }
+
   const handleFinishPreCheck = async (forceManual = false, keepAppointmentOpen = false) => {
+    if (isAlreadyPaid) {
+      return finalizeAlreadyPaid()
+    }
+
     const methodObj = paymentMethods?.find((m: any) => m.id === method)
     if (methodObj?.exige_data && !actualClientId) {
       return toast.error('Obrigatório selecionar um cliente para faturamento agendado.')
@@ -280,7 +295,7 @@ export function CheckoutSheet({
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
               <CheckCircle2 className="w-16 h-16 text-green-600 mb-4 animate-in zoom-in" />
               <h3 className="text-2xl font-bold">Transação Finalizada!</h3>
-              <p className="text-muted-foreground mt-2">Registros criados e sincronizados.</p>
+              <p className="text-muted-foreground mt-2">Registros atualizados com sucesso.</p>
               <Button
                 className="mt-8 rounded-full px-8"
                 onClick={() => {
@@ -303,21 +318,24 @@ export function CheckoutSheet({
           ) : (
             <>
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                <div className="space-y-2">
-                  <Label>Cliente Vinculado</Label>
-                  <SearchableSelect
-                    value={clientId}
-                    onChange={setClientId}
-                    options={[
-                      { label: '-- Venda Avulsa --', value: 'avulso' },
-                      ...(clients?.map((c: any) => ({
-                        label: `${c.nome_preferido || c.name} ${c.phone ? `(${c.phone})` : ''}`,
-                        value: c.id,
-                      })) || []),
-                    ]}
-                    placeholder="Venda Avulsa (Anônimo)"
-                  />
-                </div>
+                {!isAlreadyPaid && (
+                  <div className="space-y-2">
+                    <Label>Cliente Vinculado</Label>
+                    <SearchableSelect
+                      value={clientId}
+                      onChange={setClientId}
+                      options={[
+                        { label: '-- Venda Avulsa --', value: 'avulso' },
+                        ...(clients?.map((c: any) => ({
+                          label: `${c.nome_preferido || c.name} ${c.phone ? `(${c.phone})` : ''}`,
+                          value: c.id,
+                        })) || []),
+                      ]}
+                      placeholder="Venda Avulsa (Anônimo)"
+                    />
+                  </div>
+                )}
+
                 <div className="bg-muted/50 p-4 rounded-xl border">
                   <div className="space-y-4 mb-4">
                     {pricedItems.map((it: any, idx: number) => {
@@ -343,8 +361,8 @@ export function CheckoutSheet({
                                 variant="outline"
                                 className={`text-[10px] font-bold ${diff > 0 ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50'}`}
                               >
-                                {diff > 0 ? '+' : ''}
-                                {diffPercent.toFixed(1)}%
+                                {diff > 0 ? '+' : ''}R$ {diff.toFixed(2)} ({diffPercent.toFixed(1)}
+                                %)
                               </Badge>
                             )}
                             <div className="relative">
@@ -356,6 +374,7 @@ export function CheckoutSheet({
                                 className="w-24 h-8 text-right font-bold pl-6"
                                 value={it.finalPrice}
                                 onChange={(e) => handlePriceChange(it.id, e.target.value)}
+                                disabled={isAlreadyPaid}
                               />
                             </div>
                           </div>
@@ -369,62 +388,66 @@ export function CheckoutSheet({
                   </div>
                 </div>
 
-                <div className="space-y-3 p-4 border rounded-xl bg-muted/20">
-                  <Label className="flex items-center gap-2 text-sm font-semibold">
-                    <Camera className="w-4 h-4 text-primary" /> Anexar Evidência (Foto)
-                  </Label>
-                  <div className="flex items-center gap-4">
-                    {photoData && (
-                      <div className="w-16 h-16 rounded-md overflow-hidden border border-border">
-                        <img
-                          src={photoData}
-                          alt="Evidência"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handlePhotoUpload}
-                        className="text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <RadioGroup
-                  value={method}
-                  onValueChange={setMethod}
-                  className="grid grid-cols-3 gap-3"
-                >
-                  {paymentMethods?.map((m: any) => (
-                    <div
-                      key={m.id}
-                      onClick={() => setMethod(m.id)}
-                      className={cn(
-                        'border-2 rounded-xl p-3 text-center cursor-pointer flex flex-col items-center justify-center min-h-[3.5rem] transition-colors',
-                        method === m.id ? 'border-primary bg-primary/5 text-primary' : '',
-                      )}
-                    >
-                      <RadioGroupItem value={m.id} id={m.id} className="sr-only" />
-                      <Label className="cursor-pointer font-bold text-[11px] sm:text-xs text-center leading-tight">
-                        {m.nome}
+                {!isAlreadyPaid && (
+                  <>
+                    <div className="space-y-3 p-4 border rounded-xl bg-muted/20">
+                      <Label className="flex items-center gap-2 text-sm font-semibold">
+                        <Camera className="w-4 h-4 text-primary" /> Anexar Evidência (Foto)
                       </Label>
+                      <div className="flex items-center gap-4">
+                        {photoData && (
+                          <div className="w-16 h-16 rounded-md overflow-hidden border border-border">
+                            <img
+                              src={photoData}
+                              alt="Evidência"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={handlePhotoUpload}
+                            className="text-xs"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </RadioGroup>
+
+                    <RadioGroup
+                      value={method}
+                      onValueChange={setMethod}
+                      className="grid grid-cols-3 gap-3"
+                    >
+                      {paymentMethods?.map((m: any) => (
+                        <div
+                          key={m.id}
+                          onClick={() => setMethod(m.id)}
+                          className={cn(
+                            'border-2 rounded-xl p-3 text-center cursor-pointer flex flex-col items-center justify-center min-h-[3.5rem] transition-colors',
+                            method === m.id ? 'border-primary bg-primary/5 text-primary' : '',
+                          )}
+                        >
+                          <RadioGroupItem value={m.id} id={m.id} className="sr-only" />
+                          <Label className="cursor-pointer font-bold text-[11px] sm:text-xs text-center leading-tight">
+                            {m.nome}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </>
+                )}
               </div>
               <div className="p-4 border-t bg-background shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
                 <Button
                   onClick={() => handleFinishPreCheck(false, false)}
-                  disabled={status === 'waiting' || !canFinish}
+                  disabled={status === 'waiting' || (!canFinish && !isAlreadyPaid)}
                   className="w-full h-12 text-base sm:text-lg rounded-full"
                 >
                   {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-                  Finalizar Atendimento
+                  {isAlreadyPaid ? 'Finalizar Atendimento (Pago)' : 'Finalizar Atendimento'}
                 </Button>
               </div>
             </>

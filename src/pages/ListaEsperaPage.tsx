@@ -25,8 +25,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { ClientAvatar } from '@/components/clients/ClientAvatar'
 import { SearchableSelect } from '@/components/ui/searchable-select'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 
 const DAYS_OF_WEEK = [
   { id: 'SEG', label: 'Seg' },
@@ -259,17 +258,15 @@ export default function ListaEsperaPage() {
                 {DAYS_OF_WEEK.map((day) => (
                   <div
                     key={day.id}
-                    className="flex items-center space-x-1 border bg-background px-2 py-1.5 rounded-md cursor-pointer hover:border-primary/50"
+                    className={cn(
+                      'flex items-center justify-center px-3 py-1.5 rounded-md cursor-pointer border text-xs font-semibold transition-colors',
+                      form.preferred_days.includes(day.id)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted',
+                    )}
                     onClick={() => toggleDay(day.id)}
                   >
-                    <Checkbox
-                      id={`day-${day.id}`}
-                      checked={form.preferred_days.includes(day.id)}
-                      onCheckedChange={() => toggleDay(day.id)}
-                    />
-                    <Label htmlFor={`day-${day.id}`} className="text-xs cursor-pointer">
-                      {day.label}
-                    </Label>
+                    {day.label}
                   </div>
                 ))}
               </div>

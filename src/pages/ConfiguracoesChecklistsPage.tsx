@@ -46,7 +46,7 @@ export default function ConfiguracoesChecklistsPage() {
         .from('checklist_items')
         .select('*')
         .eq('checklist_id', checklist.id)
-        .order('id')
+        .order('ordem')
       setItems(data || [])
     } else {
       setEditingId(null)
@@ -66,6 +66,8 @@ export default function ConfiguracoesChecklistsPage() {
         obrigatoria: false,
         dropdown_origem: 'manual',
         lista_manual: '',
+        valores_json: '',
+        query_sql: '',
       },
     ])
   }
@@ -101,6 +103,9 @@ export default function ConfiguracoesChecklistsPage() {
           obrigatoria: i.obrigatoria,
           dropdown_origem: i.tipo_resposta === 'dropdown' ? i.dropdown_origem : null,
           lista_manual: i.lista_manual,
+          valores_json: i.valores_json,
+          query_sql: i.query_sql,
+          ordem: idx
         })),
       )
     }
@@ -111,7 +116,7 @@ export default function ConfiguracoesChecklistsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Checklists e Anamnese</h1>
@@ -240,13 +245,52 @@ export default function ConfiguracoesChecklistsPage() {
                     </div>
 
                     {it.tipo_resposta === 'dropdown' && (
-                      <div className="col-span-12 mt-2 space-y-2 border-t pt-4">
-                        <Label>Opções da Lista (Separe por ponto e vírgula ";")</Label>
-                        <Input
-                          value={it.lista_manual}
-                          onChange={(e) => updateItem(it.id, 'lista_manual', e.target.value)}
-                          placeholder="Ex: Quebrada; Onicomicose; Mancha"
-                        />
+                      <div className="col-span-12 mt-2 space-y-4 border-t pt-4">
+                        <div className="space-y-2">
+                          <Label>Origem dos Dados</Label>
+                          <Select
+                            value={it.dropdown_origem || 'manual'}
+                            onValueChange={(v) => updateItem(it.id, 'dropdown_origem', v)}
+                          >
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="manual">Manual (Texto)</SelectItem>
+                              <SelectItem value="json">JSON</SelectItem>
+                              <SelectItem value="sql">Query SQL</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {(!it.dropdown_origem || it.dropdown_origem === 'manual') && (
+                          <div className="space-y-2">
+                            <Label>Opções da Lista (Separe por ponto e vírgula ";")</Label>
+                            <Input
+                              value={it.lista_manual || ''}
+                              onChange={(e) => updateItem(it.id, 'lista_manual', e.target.value)}
+                              placeholder="Ex: Quebrada; Onicomicose; Mancha"
+                            />
+                          </div>
+                        )}
+                        {it.dropdown_origem === 'json' && (
+                          <div className="space-y-2">
+                            <Label>JSON Array de Objetos (Ex: [{"value":"1", "label":"A"}])</Label>
+                            <Textarea
+                              value={it.valores_json || ''}
+                              onChange={(e) => updateItem(it.id, 'valores_json', e.target.value)}
+                              placeholder='[{"value": "1", "label": "Opção 1"}]'
+                            />
+                          </div>
+                        )}
+                        {it.dropdown_origem === 'sql' && (
+                          <div className="space-y-2">
+                            <Label>Query SQL (Deve retornar 'value' e 'label')</Label>
+                            <Textarea
+                              value={it.query_sql || ''}
+                              onChange={(e) => updateItem(it.id, 'query_sql', e.target.value)}
+                              placeholder="SELECT id as value, name as label FROM public.services LIMIT 10"
+                            />
+                            <Button size="sm" variant="secondary" className="mt-2" onClick={() => toast.success('Query validada com sucesso! (Mock)')}>Testar Query</Button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

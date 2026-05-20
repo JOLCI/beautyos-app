@@ -164,16 +164,25 @@ export function ChecklistExecutionModal({
           </RadioGroup>
         )
       case 'dropdown':
-        const opts =
-          item.dropdown_origem === 'manual'
-            ? (item.lista_manual || '')
-                .split(';')
-                .map((s: string) => ({ value: s.trim(), label: s.trim() }))
-            : item.dropdown_origem === 'json'
-              ? typeof item.valores_json === 'string'
+        let opts: any[] = []
+        if (item.dropdown_origem === 'json') {
+          try {
+            opts =
+              typeof item.valores_json === 'string'
                 ? JSON.parse(item.valores_json)
                 : item.valores_json
-              : [{ value: 'sql', label: 'Opções Carregadas via SQL' }]
+          } catch (e) {
+            opts = []
+          }
+        } else if (item.dropdown_origem === 'sql') {
+          opts = [{ value: 'sql', label: 'Opções Carregadas via SQL' }]
+        } else {
+          opts = (item.lista_manual || '')
+            .split(';')
+            .filter((s: string) => s.trim() !== '')
+            .map((s: string) => ({ value: s.trim(), label: s.trim() }))
+        }
+
         return (
           <Select value={val} onValueChange={setVal}>
             <SelectTrigger>
