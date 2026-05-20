@@ -318,7 +318,19 @@ export function NovoAgendamentoSheet({
           className={`space-y-4 ${showCancelConfirm || appointment?.status === 'finalizado' ? 'opacity-50 pointer-events-none' : ''}`}
         >
           <div className="space-y-2">
-            <Label>Cliente</Label>
+            <div className="flex justify-between items-center">
+              <Label>Cliente</Label>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault()
+                  window.open(`/${company?.passkey}/clientes`, '_blank')
+                }}
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                + Novo Cliente
+              </a>
+            </div>
             <Select value={clientId || undefined} onValueChange={setClientId}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o cliente" />
@@ -326,7 +338,7 @@ export function NovoAgendamentoSheet({
               <SelectContent>
                 {clients?.map((c: any) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.name}
+                    {c.nome_preferido || c.name} {c.phone ? `(${c.phone})` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -25,7 +25,15 @@ export default function AtendimentoNovoPage() {
   const { data: services } = useQuery<any>('services', { match: { is_active: true } })
 
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedApp, setSelectedApp] = useState<any>(null)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [search])
   const [cart, setCart] = useState<any[]>([])
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [dateFilter, setDateFilter] = useState('hoje')
@@ -59,11 +67,13 @@ export default function AtendimentoNovoPage() {
     const today = new Date().toISOString().split('T')[0]
     return appointments
       .filter((a: any) => {
+        if (a.status === 'finalizado') return false // Prevent reprocessing
         if (dateFilter === 'hoje' && a.date !== today) return false
 
         const cli = clients.find((c: any) => c.id === a.client_id)
-        const term = search.toLowerCase()
+        const term = debouncedSearch.toLowerCase()
         return (
+          cli?.nome_preferido?.toLowerCase().includes(term) ||
           cli?.name.toLowerCase().includes(term) ||
           a.date.includes(term) ||
           a.start_time.includes(term)
@@ -73,7 +83,26 @@ export default function AtendimentoNovoPage() {
         if (a.date !== b.date) return a.date.localeCompare(b.date)
         return a.start_time.localeCompare(b.start_time)
       })
-  }, [appointments, clients, search, dateFilter])
+  }, [appointments, clients, debouncedSearch, dateFilter])
+
+  const [serviceSearch, setServiceSearch] = useState('')
+  const [debouncedServiceSearch, setDebouncedServiceSearch] = useState('')
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedServiceSearch(serviceSearch)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [serviceSearch])
+
+  const filteredServices = useMemo(() => {
+    if (!debouncedServiceSearch) return services
+    const term = debouncedServiceSearch.toLowerCase()
+    return services.filter(
+      (s: any) =>
+        s.name.toLowerCase().includes(term) ||
+        (s.type === 'product' ? 'produto' : 'serviço').includes(term),
+    )
+  }, [services, debouncedServiceSearch])
 
   const total = cart.reduce((acc, curr) => acc + (curr.price || 0), 0)
 
@@ -125,7 +154,7 @@ export default function AtendimentoNovoPage() {
                           <div>
                             <div className="font-semibold flex items-center gap-2">
                               <User className="w-4 h-4 text-muted-foreground" />{' '}
-                              {cli?.name || 'Cliente Desconhecido'}
+                              {cli?.nome_preferido || cli?.name || 'Cliente Desconhecido'}
                             </div>
                             <div className="text-sm text-muted-foreground flex items-center gap-3 mt-1">
                               <span className="flex items-center gap-1">
@@ -150,21 +179,36 @@ export default function AtendimentoNovoPage() {
           </Card>
 
           <Card>
-            <div className="p-4 border-b border-border bg-muted/20 font-semibold">
+            <div className="p-4 border-b border-border bg-muted/20 font-semibold flex flex-col gap-3">
               Adicionar Serviços ou Produtos Extras
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar serviço, produto ou categoria..."
+                  className="pl-9"
+                  value={serviceSearch}
+                  onChange={(e) => setServiceSearch(e.target.value)}
+                />
+              </div>
             </div>
             <CardContent className="p-4">
               <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
-                {services.map((s: any) => (
-                  <div
-                    key={s.id}
-                    onClick={() => setCart([...cart, s])}
-                    className="border p-3 rounded-lg cursor-pointer hover:border-primary/50 transition-colors text-sm flex flex-col justify-between"
-                  >
-                    <span className="font-medium truncate">{s.name}</span>
-                    <span className="text-primary mt-2">R$ {s.price.toFixed(2)}</span>
+                {filteredServices.length === 0 ? (
+                  <div className="col-span-2 text-center py-4 text-muted-foreground text-sm">
+                    Nenhum serviço encontrado para '{debouncedServiceSearch}'.
                   </div>
-                ))}
+                ) : (
+                  filteredServices.map((s: any) => (
+                    <div
+                      key={s.id}
+                      onClick={() => setCart([...cart, s])}
+                      className="border p-3 rounded-lg cursor-pointer hover:border-primary/50 transition-colors text-sm flex flex-col justify-between"
+                    >
+                      <span className="font-medium truncate">{s.name}</span>
+                      <span className="text-primary mt-2">R$ {s.price.toFixed(2)}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

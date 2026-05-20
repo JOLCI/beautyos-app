@@ -51,6 +51,7 @@ export default function RelatoriosPage() {
   const filteredData = useMemo(() => {
     return transactions
       .filter((t: any) => {
+        if (t.tipo_transacao === 'transferencia_interna') return false
         const d = t.transaction_date
         if (d < startDate || d > endDate) return false
         if (methodFilter !== 'ALL' && t.payment_method !== methodFilter) return false

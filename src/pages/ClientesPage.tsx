@@ -44,6 +44,7 @@ export default function ClientesPage() {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: '',
+    nome_preferido: '',
     phone: '',
     email: '',
     birthday: '',
@@ -64,6 +65,7 @@ export default function ClientesPage() {
       setEditing(c)
       setForm({
         name: c.name,
+        nome_preferido: c.nome_preferido || '',
         phone: formatPhoneForDisplay(c.phone),
         email: c.email || '',
         birthday: c.birthday || '',
@@ -75,6 +77,7 @@ export default function ClientesPage() {
       setEditing(null)
       setForm({
         name: '',
+        nome_preferido: '',
         phone: '',
         email: '',
         birthday: '',
@@ -113,6 +116,29 @@ export default function ClientesPage() {
       birthday: form.birthday || null,
     }
 
+    // Check for exact duplicate name and phone in the same company
+    const { data: existing } = await supabase
+      .from('clients')
+      .select('id, name, phone')
+      .eq('company_id', company?.id)
+      .or(`name.ilike.${payload.name},phone.eq.${payload.phone}`)
+      .neq('id', editing?.id || '00000000-0000-0000-0000-000000000000')
+
+    if (existing && existing.length > 0) {
+      const isDuplicateName = existing.some(
+        (c: any) => c.name.toLowerCase() === payload.name.toLowerCase(),
+      )
+      const isDuplicatePhone = existing.some((c: any) => c.phone === payload.phone)
+
+      const proceed = window.confirm(
+        `ATENÇÃO: Já existe um cliente com ${isDuplicateName ? 'o mesmo nome' : ''} ${isDuplicateName && isDuplicatePhone ? 'e' : ''} ${isDuplicatePhone ? 'o mesmo celular' : ''} cadastrado. Deseja continuar e salvar mesmo assim?`,
+      )
+      if (!proceed) {
+        setSaving(false)
+        return
+      }
+    }
+
     if (editing) {
       const { error } = await supabase.from('clients').update(payload).eq('id', editing.id)
       if (error) {
@@ -122,21 +148,6 @@ export default function ClientesPage() {
       }
       toast.success('Cliente atualizado')
     } else {
-      // Check for exact duplicate name and phone in the same company
-      const { data: existing } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('company_id', company?.id)
-        .eq('name', payload.name)
-        .eq('phone', payload.phone)
-        .single()
-
-      if (existing) {
-        toast.error('Já existe um cliente com este nome e telefone.')
-        setSaving(false)
-        return
-      }
-
       const { error } = await supabase
         .from('clients')
         .insert([{ ...payload, company_id: company?.id }])
@@ -224,9 +235,16 @@ export default function ClientesPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <ClientAvatar client={c} className="h-9 w-9 border" />
-                        <span className="font-medium">{c.name}</span>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{c.nome_preferido || c.name}</span>
+                          {c.nome_preferido && (
+                            <span className="text-[10px] text-muted-foreground">
+                              Nome civil: {c.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </TableCell>
+                    </TableCell>{' '}
                     <TableCell className="text-muted-foreground">
                       {formatPhoneForDisplay(c.phone)}
                     </TableCell>
@@ -315,6 +333,14 @@ export default function ClientesPage() {
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Como gostaria de ser chamado(a)? (Nome de Preferência)</Label>
+              <Input
+                value={form.nome_preferido}
+                onChange={(e) => setForm({ ...form, nome_preferido: e.target.value })}
+                placeholder="Ex: Apelido ou Nome Social"
               />
             </div>
             <div className="space-y-2">

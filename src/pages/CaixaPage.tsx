@@ -77,6 +77,13 @@ export default function CaixaPage() {
 
   const [closingModalOpen, setClosingModalOpen] = useState(false)
   const [closureForm, setClosureForm] = useState<Record<string, string>>({})
+  const [transferBalance, setTransferBalance] = useState(false)
+  const [transferDate, setTransferDate] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })
+  const [closureNotes, setClosureNotes] = useState('')
 
   useEffect(() => {
     if (!company?.id) return
@@ -188,12 +195,51 @@ export default function CaixaPage() {
         return
     }
 
+    const finalNotes =
+      (hasDiff ? 'Fechamento com divergência detectada. ' : 'Fechamento sem divergências. ') +
+      closureNotes
+
+    let transferTxId = null
+    if (transferBalance && saldo > 0) {
+      const { data: tx } = await supabase
+        .from('transactions')
+        .insert([
+          {
+            company_id: company?.id,
+            type: 'inflow',
+            origin: 'transfer',
+            tipo_transacao: 'transferencia_interna',
+            amount: saldo,
+            status: 'confirmed',
+            payment_method: 'DINHEIRO',
+            transaction_date: transferDate,
+            confirmed_at: new Date().toISOString(),
+            description: `Saldo transferido do dia ${new Date(dateFilter + 'T12:00:00').toLocaleDateString('pt-BR')}`,
+          },
+        ])
+        .select()
+        .single()
+      transferTxId = tx?.id
+    }
+
+    await supabase.from('cash_balance_history').insert({
+      company_id: company?.id,
+      data: dateFilter,
+      saldo_movimentacoes: saldo,
+      saldo_final: saldo,
+      transferido_proximo_dia: transferBalance,
+      data_transferencia: transferBalance ? transferDate : null,
+      id_transacao_transferencia: transferTxId,
+      observacoes: finalNotes,
+      fechado_por: profile?.id,
+    })
+
     await supabase.from('cash_closures').insert({
       company_id: company?.id,
       closure_date: dateFilter,
       closed_by: profile?.id,
       details,
-      notes: hasDiff ? 'Fechamento com divergência detectada.' : 'Fechamento sem divergências.',
+      notes: finalNotes,
     })
 
     toast.success('Caixa fechado e conferência registrada com sucesso!')
@@ -218,19 +264,28 @@ export default function CaixaPage() {
     refetch()
   }
 
-  const saldo = filtered.reduce(
-    (acc: number, t: any) =>
-      t.status === 'confirmed' ? (t.type === 'inflow' ? acc + t.amount : acc - t.amount) : acc,
-    0,
-  )
+  const saldo = filtered.reduce((acc: number, t: any) => {
+    if (t.status === 'confirmed' && t.tipo_transacao !== 'transferencia_interna') {
+      return t.type === 'inflow' ? acc + t.amount : acc - t.amount
+    }
+    return acc
+  }, 0)
   const totalEntradas = filtered.reduce(
     (acc: number, t: any) =>
-      t.status === 'confirmed' && t.type === 'inflow' ? acc + t.amount : acc,
+      t.status === 'confirmed' &&
+      t.type === 'inflow' &&
+      t.tipo_transacao !== 'transferencia_interna'
+        ? acc + t.amount
+        : acc,
     0,
   )
   const totalSaidas = filtered.reduce(
     (acc: number, t: any) =>
-      t.status === 'confirmed' && t.type === 'outflow' ? acc + t.amount : acc,
+      t.status === 'confirmed' &&
+      t.type === 'outflow' &&
+      t.tipo_transacao !== 'transferencia_interna'
+        ? acc + t.amount
+        : acc,
     0,
   )
 
@@ -581,13 +636,19 @@ export default function CaixaPage() {
               const mIn = filtered
                 .filter(
                   (t: any) =>
-                    t.status === 'confirmed' && t.type === 'inflow' && t.payment_method === m,
+                    t.status === 'confirmed' &&
+                    t.type === 'inflow' &&
+                    t.payment_method === m &&
+                    t.tipo_transacao !== 'transferencia_interna',
                 )
                 .reduce((a: number, b: any) => a + b.amount, 0)
               const mOut = filtered
                 .filter(
                   (t: any) =>
-                    t.status === 'confirmed' && t.type === 'outflow' && t.payment_method === m,
+                    t.status === 'confirmed' &&
+                    t.type === 'outflow' &&
+                    t.payment_method === m &&
+                    t.tipo_transacao !== 'transferencia_interna',
                 )
                 .reduce((a: number, b: any) => a + b.amount, 0)
               const net = mIn - mOut
@@ -636,6 +697,46 @@ export default function CaixaPage() {
                 </div>
               )
             })}
+
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center justify-between border p-3 rounded-lg bg-muted/20">
+                <Label className="cursor-pointer" htmlFor="transfer-balance">
+                  Jogar saldo para o próximo dia?
+                </Label>
+                <input
+                  type="checkbox"
+                  id="transfer-balance"
+                  checked={transferBalance}
+                  onChange={(e) => setTransferBalance(e.target.checked)}
+                  className="w-4 h-4 cursor-pointer"
+                />
+              </div>
+
+              {transferBalance && (
+                <div className="space-y-2 animate-in fade-in">
+                  <Label>Data de Transferência</Label>
+                  <Input
+                    type="date"
+                    value={transferDate}
+                    onChange={(e) => setTransferDate(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    O saldo apurado de R$ {saldo.toFixed(2)} será lançado como saldo inicial
+                    (transferência interna) nesta data.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Observações do Fechamento</Label>
+                <Input
+                  value={closureNotes}
+                  onChange={(e) => setClosureNotes(e.target.value)}
+                  placeholder="Anotações opcionais..."
+                />
+              </div>
+            </div>
+
             <Button className="w-full h-12 mt-4 shadow-elevation" onClick={handleCloseRegister}>
               Salvar Auditoria de Fechamento
             </Button>

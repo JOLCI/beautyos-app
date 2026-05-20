@@ -50,6 +50,9 @@ export default function ServicosPage() {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('name_asc')
   const [showInactive, setShowInactive] = useState(false)
+  const { data: checklists } = useQuery<any>('checklists', {
+    match: { ativo: true, tipo: 'servico' },
+  })
   const [uploading, setUploading] = useState(false)
 
   const [form, setForm] = useState({
@@ -64,6 +67,7 @@ export default function ServicosPage() {
     composite_items: [] as any[],
     is_active: true,
     image_url: '',
+    checklist_id: 'none',
   })
 
   const filteredServices = useMemo(() => {
@@ -106,6 +110,7 @@ export default function ServicosPage() {
         composite_items: s.composite_items || [],
         is_active: s.is_active !== false,
         image_url: s.image_url || '',
+        checklist_id: s.checklist_id || 'none',
       })
     } else {
       setEditing(null)
@@ -121,6 +126,7 @@ export default function ServicosPage() {
         composite_items: [],
         is_active: true,
         image_url: '',
+        checklist_id: 'none',
       })
     }
     setSheetOpen(true)
@@ -188,6 +194,7 @@ export default function ServicosPage() {
       composite_items: form.composite_items,
       is_active: form.is_active,
       image_url: form.image_url,
+      checklist_id: form.checklist_id !== 'none' ? form.checklist_id : null,
     }
     if (editing) {
       await supabase.from('services').update(payload).eq('id', editing.id)
@@ -484,6 +491,25 @@ export default function ServicosPage() {
                       onChange={(e) => setForm({ ...form, recurrence_days: e.target.value })}
                       placeholder="Ex: 30"
                     />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label>Checklist / Anamnese Obrigatória</Label>
+                    <Select
+                      value={form.checklist_id}
+                      onValueChange={(v) => setForm({ ...form, checklist_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Nenhum selecionado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">-- Sem Checklist --</SelectItem>
+                        {checklists?.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg border">

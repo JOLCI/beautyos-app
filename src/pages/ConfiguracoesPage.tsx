@@ -51,6 +51,9 @@ export default function ConfiguracoesPage() {
   const { company } = usePasskey()
   const { profile } = useAuth()
   const { data: pixGateways, refetch: refetchPix } = useQuery<any>('pix_gateways')
+  const { data: paymentMethods, refetch: refetchMethods } = useQuery<any>('payment_methods', {
+    order: { column: 'nome', ascending: true },
+  })
   const { data: waTemplates, refetch: refetchWa } = useQuery<any>('whatsapp_templates')
 
   const [primaryColor, setPrimaryColor] = useState('#e11d48')
@@ -261,6 +264,16 @@ export default function ConfiguracoesPage() {
   }
   const [pixForm, setPixForm] = useState(defaultPixForm)
   const [editingPixId, setEditingPixId] = useState<string | null>(null)
+  const [editingMethodId, setEditingMethodId] = useState<string | null>(null)
+  const [methodForm, setMethodForm] = useState({
+    nome: '',
+    tipo: 'dinheiro',
+    baixa_automatica: true,
+    exige_data: false,
+    descricao_visivel: true,
+    descricao: '',
+    ativo: true,
+  })
 
   const [tplForm, setTplForm] = useState({ template_key: '', body: '' })
 
@@ -389,6 +402,18 @@ export default function ConfiguracoesPage() {
     setPixForm(defaultPixForm)
   }
 
+  const handleSaveMethod = async () => {
+    if (editingMethodId) {
+      await supabase.from('payment_methods').update(methodForm).eq('id', editingMethodId)
+      toast.success('Método atualizado')
+    } else {
+      await supabase.from('payment_methods').insert([{ ...methodForm, company_id: company?.id }])
+      toast.success('Método adicionado')
+    }
+    setEditingMethodId(null)
+    refetchMethods()
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
@@ -402,7 +427,8 @@ export default function ConfiguracoesPage() {
             { id: 'empresa', label: 'Empresa', icon: Building2 },
             { id: 'horarios', label: 'Horários', icon: Clock },
             { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-            { id: 'pix', label: 'PIX / Pagamentos', icon: Smartphone },
+            { id: 'metodos', label: 'Formas de Pagto', icon: Smartphone },
+            { id: 'pix', label: 'Gateways PIX', icon: QrCode },
             { id: 'templates', label: 'Templates', icon: FileText },
             { id: 'aparencia', label: 'Aparência', icon: Palette },
             ...(profile?.role === 'admin' || profile?.role === 'root'
@@ -747,6 +773,179 @@ export default function ConfiguracoesPage() {
                     </p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="metodos" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Métodos de Pagamento</CardTitle>
+                <CardDescription>
+                  Configure as regras de baixa automática e preenchimento de dados para o PDV.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div
+                  className={`space-y-4 border p-4 rounded-xl ${editingMethodId ? 'bg-primary/5 border-primary/20' : 'bg-muted/20'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">
+                      {editingMethodId ? 'Editar Método' : 'Adicionar Novo Método'}
+                    </h4>
+                    {editingMethodId && (
+                      <Button variant="ghost" size="sm" onClick={() => setEditingMethodId(null)}>
+                        <X className="w-4 h-4 mr-2" /> Cancelar
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Nome do Método</Label>
+                      <Input
+                        value={methodForm.nome}
+                        onChange={(e) => setMethodForm({ ...methodForm, nome: e.target.value })}
+                        placeholder="Ex: Dinheiro"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Categoria (Tipo)</Label>
+                      <Select
+                        value={methodForm.tipo}
+                        onValueChange={(v) => setMethodForm({ ...methodForm, tipo: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                          <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                          <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                          <SelectItem value="pix">PIX</SelectItem>
+                          <SelectItem value="convenio">Convênio</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Mensagem Exibida no Botão (Opcional)</Label>
+                      <Input
+                        value={methodForm.descricao}
+                        onChange={(e) =>
+                          setMethodForm({ ...methodForm, descricao: e.target.value })
+                        }
+                        placeholder="Ex: Parcelamento disponível..."
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-6 mt-4">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={methodForm.baixa_automatica}
+                        onCheckedChange={(v) =>
+                          setMethodForm({ ...methodForm, baixa_automatica: v })
+                        }
+                      />
+                      <Label className="cursor-pointer">Baixa Automática</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={methodForm.exige_data}
+                        onCheckedChange={(v) => setMethodForm({ ...methodForm, exige_data: v })}
+                      />
+                      <Label className="cursor-pointer">Exige Data Venc.</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={methodForm.descricao_visivel}
+                        onCheckedChange={(v) =>
+                          setMethodForm({ ...methodForm, descricao_visivel: v })
+                        }
+                      />
+                      <Label className="cursor-pointer">Mensagem Visível</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={methodForm.ativo}
+                        onCheckedChange={(v) => setMethodForm({ ...methodForm, ativo: v })}
+                      />
+                      <Label className="cursor-pointer">Ativo</Label>
+                    </div>
+                  </div>
+                  <Button onClick={handleSaveMethod} disabled={!methodForm.nome}>
+                    <Save className="w-4 h-4 mr-2" /> Salvar Método
+                  </Button>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Método</TableHead>
+                      <TableHead>Configurações</TableHead>
+                      <TableHead>Ativo</TableHead>
+                      <TableHead className="text-right">Editar</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentMethods?.map((m: any) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">
+                          {m.nome}
+                          <p className="text-[10px] text-muted-foreground uppercase">{m.tipo}</p>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            {m.baixa_automatica && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                Baixa Auto
+                              </Badge>
+                            )}
+                            {m.exige_data && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] border-amber-500 text-amber-600"
+                              >
+                                Exige Data
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={m.ativo}
+                            onCheckedChange={async (v) => {
+                              await supabase
+                                .from('payment_methods')
+                                .update({ ativo: v })
+                                .eq('id', m.id)
+                              refetchMethods()
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingMethodId(m.id)
+                              setMethodForm({
+                                nome: m.nome,
+                                tipo: m.tipo,
+                                baixa_automatica: m.baixa_automatica,
+                                exige_data: m.exige_data,
+                                descricao_visivel: m.descricao_visivel,
+                                descricao: m.descricao || '',
+                                ativo: m.ativo,
+                              })
+                            }}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>

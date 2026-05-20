@@ -45,11 +45,19 @@ export function CheckoutSheet({
   const { data: appointments } = useQuery<any>('appointments')
 
   const [clientId, setClientId] = useState('avulso')
-  const [method, setMethod] = useState('PIX')
+  const { data: paymentMethods } = useQuery<any>('payment_methods', {
+    match: { ativo: true },
+    order: { column: 'nome', ascending: true },
+  })
+
+  const [method, setMethod] = useState('')
   // Estado para armazenar o valor do desconto inserido
   const [discount, setDiscount] = useState('0')
   // Estado para definir se o desconto é em valor fixo (R$) ou percentual (%)
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed')
+
+  const [surcharge, setSurcharge] = useState('0')
+  const [surchargeType, setSurchargeType] = useState<'fixed' | 'percentage'>('fixed')
 
   const [installments, setInstallments] = useState('1')
   const [dueDate, setDueDate] = useState(() => {
@@ -67,17 +75,21 @@ export function CheckoutSheet({
 
   useEffect(() => {
     if (initialClientId && open && clientId === 'avulso') setClientId(initialClientId)
+    if (open && paymentMethods?.length > 0 && !method) {
+      setMethod(paymentMethods[0].id)
+    }
     if (!open) {
       setStatus('idle')
-      setMethod('PIX')
+      if (paymentMethods?.length > 0) setMethod(paymentMethods[0].id)
       setClientId('avulso')
       setDiscount('0')
+      setSurcharge('0')
       setProvisionalCreated(false)
       setRecurrenceDate('')
       setRecurrenceTime('09:00')
       setPhotoData(null)
     }
-  }, [initialClientId, open])
+  }, [initialClientId, open, paymentMethods])
 
   const actualClientId = clientId === 'avulso' ? '' : clientId
 
@@ -115,14 +127,19 @@ export function CheckoutSheet({
   // Calcula o valor total bruto dos itens no carrinho
   const total = pricedItems.reduce((acc: any, i: any) => acc + i.finalPrice, 0)
 
+  const selectedMethodObj = paymentMethods?.find((m: any) => m.id === method)
+
   // Calcula o valor real do desconto a ser aplicado
   const discountValue =
     discountType === 'percentage' ? total * (Number(discount || 0) / 100) : Number(discount || 0)
 
-  // Calcula o total final subtraindo o desconto do valor bruto
-  const finalTotal = Math.max(0, total - discountValue)
+  const surchargeValue =
+    surchargeType === 'percentage' ? total * (Number(surcharge || 0) / 100) : Number(surcharge || 0)
 
-  const isScheduled = method === 'PIX AGENDADO' || method === 'CONVENIO'
+  // Calcula o total final subtraindo o desconto do valor bruto
+  const finalTotal = Math.max(0, total - discountValue + surchargeValue)
+
+  const isScheduled = selectedMethodObj?.exige_data === true
   const canFinish = pricedItems.length > 0 && (!isScheduled || actualClientId)
 
   const isNewClient = useMemo(() => {
@@ -202,13 +219,39 @@ export function CheckoutSheet({
   }
 
   // Função responsável por consolidar a transação financeira no banco de dados e dar baixa nos itens
-  const finalizeTransaction = async (methodUsed: string, isPending: boolean) => {
+  const finalizeTransaction = async (methodId: string, isPending: boolean) => {
+    const methodObj = paymentMethods?.find((m: any) => m.id === methodId)
+    const methodName = methodObj?.nome || methodId
     const now = new Date().toISOString()
-    const isImmediate = ['PIX', 'DINHEIRO', 'DEBITO', 'CREDITO'].includes(methodUsed)
+    const isImmediate = methodObj?.baixa_automatica === true
 
     let titleId = null
 
     if (actualClientId) {
+      if (surchargeValue > 0 && pricedItems.length > 0) {
+        // Distribute surcharge proportionally among items to update custom prices
+        for (const item of pricedItems) {
+          const itemRatio = item.finalPrice / total
+          const itemSurcharge = surchargeValue * itemRatio
+          const newPrice = item.finalPrice + itemSurcharge
+
+          await supabase.from('client_custom_prices').upsert(
+            {
+              client_id: actualClientId,
+              service_id: item.id,
+              company_id: company?.id,
+              price: newPrice,
+              preco_padrao_original: item.originalPrice,
+              tipo_especial: 'acrescimo',
+              valor_ajuste: itemSurcharge,
+              tipo_ajuste: 'reais',
+            },
+            { onConflict: 'client_id,service_id' },
+          )
+        }
+        toast.info(`Preço especial atualizado para o cliente.`)
+      }
+
       const { data: title } = await supabase
         .from('financial_titles')
         .insert([
@@ -270,13 +313,13 @@ export function CheckoutSheet({
           origin: 'automatic_entry',
           amount: finalTotal,
           status: isImmediate ? 'confirmed' : 'pending',
-          payment_method: methodUsed,
+          payment_method: methodName,
           client_id: actualClientId || null,
           financial_title_id: titleId,
           ref_id: appointmentId || null,
           confirmed_at: isImmediate ? now : null,
           description:
-            methodUsed === 'CREDITO' && Number(installments) > 1
+            methodObj?.tipo === 'cartao_credito' && Number(installments) > 1
               ? `Parcelado em ${installments}x`
               : null,
           metadata: {
@@ -289,7 +332,10 @@ export function CheckoutSheet({
             discount: discountValue,
             discount_type: discountType,
             discount_raw: Number(discount || 0),
-            photo_evidence: photoData, // Armazena a foto em base64 caso tenha sido enviada
+            surcharge: surchargeValue,
+            surcharge_type: surchargeType,
+            surcharge_raw: Number(surcharge || 0),
+            photo_evidence: photoData,
           },
         },
       ])
@@ -335,12 +381,13 @@ export function CheckoutSheet({
 
   // Função que inicia o processo de finalização do checkout, tratando também pagamentos via PIX integrado
   const handleFinish = async (forceManual = false) => {
-    if (isScheduled && !actualClientId) {
+    const methodObj = paymentMethods?.find((m: any) => m.id === method)
+    if (methodObj?.exige_data && !actualClientId) {
       return toast.error('Obrigatório selecionar um cliente para faturamento agendado.')
     }
 
     setStatus('waiting')
-    if (method === 'PIX' && !forceManual) {
+    if (methodObj?.tipo === 'pix' && methodObj?.baixa_automatica && !forceManual) {
       const { data } = await supabase.functions.invoke('generate-pix', {
         body: { amount: finalTotal },
       })
@@ -591,9 +638,59 @@ export function CheckoutSheet({
                       )}
                       <Input
                         type="number"
+                        min="0"
                         className="w-24 h-8 text-right font-mono"
                         value={discount}
                         onChange={(e) => setDiscount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Separator className="my-3" />
+                <div className="space-y-3 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Tipo de Acréscimo</span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={surchargeType === 'fixed' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => setSurchargeType('fixed')}
+                      >
+                        R$
+                      </Button>
+                      <Button
+                        variant={surchargeType === 'percentage' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => setSurchargeType('percentage')}
+                      >
+                        %
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Valor do Acréscimo</span>
+                    <div className="flex items-center gap-2">
+                      {surchargeType === 'percentage' && Number(surcharge) > 0 && (
+                        <span className="text-xs text-muted-foreground font-semibold">
+                          (+R$ {surchargeValue.toFixed(2)})
+                        </span>
+                      )}
+                      <Input
+                        type="number"
+                        min="0"
+                        className="w-24 h-8 text-right font-mono"
+                        value={surcharge}
+                        onChange={(e) => {
+                          const val = Number(e.target.value)
+                          if (surchargeType === 'percentage' && val > 200) {
+                            toast.error('Acréscimo percentual não pode ser maior que 200%.')
+                            return
+                          }
+                          if (val < 0) return
+                          setSurcharge(e.target.value)
+                        }}
                       />
                     </div>
                   </div>
@@ -632,31 +729,29 @@ export function CheckoutSheet({
                 onValueChange={setMethod}
                 className="grid grid-cols-3 gap-3"
               >
-                {[
-                  { id: 'PIX', l: 'PIX' },
-                  { id: 'PIX AGENDADO', l: 'PIX AGENDADO' },
-                  { id: 'DINHEIRO', l: 'DINHEIRO' },
-                  { id: 'DEBITO', l: 'DÉBITO' },
-                  { id: 'CREDITO', l: 'CRÉDITO' },
-                  { id: 'CONVENIO', l: 'CONVÊNIO' },
-                ].map((o) => (
+                {paymentMethods?.map((m: any) => (
                   <div
-                    key={o.id}
-                    onClick={() => setMethod(o.id)}
+                    key={m.id}
+                    onClick={() => setMethod(m.id)}
                     className={cn(
-                      'border-2 rounded-xl p-3 text-center cursor-pointer flex items-center justify-center min-h-[3.5rem] transition-colors',
-                      method === o.id ? 'border-primary bg-primary/5 text-primary' : '',
+                      'border-2 rounded-xl p-3 text-center cursor-pointer flex flex-col items-center justify-center min-h-[3.5rem] transition-colors',
+                      method === m.id ? 'border-primary bg-primary/5 text-primary' : '',
                     )}
                   >
-                    <RadioGroupItem value={o.id} id={o.id} className="sr-only" />
+                    <RadioGroupItem value={m.id} id={m.id} className="sr-only" />
                     <Label className="cursor-pointer font-bold text-[11px] sm:text-xs text-center leading-tight">
-                      {o.l}
+                      {m.nome}
                     </Label>
+                    {m.descricao_visivel && m.descricao && (
+                      <span className="text-[9px] text-muted-foreground text-center mt-1">
+                        {m.descricao}
+                      </span>
+                    )}
                   </div>
                 ))}
               </RadioGroup>
 
-              {method === 'CREDITO' && (
+              {selectedMethodObj?.tipo === 'cartao_credito' && (
                 <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
                   <Label>Número de Parcelas</Label>
                   <Input
@@ -667,7 +762,7 @@ export function CheckoutSheet({
                   />
                 </div>
               )}
-              {(method === 'PIX AGENDADO' || method === 'CONVENIO') && (
+              {selectedMethodObj?.exige_data && (
                 <div className="space-y-2 p-4 border rounded-xl bg-muted/20 mt-3">
                   <Label>Data de Vencimento</Label>
                   <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -684,7 +779,9 @@ export function CheckoutSheet({
                 className="w-full h-12 text-base sm:text-lg rounded-full shadow-elevation"
               >
                 {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-                {method === 'PIX' ? 'Gerar PIX Automático' : 'Finalizar Atendimento'}
+                {selectedMethodObj?.tipo === 'pix' && selectedMethodObj?.baixa_automatica
+                  ? 'Gerar PIX Automático'
+                  : 'Finalizar Atendimento'}
               </Button>
             </div>
           </>

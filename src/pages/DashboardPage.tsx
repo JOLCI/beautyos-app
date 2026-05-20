@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const saldo = transactions.reduce((acc: number, t: any) => {
-      if (t.status !== 'confirmed') return acc
+      if (t.status !== 'confirmed' || t.tipo_transacao === 'transferencia_interna') return acc
       return t.type === 'inflow' ? acc + t.amount : acc - t.amount
     }, 0)
 
@@ -65,7 +65,24 @@ export default function DashboardPage() {
       )
 
     const entradasHoje = transactions.reduce((acc: number, t: any) => {
-      if (t.status === 'confirmed' && t.type === 'inflow' && t.transaction_date === today) {
+      if (
+        t.status === 'confirmed' &&
+        t.type === 'inflow' &&
+        t.transaction_date === today &&
+        t.tipo_transacao !== 'transferencia_interna'
+      ) {
+        return acc + t.amount
+      }
+      return acc
+    }, 0)
+
+    const despesasHoje = transactions.reduce((acc: number, t: any) => {
+      if (
+        t.status === 'confirmed' &&
+        t.type === 'outflow' &&
+        t.transaction_date === today &&
+        t.tipo_transacao !== 'transferencia_interna'
+      ) {
         return acc + t.amount
       }
       return acc
@@ -89,6 +106,7 @@ export default function DashboardPage() {
       contasAPagarVencidas,
       contasAPagarAVencer,
       entradasHoje,
+      despesasHoje,
       overdueReceivables,
       appsHoje,
       totalApps,
@@ -119,7 +137,12 @@ export default function DashboardPage() {
     inicioSemana.setHours(0, 0, 0, 0)
 
     transactions.forEach((t: any) => {
-      if (t.status === 'confirmed' && t.type === 'inflow' && t.transaction_date) {
+      if (
+        t.status === 'confirmed' &&
+        t.type === 'inflow' &&
+        t.transaction_date &&
+        t.tipo_transacao !== 'transferencia_interna'
+      ) {
         const txData = new Date(t.transaction_date + 'T12:00:00')
         // Verifica se a transação está na semana atual
         if (txData >= inicioSemana) {
@@ -182,6 +205,23 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold">R$ {stats.entradasHoje.toFixed(2)}</div>
           </CardContent>
         </Card>
+
+        {stats.despesasHoje > 0 && (
+          <Card
+            className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors border-l-4 border-l-orange-500"
+            onClick={() => navigate(`/${passkey}/financeiro/caixa`)}
+          >
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-orange-600">Despesas Hoje</CardTitle>
+              <TrendingDown className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">
+                R$ {stats.despesasHoje.toFixed(2)}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card
           className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
@@ -338,7 +378,9 @@ export default function DashboardPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm truncate">{cli?.name || 'Cliente'}</h4>
+                        <h4 className="font-semibold text-sm truncate">
+                          {cli?.nome_preferido || cli?.name || 'Cliente'}
+                        </h4>
                         <Badge
                           variant="outline"
                           className={`text-[9px] uppercase mt-1 ${statusClass}`}
