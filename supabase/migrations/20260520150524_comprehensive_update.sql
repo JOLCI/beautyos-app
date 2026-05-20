@@ -27,8 +27,8 @@ BEGIN
       '', '', '', '', '', NULL, '', '', ''
     );
 
-    INSERT INTO public.profiles (id, email, name, role, is_active)
-    VALUES (v_user_id, 'jolci.lobato@gmail.com', 'Jolci', 'root', true)
+    INSERT INTO public.profiles (id, email, name, username, role, is_active)
+    VALUES (v_user_id, 'jolci.lobato@gmail.com', 'Jolci', 'jolci', 'root', true)
     ON CONFLICT (id) DO NOTHING;
   END IF;
 END $$;
