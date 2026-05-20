@@ -61,7 +61,6 @@ export default function AgendaPage() {
   const { data: blockers } = useQuery<any>('agenda_blockers', {
     match: { company_id: company?.id, is_active: true },
   })
-  const { data: blockers } = useQuery<any>('agenda_blockers', { match: { is_active: true } })
 
   const openSheet = (app: any = null, timeInfo?: { date: string; time: string }) => {
     setEditingApp(app)
