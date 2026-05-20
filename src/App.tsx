@@ -36,9 +36,11 @@ import AgendaBlockersPage from './pages/AgendaBlockersPage'
 import RootCompaniesPage from './pages/RootCompaniesPage'
 import NotFound from './pages/NotFound'
 
+const OutletWithContext = () => <Outlet />
+
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+    <BrowserRouter>
       <AuthProvider>
         <TooltipProvider>
           <ShadcnToaster />
@@ -200,7 +202,5 @@ const App = () => (
     </BrowserRouter>
   </ThemeProvider>
 )
-
-const OutletWithContext = () => <Outlet />
 
 export default App
