@@ -9,8 +9,8 @@ import { useQuery } from '@/hooks/use-query'
 
 export const formatStatus = (status: string) => {
   const s = status?.toLowerCase() || ''
-  if (['completed', 'finalizado', 'paid', 'pago', 'sent', 'confirmed'].includes(s))
-    return 'Finalizado'
+  if (['completed', 'finalizado', 'paid', 'pago', 'sent', 'confirmed', 'baixado'].includes(s))
+    return 'Concluído'
   if (['cancelled', 'cancelado', 'failed', 'estornado'].includes(s)) return 'Cancelado'
   if (['pending', 'open', 'agendado', 'partial'].includes(s)) return 'Pendente'
   if (['vencido'].includes(s)) return 'Vencido'
@@ -18,7 +18,7 @@ export const formatStatus = (status: string) => {
 }
 
 const getStatusColor = (statusStr: string) => {
-  if (statusStr === 'Finalizado') return 'bg-green-500 text-white border-green-600'
+  if (statusStr === 'Concluído') return 'bg-green-500 text-white border-green-600'
   if (statusStr === 'Cancelado') return 'bg-gray-400 text-white border-gray-500'
   if (statusStr === 'Vencido') return 'bg-destructive text-white border-destructive'
   return 'bg-amber-500 text-white border-amber-600'

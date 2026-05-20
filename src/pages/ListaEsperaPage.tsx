@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
-import { Loader2, Plus, Clock, Users } from 'lucide-react'
+import { Loader2, Plus, Clock, Users, CalendarDays } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,18 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { ClientAvatar } from '@/components/clients/ClientAvatar'
 import { SearchableSelect } from '@/components/ui/searchable-select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+
+const DAYS_OF_WEEK = [
+  { id: 'SEG', label: 'Seg' },
+  { id: 'TER', label: 'Ter' },
+  { id: 'QUA', label: 'Qua' },
+  { id: 'QUI', label: 'Qui' },
+  { id: 'SEX', label: 'Sex' },
+  { id: 'SAB', label: 'Sáb' },
+  { id: 'DOM', label: 'Dom' },
+]
 
 export default function ListaEsperaPage() {
   const { company } = usePasskey()
@@ -52,7 +64,17 @@ export default function ListaEsperaPage() {
     notes: '',
     start_time: '',
     end_time: '',
+    preferred_days: [] as string[],
   })
+
+  const toggleDay = (dayId: string) => {
+    setForm((prev) => {
+      if (prev.preferred_days.includes(dayId)) {
+        return { ...prev, preferred_days: prev.preferred_days.filter((d) => d !== dayId) }
+      }
+      return { ...prev, preferred_days: [...prev.preferred_days, dayId] }
+    })
+  }
 
   const handleSave = async () => {
     if (!form.client_id || !form.service_id)
@@ -77,6 +99,7 @@ export default function ListaEsperaPage() {
       notes: '',
       start_time: '',
       end_time: '',
+      preferred_days: [],
     })
   }
 
@@ -121,6 +144,7 @@ export default function ListaEsperaPage() {
                 const cli = clients?.find((c: any) => c.id === w.client_id)
                 const svc = services?.find((s: any) => s.id === w.service_id)
                 const prof = professionals?.find((p: any) => p.id === w.professional_id)
+                const days = (w.preferred_days as string[]) || []
 
                 return (
                   <div
@@ -131,7 +155,7 @@ export default function ListaEsperaPage() {
                       <ClientAvatar client={cli} className="w-12 h-12" />
                       <div>
                         <h4 className="font-bold">{cli?.nome_preferido || cli?.name}</h4>
-                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
                           <Badge variant="secondary" className="text-[10px] uppercase font-normal">
                             {svc?.name}
                           </Badge>
@@ -140,8 +164,13 @@ export default function ListaEsperaPage() {
                               <Users className="w-3 h-3" /> {prof.name}
                             </span>
                           )}
+                          {days.length > 0 && (
+                            <span className="flex items-center gap-1 text-xs text-primary/80 bg-primary/10 px-1.5 rounded-sm">
+                              <CalendarDays className="w-3 h-3" /> {days.join(', ')}
+                            </span>
+                          )}
                           {(w.start_time || w.end_time) && (
-                            <span className="flex items-center gap-1 text-xs">
+                            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-1.5 rounded-sm border border-amber-100">
                               <Clock className="w-3 h-3" />{' '}
                               {w.start_time?.slice(0, 5) || 'Qualquer'} -{' '}
                               {w.end_time?.slice(0, 5) || 'Qualquer'}
@@ -153,7 +182,7 @@ export default function ListaEsperaPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 shrink-0 ml-4">
                       <Button size="sm" onClick={() => handleConvert(w)}>
                         Agendar
                       </Button>
@@ -175,7 +204,7 @@ export default function ListaEsperaPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Adicionar à Lista de Espera</DialogTitle>
           </DialogHeader>
@@ -222,22 +251,45 @@ export default function ListaEsperaPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Horário a partir de</label>
-                <Input
-                  type="time"
-                  value={form.start_time}
-                  onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-                />
+            <div className="space-y-3 p-4 border rounded-xl bg-muted/20">
+              <label className="text-sm font-semibold flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-primary" /> Dias e Horários de Preferência
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {DAYS_OF_WEEK.map((day) => (
+                  <div
+                    key={day.id}
+                    className="flex items-center space-x-1 border bg-background px-2 py-1.5 rounded-md cursor-pointer hover:border-primary/50"
+                    onClick={() => toggleDay(day.id)}
+                  >
+                    <Checkbox
+                      id={`day-${day.id}`}
+                      checked={form.preferred_days.includes(day.id)}
+                      onCheckedChange={() => toggleDay(day.id)}
+                    />
+                    <Label htmlFor={`day-${day.id}`} className="text-xs cursor-pointer">
+                      {day.label}
+                    </Label>
+                  </div>
+                ))}
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Até horário</label>
-                <Input
-                  type="time"
-                  value={form.end_time}
-                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                />
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">A partir das</label>
+                  <Input
+                    type="time"
+                    value={form.start_time}
+                    onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Até às</label>
+                  <Input
+                    type="time"
+                    value={form.end_time}
+                    onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -245,7 +297,7 @@ export default function ListaEsperaPage() {
               <Textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Ex: Só pode nas terças de manhã..."
+                placeholder="Ex: Pode na hora do almoço..."
               />
             </div>
           </div>

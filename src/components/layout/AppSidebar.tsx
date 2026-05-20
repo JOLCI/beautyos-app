@@ -64,6 +64,7 @@ export function AppSidebar() {
     { name: 'Tarefas', href: `/${passkey}/tarefas`, icon: FileText },
     { name: 'Lista de Espera', href: `/${passkey}/lista-espera`, icon: CalendarDays },
     { name: 'Checklist/Anamnese', href: `/${passkey}/checklist`, icon: FileText, admin: true },
+    { name: 'Bloqueios de Agenda', href: `/${passkey}/bloqueios`, icon: CalendarDays, admin: true },
     { name: 'Configurações', href: `/${passkey}/configuracoes`, icon: Settings, admin: true },
   ]
 

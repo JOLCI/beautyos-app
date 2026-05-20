@@ -31,6 +31,7 @@ import FornecedoresPage from './pages/FornecedoresPage'
 import RelatoriosPage from './pages/RelatoriosPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
+import AgendaBlockersPage from './pages/AgendaBlockersPage'
 import RootCompaniesPage from './pages/RootCompaniesPage'
 import NotFound from './pages/NotFound'
 
@@ -146,6 +147,30 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={['admin', 'root']}>
                       <ConfiguracoesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="configuracoes/checklists"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
+                      <ConfiguracoesChecklistsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="configuracoes/bloqueios"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
+                      <ConfiguracoesBloqueiosPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="bloqueios"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'root']}>
+                      <AgendaBlockersPage />
                     </ProtectedRoute>
                   }
                 />

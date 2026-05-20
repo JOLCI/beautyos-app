@@ -15,10 +15,13 @@ import {
   LayoutGrid,
   CalendarRange,
   Clock,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
-import { translateStatus } from '@/lib/utils'
+import { translateStatus, cn } from '@/lib/utils'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { useSidebar } from '@/components/ui/sidebar'
 
 const ClientAvatar = ({ client, className }: { client?: any; className?: string }) => {
   return (
@@ -37,11 +40,13 @@ export default function AgendaPage() {
   const navigate = useNavigate()
   const { passkey } = useParams()
   const { company } = usePasskey()
+  const { isMobile } = useSidebar()
   const searchParams = new URLSearchParams(window.location.search)
   const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0]
 
   const [date, setDate] = useState(initialDate)
-  const [view, setView] = useState<'day' | 'week' | 'month'>('week')
+  const [view, setView] = useState<'day' | 'fullWeek' | 'month'>('fullWeek')
+  const [zoom, setZoom] = useState<'sm' | 'md' | 'lg'>('md')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingApp, setEditingApp] = useState<any>(null)
   const [selectedTimeForNew, setSelectedTimeForNew] = useState<{
@@ -53,6 +58,10 @@ export default function AgendaPage() {
   const { data: clients } = useQuery<any>('clients')
   const { data: services } = useQuery<any>('services')
   const { data: professionals } = useQuery<any>('profiles')
+  const { data: blockers } = useQuery<any>('agenda_blockers', {
+    match: { company_id: company?.id, is_active: true },
+  })
+  const { data: blockers } = useQuery<any>('agenda_blockers', { match: { is_active: true } })
 
   const openSheet = (app: any = null, timeInfo?: { date: string; time: string }) => {
     setEditingApp(app)
@@ -76,10 +85,9 @@ export default function AgendaPage() {
   const getDayConfig = (dStr: string) => {
     const d = new Date(dStr + 'T12:00:00')
     const dayName = daysOfWeek[d.getDay()]
-    return businessHours[dayName] || { open: true, start: '08:00', end: '19:00' }
+    return businessHours[dayName] || { open: true, start: '08:00', end: '20:00' }
   }
 
-  // Calcula a porcentagem de ocupação do dia
   const calcularOcupacao = (apps: any[], config: any) => {
     if (!config.open || !config.start || !config.end) return 0
     const startH = parseInt(config.start.split(':')[0])
@@ -97,11 +105,27 @@ export default function AgendaPage() {
         minutosUsados += eh * 60 + em - (sh * 60 + sm)
       }
     })
-
     return Math.min(100, Math.round((minutosUsados / totalMinutosAbertos) * 100))
   }
 
-  // Renderiza a coluna de um dia específico na agenda
+  const zoomClass = zoom === 'sm' ? 'min-h-[4rem]' : zoom === 'md' ? 'min-h-[6rem]' : 'min-h-[8rem]'
+
+  const isBlocked = (dateStr: string, timeStr: string) => {
+    if (!blockers) return false
+    return blockers.some((b: any) => {
+      if (b.type === 'interval' && b.start_date && b.end_date) {
+        if (dateStr >= b.start_date && dateStr <= b.end_date) {
+          if (!b.start_time || !b.end_time) return true
+          return timeStr >= b.start_time && timeStr < b.end_time
+        }
+      } else if (b.start_date === dateStr) {
+        if (!b.start_time || !b.end_time) return true
+        return timeStr >= b.start_time && timeStr < b.end_time
+      }
+      return false
+    })
+  }
+
   const renderDayColumn = (currentDateStr: string) => {
     const config = getDayConfig(currentDateStr)
     const dayApps = appointments?.filter((a: any) => a.date === currentDateStr) || []
@@ -116,7 +140,7 @@ export default function AgendaPage() {
       return (
         <div
           key={currentDateStr}
-          className="flex-1 min-w-[120px] md:min-w-0 p-4 text-center text-muted-foreground bg-muted/20 border-r last:border-r-0 flex flex-col items-center"
+          className="flex-1 min-w-[120px] p-4 text-center text-muted-foreground bg-muted/20 border-r last:border-r-0 flex flex-col items-center"
         >
           <div className="font-medium mb-4 capitalize">{dataFormatada}</div>
           <span className="text-xs font-semibold bg-muted px-2 py-1 rounded-md">Fechado</span>
@@ -132,7 +156,10 @@ export default function AgendaPage() {
     return (
       <div
         key={currentDateStr}
-        className="flex-1 min-w-[200px] md:min-w-[150px] border-r last:border-r-0 flex flex-col"
+        className={cn(
+          'flex-1 border-r last:border-r-0 flex flex-col',
+          view === 'fullWeek' ? 'min-w-[150px]' : 'min-w-[250px]',
+        )}
       >
         <div className="p-2 text-center border-b font-medium bg-muted/30 sticky top-0 z-10 backdrop-blur-sm flex flex-col items-center gap-1">
           <span className="capitalize text-sm">{dataFormatada}</span>
@@ -144,29 +171,69 @@ export default function AgendaPage() {
           </div>
           <span className="text-[9px] text-muted-foreground">{ocupacao}% Ocupado</span>
         </div>
-        <div className="relative">
+        <div className="relative flex-1">
           {hours.map((h) => {
             const timeStr = `${String(h).padStart(2, '0')}:00`
             const apps = dayApps.filter((a: any) =>
               a.start_time.startsWith(String(h).padStart(2, '0')),
             )
+            const blocked = isBlocked(currentDateStr, timeStr)
 
             return (
               <div
                 key={h}
-                className="flex border-b border-border/50 h-auto min-h-[6rem] group items-stretch"
+                className={cn(
+                  'flex border-b border-border/50 h-auto group items-stretch',
+                  zoomClass,
+                )}
               >
                 <div className="w-12 py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50 bg-muted/10 shrink-0 flex items-center justify-center">
                   {timeStr}
                 </div>
                 <div
-                  className="flex-1 p-2 flex flex-col gap-2 relative bg-background hover:bg-muted/10 cursor-pointer transition-colors min-w-0"
+                  className={cn(
+                    'flex-1 p-1.5 flex flex-col gap-1.5 relative transition-colors min-w-0',
+                    blocked
+                      ? 'bg-gray-200/50 cursor-not-allowed'
+                      : 'bg-background hover:bg-muted/10 cursor-pointer',
+                  )}
                   onClick={(e) => {
-                    if (e.target === e.currentTarget) {
+                    if (!blocked && e.target === e.currentTarget) {
                       openSheet(null, { date: currentDateStr, time: timeStr })
                     }
                   }}
                 >
+                  {blocked && apps.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-50">
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-100 px-2 py-1 rounded">
+                        Indisponível
+                      </span>
+                    </div>
+                  )}
+                  {/* Render Blockers */}
+                  {blockers
+                    ?.filter(
+                      (b: any) =>
+                        b.start_date <= currentDateStr &&
+                        (!b.end_date || b.end_date >= currentDateStr) &&
+                        b.start_time.startsWith(String(h).padStart(2, '0')),
+                    )
+                    .map((b: any, idx: number) => {
+                      const prof = professionals?.find((p: any) => p.id === b.professional_id)
+                      return (
+                        <div
+                          key={`block-${b.id}-${idx}`}
+                          className="flex flex-col border shadow-sm rounded-lg p-2.5 transition-all border-l-4 border-l-gray-600 bg-gray-100 text-gray-500 w-full min-h-[5.5rem] opacity-80 cursor-not-allowed"
+                        >
+                          <div className="font-bold text-xs">Indisponível</div>
+                          <div className="text-[10px]">{prof?.name?.split(' ')[0]}</div>
+                          <div className="text-[10px] mt-auto truncate">
+                            {b.reason || 'Bloqueio de Agenda'}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  {/* Render Apps */}
                   {apps.map((a: any) => {
                     const cli = clients?.find((c: any) => c.id === a.client_id)
                     const prof = professionals?.find((p: any) => p.id === a.professional_id)
@@ -201,61 +268,37 @@ export default function AgendaPage() {
                           e.stopPropagation()
                           openSheet(a)
                         }}
-                        className={`flex flex-col border shadow-sm rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full min-h-[5.5rem]`}
+                        className={`flex flex-col border shadow-sm rounded-lg p-2 cursor-pointer transition-all hover:shadow-md border-l-4 ${cardClass} w-full min-h-[4.5rem]`}
                       >
-                        <div className="flex items-start gap-2 mb-2 flex-1">
+                        <div className="flex items-start gap-1.5 mb-1 flex-1">
                           <ClientAvatar
                             client={cli}
-                            className="w-7 h-7 border shadow-sm shrink-0"
+                            className="w-6 h-6 border shadow-sm shrink-0"
                           />
                           <div className="flex flex-col flex-1 min-w-0">
-                            <span className="font-bold text-xs break-words leading-tight truncate">
-                              {cli?.name || 'Cliente'}
+                            <span className="font-bold text-[11px] leading-tight truncate">
+                              {cli?.nome_preferido || cli?.name || 'Cliente'}
                             </span>
-                            <div className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mt-0.5">
+                            <div className="text-[9px] text-muted-foreground leading-snug line-clamp-1 mt-0.5">
                               {srvs.map((s: any) => s.name).join(', ') || 'Serviço'}
                             </div>
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1.5 mt-auto">
+                        <div className="flex justify-between items-center mt-auto">
                           <Badge
                             variant="outline"
-                            className={`w-fit text-[9px] px-1.5 py-0 h-4 uppercase bg-background/50 ${isProvisional ? 'text-primary' : ''}`}
+                            className={`w-fit text-[8px] px-1 py-0 h-3 uppercase bg-background/50 ${isProvisional ? 'text-primary' : ''}`}
                           >
                             {translateStatus(a.status)}
                           </Badge>
-                          <div className="text-[10px] font-semibold flex justify-between items-center text-primary/80 bg-muted/30 p-1 rounded gap-1">
-                            <span className="flex items-center gap-1 truncate shrink-0">
-                              <Clock className="w-3 h-3" /> {a.start_time.slice(0, 5)}
-                            </span>
-                            <div className="flex items-center gap-1.5 justify-end min-w-0">
-                              <span className="truncate text-right font-medium">
-                                {prof?.name?.split(' ')[0]}
-                              </span>
-                              <Avatar className="w-4 h-4 shadow-sm border border-primary/20 shrink-0">
-                                {prof?.avatar_url && <AvatarImage src={prof?.avatar_url} />}
-                                <AvatarFallback className="bg-muted text-muted-foreground text-[8px]">
-                                  <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="w-3/4 h-3/4 opacity-60"
-                                  >
-                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                                    <circle cx="12" cy="7" r="4" />
-                                  </svg>
-                                </AvatarFallback>
-                              </Avatar>
-                            </div>
-                          </div>
+                          <span className="text-[9px] font-semibold text-primary/80 flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" /> {a.start_time.slice(0, 5)}
+                          </span>
                         </div>
                       </div>
                     )
                   })}
-                  {apps.length === 0 && (
+                  {!blocked && apps.length === 0 && (
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
                       <span className="text-xs font-semibold text-muted-foreground bg-background/90 px-3 py-1.5 rounded-full shadow-sm border border-border">
                         <Plus className="inline w-3 h-3 mr-1" /> Agendar
@@ -271,19 +314,62 @@ export default function AgendaPage() {
     )
   }
 
+  const renderMobileList = () => {
+    const dayApps =
+      appointments
+        ?.filter((a: any) => a.date === date)
+        .sort((a: any, b: any) => a.start_time.localeCompare(b.start_time)) || []
+    return (
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {dayApps.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            Nenhum agendamento para este dia.
+          </div>
+        ) : (
+          dayApps.map((a: any) => {
+            const cli = clients?.find((c: any) => c.id === a.client_id)
+            const srvs =
+              services?.filter(
+                (s: any) => a.service_ids?.includes(s.id) || a.service_id === s.id,
+              ) || []
+            return (
+              <div
+                key={a.id}
+                onClick={() => openSheet(a)}
+                className="flex items-center gap-4 p-4 border rounded-xl shadow-sm bg-card hover:border-primary/50"
+              >
+                <div className="flex flex-col items-center justify-center w-14 shrink-0 border-r pr-4">
+                  <span className="font-bold text-lg">{a.start_time.slice(0, 5)}</span>
+                  <Badge variant="outline" className="text-[9px] mt-1 uppercase">
+                    {translateStatus(a.status)}
+                  </Badge>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold truncate">{cli?.nome_preferido || cli?.name}</h4>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {srvs.map((s: any) => s.name).join(', ')}
+                  </p>
+                </div>
+                <ClientAvatar client={cli} className="w-10 h-10" />
+              </div>
+            )
+          })
+        )}
+      </div>
+    )
+  }
+
   const renderMonthGrid = () => {
     const d = new Date(date + 'T12:00:00')
     const year = d.getFullYear()
     const month = d.getMonth()
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
-
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - startDate.getDay())
 
     const weeks = []
     let current = new Date(startDate)
-
     while (current <= lastDay || current.getDay() !== 0) {
       const week = []
       for (let i = 0; i < 7; i++) {
@@ -368,7 +454,7 @@ export default function AgendaPage() {
     if (view === 'month') return []
     const curr = new Date(date + 'T12:00:00')
     const day = curr.getDay()
-    const diff = curr.getDate() - day + (day === 0 ? -6 : 1)
+    const diff = curr.getDate() - day + (day === 0 ? -6 : 1) // Start week on Monday
     const startOfWeek = new Date(curr.setDate(diff))
 
     const allDays = Array.from({ length: 7 }).map((_, i) => {
@@ -376,28 +462,45 @@ export default function AgendaPage() {
       d.setDate(d.getDate() + i)
       return d.toISOString().split('T')[0]
     })
-
-    if (view === 'week') {
-      return allDays.filter((dStr) => {
-        const d = new Date(dStr + 'T12:00:00')
-        const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][
-          d.getDay()
-        ]
-        const config = businessHours[dayName] || { open: true }
-        return config.open
-      })
-    }
     return allDays
-  }, [date, view, businessHours])
+  }, [date, view])
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-100px)]">
+    <div className="space-y-6 flex flex-col h-[calc(100vh-100px)] animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Agenda</h1>
           <p className="text-muted-foreground">Gerencie os atendimentos do salão.</p>
         </div>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
+          {view !== 'month' && !isMobile && (
+            <div className="flex gap-1 bg-muted p-1 rounded-lg border mr-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn('h-8 w-8', zoom === 'sm' && 'bg-background shadow-sm')}
+                onClick={() => setZoom('sm')}
+              >
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn('h-8 w-8', zoom === 'md' && 'bg-background shadow-sm')}
+                onClick={() => setZoom('md')}
+              >
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn('h-8 w-8', zoom === 'lg' && 'bg-background shadow-sm')}
+                onClick={() => setZoom('lg')}
+              >
+                <ZoomIn className="w-5 h-5" />
+              </Button>
+            </div>
+          )}
           <div className="flex bg-muted/50 p-1 rounded-lg border">
             <Button
               variant={view === 'day' ? 'secondary' : 'ghost'}
@@ -408,9 +511,9 @@ export default function AgendaPage() {
               <CalendarDays className="w-4 h-4 mr-2 hidden sm:inline" /> Dia
             </Button>
             <Button
-              variant={view === 'week' ? 'secondary' : 'ghost'}
+              variant={view === 'fullWeek' ? 'secondary' : 'ghost'}
               size="sm"
-              onClick={() => setView('week')}
+              onClick={() => setView('fullWeek')}
               className="h-8"
             >
               <LayoutGrid className="w-4 h-4 mr-2 hidden sm:inline" /> Semana
@@ -455,7 +558,7 @@ export default function AgendaPage() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => changeDate(view === 'week' ? -7 : -1)}
+              onClick={() => changeDate(view === 'fullWeek' ? -7 : -1)}
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -465,7 +568,7 @@ export default function AgendaPage() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => changeDate(view === 'week' ? 7 : 1)}
+              onClick={() => changeDate(view === 'fullWeek' ? 7 : 1)}
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -478,9 +581,11 @@ export default function AgendaPage() {
           </div>
         ) : view === 'month' ? (
           renderMonthGrid()
+        ) : isMobile && view !== 'fullWeek' ? (
+          renderMobileList()
         ) : (
-          <div className="flex-1 overflow-auto bg-muted/5">
-            <div className="flex h-full min-w-max">
+          <div className="flex-1 overflow-auto bg-muted/5 relative">
+            <div className="flex min-w-max w-full">
               {datesToRender.map((dStr) => renderDayColumn(dStr))}
             </div>
           </div>

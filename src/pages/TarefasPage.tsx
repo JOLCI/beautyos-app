@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +15,7 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -33,10 +33,17 @@ export default function TarefasPage() {
     loading,
     refetch,
   } = useQuery<any>('tasks', { match: { is_active: true, company_id: company?.id } })
-  const { data: professionals } = useQuery<any>('profiles')
+
+  // Apenas atendentes
+  const { data: professionals } = useQuery<any>('profiles', {
+    match: { is_attendant: true, is_active: true },
+  })
 
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState<any>(null)
+
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -72,6 +79,48 @@ export default function TarefasPage() {
     refetch()
   }
 
+  const confirmDelete = (task: any) => {
+    setTaskToDelete(task)
+    setDeleteOpen(true)
+  }
+
+  const handleDelete = async () => {
+    if (!taskToDelete) return
+    setSaving(true)
+
+    // Deleta a tarefa (Apenas se o criado_por for o logado e não concluída - já validado na interface, mas reforçamos)
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskToDelete.id)
+      .eq('created_by', profile?.id)
+      .neq('status', 'completed')
+
+    if (error) {
+      toast.error('Erro ao deletar: ' + error.message)
+    } else {
+      // Registrar log de auditoria
+      await supabase.from('financial_audit_logs').insert([
+        {
+          company_id: company?.id,
+          user_id: profile?.id,
+          action: 'delete',
+          table_name: 'tasks',
+          record_id: taskToDelete.id,
+          old_values: taskToDelete,
+        },
+      ])
+      toast.success('Tarefa deletada com sucesso')
+      refetch()
+    }
+
+    setSaving(false)
+    setDeleteOpen(false)
+    setTaskToDelete(null)
+  }
+
+  const priorityLabels: any = { low: 'Baixa', medium: 'Média', high: 'Alta' }
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex justify-between items-center">
@@ -105,15 +154,18 @@ export default function TarefasPage() {
                 {tasks
                   ?.filter((t: any) => t.status === 'pending')
                   .map((t: any) => (
-                    <div key={t.id} className="p-4 border rounded-xl bg-card shadow-sm space-y-3">
+                    <div
+                      key={t.id}
+                      className="p-4 border rounded-xl bg-card shadow-sm space-y-3 relative group"
+                    >
                       <div>
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-semibold text-sm">{t.title}</h4>
+                          <h4 className="font-semibold text-sm pr-6">{t.title}</h4>
                           <Badge
                             variant={t.priority === 'high' ? 'destructive' : 'secondary'}
                             className="text-[10px] uppercase"
                           >
-                            {t.priority}
+                            {priorityLabels[t.priority] || t.priority}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">
@@ -135,6 +187,16 @@ export default function TarefasPage() {
                           Iniciar
                         </Button>
                       </div>
+                      {t.created_by === profile?.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive h-6 w-6"
+                          onClick={() => confirmDelete(t)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   ))}
               </div>
@@ -149,11 +211,11 @@ export default function TarefasPage() {
                   .map((t: any) => (
                     <div
                       key={t.id}
-                      className="p-4 border border-blue-200 bg-blue-50/50 rounded-xl shadow-sm space-y-3"
+                      className="p-4 border border-blue-200 bg-blue-50/50 rounded-xl shadow-sm space-y-3 relative group"
                     >
                       <div>
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-semibold text-sm">{t.title}</h4>
+                          <h4 className="font-semibold text-sm pr-6">{t.title}</h4>
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">
                           {t.description}
@@ -176,6 +238,16 @@ export default function TarefasPage() {
                           Concluir
                         </Button>
                       </div>
+                      {t.created_by === profile?.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive h-6 w-6"
+                          onClick={() => confirmDelete(t)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   ))}
               </div>
@@ -199,7 +271,7 @@ export default function TarefasPage() {
                       </div>
                       <div className="pt-2 border-t border-green-100">
                         <p className="text-[10px] text-green-700">
-                          Concluído em: {new Date(t.completed_at).toLocaleDateString('pt-BR')}
+                          Concluída em: {new Date(t.completed_at).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
                     </div>
@@ -257,13 +329,13 @@ export default function TarefasPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Atribuir para</label>
+              <label className="text-sm font-medium">Atribuir para (Atendentes)</label>
               <Select
                 value={form.assigned_to}
                 onValueChange={(v) => setForm({ ...form, assigned_to: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
+                  <SelectValue placeholder="Selecione um atendente..." />
                 </SelectTrigger>
                 <SelectContent>
                   {professionals?.map((p: any) => (
@@ -278,6 +350,28 @@ export default function TarefasPage() {
           <DialogFooter>
             <Button disabled={saving} onClick={handleSave} className="w-full">
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Salvar Tarefa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Tem certeza que deseja deletar a tarefa <strong>{taskToDelete?.title}</strong>? Esta
+              ação não pode ser desfeita.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" disabled={saving} onClick={handleDelete}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Deletar Tarefa
             </Button>
           </DialogFooter>
         </DialogContent>

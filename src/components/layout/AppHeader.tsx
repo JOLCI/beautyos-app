@@ -1,6 +1,6 @@
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
-import { LogOut, User as UserIcon } from 'lucide-react'
+import { LogOut, User as UserIcon, Settings, Lock } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -8,6 +8,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 
@@ -24,7 +26,9 @@ export function AppHeader() {
       console.error('Error in sign out handler:', err)
     } finally {
       // Ensure redirect happens even if an unexpected error occurs during sign out
+      // Replace history state to prevent going back
       navigate(`/${passkey}/login`, { replace: true })
+      // Optionally clear extra local storage if needed here
     }
   }
 
@@ -40,7 +44,7 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="relative h-9 rounded-full pl-3 pr-2 flex items-center gap-2 border bg-muted/30"
+              className="relative h-9 rounded-full pl-3 pr-2 flex items-center gap-2 border bg-muted/30 hover:bg-muted/50 transition-colors"
             >
               <span className="text-sm font-medium hidden sm:inline-block max-w-[120px] truncate">
                 {profile?.name}
@@ -55,12 +59,32 @@ export function AppHeader() {
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{profile?.name}</p>
+                <p className="text-xs leading-none text-muted-foreground">{profile?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => navigate(`/${passkey}/configuracoes`)}
+              className="cursor-pointer"
+            >
+              <Settings className="w-4 h-4 mr-2" /> Minhas Configurações
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={() => navigate(`/${passkey}/login`)}
+            >
+              <Lock className="w-4 h-4 mr-2" /> Bloquear Tela
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleSignOut}
-              className="text-destructive font-medium cursor-pointer"
+              className="text-destructive font-medium cursor-pointer focus:text-destructive focus:bg-destructive/10"
             >
-              <LogOut className="w-4 h-4 mr-2" /> Sair do Sistema
+              <LogOut className="w-4 h-4 mr-2" /> Sair com Segurança
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
