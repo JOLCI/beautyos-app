@@ -105,7 +105,7 @@ export default function ConfiguracoesChecklistsPage() {
           lista_manual: i.lista_manual,
           valores_json: i.valores_json,
           query_sql: i.query_sql,
-          ordem: idx
+          ordem: idx,
         })),
       )
     }
@@ -252,7 +252,9 @@ export default function ConfiguracoesChecklistsPage() {
                             value={it.dropdown_origem || 'manual'}
                             onValueChange={(v) => updateItem(it.id, 'dropdown_origem', v)}
                           >
-                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="manual">Manual (Texto)</SelectItem>
                               <SelectItem value="json">JSON</SelectItem>
@@ -272,7 +274,9 @@ export default function ConfiguracoesChecklistsPage() {
                         )}
                         {it.dropdown_origem === 'json' && (
                           <div className="space-y-2">
-                            <Label>JSON Array de Objetos (Ex: [{"value":"1", "label":"A"}])</Label>
+                            <Label>
+                              JSON Array de Objetos (Ex: {'[{"value":"1", "label":"A"}]'})
+                            </Label>
                             <Textarea
                               value={it.valores_json || ''}
                               onChange={(e) => updateItem(it.id, 'valores_json', e.target.value)}
@@ -288,7 +292,14 @@ export default function ConfiguracoesChecklistsPage() {
                               onChange={(e) => updateItem(it.id, 'query_sql', e.target.value)}
                               placeholder="SELECT id as value, name as label FROM public.services LIMIT 10"
                             />
-                            <Button size="sm" variant="secondary" className="mt-2" onClick={() => toast.success('Query validada com sucesso! (Mock)')}>Testar Query</Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="mt-2"
+                              onClick={() => toast.success('Query validada com sucesso! (Mock)')}
+                            >
+                              Testar Query
+                            </Button>
                           </div>
                         )}
                       </div>

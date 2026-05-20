@@ -163,7 +163,7 @@ export function ChecklistExecutionModal({
             </div>
           </RadioGroup>
         )
-      case 'dropdown':
+      case 'dropdown': {
         let opts: any[] = []
         if (item.dropdown_origem === 'json') {
           try {
@@ -197,6 +197,7 @@ export function ChecklistExecutionModal({
             </SelectContent>
           </Select>
         )
+      }
       default:
         return null
     }
