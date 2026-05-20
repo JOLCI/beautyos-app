@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from './AppSidebar'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export function AppLayout() {
   return (
@@ -15,7 +16,9 @@ export function AppLayout() {
           <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-muted/10 relative">
             <div className="absolute inset-0 bg-grid-black/[0.02] -z-10" />
             <div className="max-w-7xl mx-auto h-full">
-              <Outlet />
+              <ErrorBoundary>
+                <Outlet />
+              </ErrorBoundary>
             </div>
           </main>
         </SidebarInset>

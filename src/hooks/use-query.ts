@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
+import { useAuth } from '@/hooks/use-auth'
 
 export function useQuery<T>(
   table: string,
@@ -12,8 +13,10 @@ export function useQuery<T>(
   },
 ) {
   const { company } = usePasskey()
+  const { session } = useAuth()
   const [data, setData] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   const fetch = useCallback(async () => {
     // Skip fetching completely if explicitly disabled
@@ -23,36 +26,54 @@ export function useQuery<T>(
       return
     }
 
+    // Restrict fetching to authenticated sessions for non-public tables
+    const isPublicTable = table === 'companies' || table === 'profiles'
+    if (!isPublicTable && !session) {
+      setLoading(false)
+      setData([])
+      return
+    }
+
     setLoading(true)
-    let q = supabase.from(table).select(options?.select || '*')
+    setError(null)
 
-    // Strict isolation on frontend
-    if (table !== 'companies' && company?.id) {
-      q = q.eq('company_id', company.id)
-    }
+    try {
+      let q = supabase.from(table).select(options?.select || '*')
 
-    if (options?.match) {
-      // Clean match object to remove undefined or null values
-      // This prevents sending invalid UUID strings to Supabase like "undefined"
-      const cleanMatch = Object.fromEntries(
-        Object.entries(options.match).filter(
-          ([_, v]) => v !== undefined && v !== null && v !== 'undefined' && v !== 'null',
-        ),
-      )
-      if (Object.keys(cleanMatch).length > 0) {
-        q = q.match(cleanMatch)
+      // Strict isolation on frontend
+      if (table !== 'companies' && company?.id) {
+        q = q.eq('company_id', company.id)
       }
-    }
 
-    if (options?.order) q = q.order(options.order.column, { ascending: options.order.ascending })
+      if (options?.match) {
+        // Clean match object to remove undefined or null values
+        // This prevents sending invalid UUID strings to Supabase like "undefined"
+        const cleanMatch = Object.fromEntries(
+          Object.entries(options.match).filter(
+            ([_, v]) => v !== undefined && v !== null && v !== 'undefined' && v !== 'null',
+          ),
+        )
+        if (Object.keys(cleanMatch).length > 0) {
+          q = q.match(cleanMatch)
+        }
+      }
 
-    const { data: result, error } = await q
-    if (error) {
-      console.error(`Error fetching ${table}:`, error)
+      if (options?.order) q = q.order(options.order.column, { ascending: options.order.ascending })
+
+      const { data: result, error: supabaseError } = await q
+      if (supabaseError) {
+        console.error(`Supabase error fetching ${table}:`, supabaseError)
+        throw new Error(supabaseError.message)
+      }
+      setData((result as T[]) || [])
+    } catch (err: any) {
+      console.error(`Runtime error fetching ${table}:`, err)
+      setError(err instanceof Error ? err : new Error('Failed to fetch data'))
+      setData([])
+    } finally {
+      setLoading(false)
     }
-    setData((result as T[]) || [])
-    setLoading(false)
-  }, [table, JSON.stringify(options), company?.id])
+  }, [table, JSON.stringify(options), company?.id, session])
 
   useEffect(() => {
     if (table === 'companies' || company?.id) {
@@ -60,5 +81,5 @@ export function useQuery<T>(
     }
   }, [fetch, table, company?.id])
 
-  return { data, loading, refetch: fetch }
+  return { data, loading, error, refetch: fetch }
 }
