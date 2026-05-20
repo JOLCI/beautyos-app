@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { Toaster as ShadcnToaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -201,7 +201,6 @@ const App = () => (
   </ThemeProvider>
 )
 
-import { Outlet } from 'react-router-dom'
 const OutletWithContext = () => <Outlet />
 
 export default App
