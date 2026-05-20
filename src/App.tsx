@@ -3,6 +3,9 @@ import { Toaster as ShadcnToaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import TarefasPage from './pages/TarefasPage'
+import ListaEsperaPage from './pages/ListaEsperaPage'
+import ChecklistPage from './pages/ChecklistPage'
 import { AuthProvider } from '@/hooks/use-auth'
 import { PasskeyProvider } from '@/contexts/PasskeyContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -73,6 +76,9 @@ const App = () => (
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="agenda" element={<AgendaPage />} />
+                <Route path="tarefas" element={<TarefasPage />} />
+                <Route path="lista-espera" element={<ListaEsperaPage />} />
+                <Route path="checklist" element={<ChecklistPage />} />
                 <Route path="clientes" element={<ClientesPage />} />
                 <Route path="clientes/:id" element={<ClienteDetailPage />} />
                 <Route path="servicos" element={<ServicosPage />} />

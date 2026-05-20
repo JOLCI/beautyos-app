@@ -13,13 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { useQuery } from '@/hooks/use-query'
 import { supabase } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
@@ -27,6 +20,8 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
 import { Loader2, X, Clock, AlertCircle, ShoppingCart } from 'lucide-react'
 import { resolveAndScheduleWhatsApp } from '@/lib/whatsapp'
+import { ClientFormModal } from '@/components/clients/ClientFormModal'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 export function NovoAgendamentoSheet({
   open,
@@ -53,6 +48,7 @@ export function NovoAgendamentoSheet({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [canceledByClient, setCanceledByClient] = useState(false)
+  const [showNewClientModal, setShowNewClientModal] = useState(false)
 
   const navigate = useNavigate()
   const availableProfessionals = useMemo(() => {
@@ -144,13 +140,11 @@ export function NovoAgendamentoSheet({
     return false
   }
 
-  // Função responsável por salvar ou atualizar o agendamento
   const handleSave = async (forceSave = false, overrideStatus?: string) => {
     if (!endTime) return toast.error('A hora de término é obrigatória.')
     if (endTime <= startTime)
       return toast.error('A hora de término deve ser posterior à hora de início.')
 
-    // Validação de conflito de horários com alerta bloqueante
     if (!forceSave && checkConflicts()) {
       const confirmacao = window.confirm(
         '🚨 CONFLITO DE HORÁRIO 🚨\n\nJá existe um agendamento neste dia e horário para o atendente selecionado.\n\nDeseja salvar mesmo assim e sobrepor o horário?',
@@ -203,7 +197,7 @@ export function NovoAgendamentoSheet({
         const dtString = `${parts[2]}/${parts[1]}/${parts[0]}`
 
         const contextData = {
-          clientName: client.name,
+          clientName: client.nome_preferido || client.name,
           date: dtString,
           dateTime: `${dtString} às ${startTime}`,
           services: selectedServices
@@ -320,29 +314,28 @@ export function NovoAgendamentoSheet({
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <Label>Cliente</Label>
-              <a
-                href="#"
+              <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault()
-                  window.open(`/${company?.passkey}/clientes`, '_blank')
+                  setShowNewClientModal(true)
                 }}
                 className="text-xs text-primary font-medium hover:underline"
               >
                 + Novo Cliente
-              </a>
+              </button>
             </div>
-            <Select value={clientId || undefined} onValueChange={setClientId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients?.map((c: any) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome_preferido || c.name} {c.phone ? `(${c.phone})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={clientId}
+              onChange={setClientId}
+              options={
+                clients?.map((c: any) => ({
+                  label: `${c.nome_preferido || c.name} ${c.phone ? `(${c.phone})` : ''}`,
+                  value: c.id,
+                })) || []
+              }
+              placeholder="Selecione o cliente"
+            />
             {isNewClient && clientId && (
               <Badge
                 variant="default"
@@ -363,55 +356,26 @@ export function NovoAgendamentoSheet({
 
           <div className="space-y-2">
             <Label>Profissional (Atendente)</Label>
-            <Select value={profId || undefined} onValueChange={setProfId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Quem vai atender?" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableProfessionals.map((p: any) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="w-5 h-5 border">
-                        {p.avatar_url && <AvatarImage src={p.avatar_url} />}
-                        <AvatarFallback className="bg-muted text-muted-foreground text-[10px]">
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="w-3/4 h-3/4 opacity-60"
-                          >
-                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                          </svg>
-                        </AvatarFallback>
-                      </Avatar>
-                      {p.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={profId}
+              onChange={setProfId}
+              options={availableProfessionals.map((p: any) => ({ label: p.name, value: p.id }))}
+              placeholder="Quem vai atender?"
+            />
           </div>
 
           <div className="space-y-2 p-3 bg-muted/30 rounded-xl border">
             <Label>Adicionar Serviço</Label>
-            <Select onValueChange={handleServiceSelect}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione serviços..." />
-              </SelectTrigger>
-              <SelectContent>
-                {services
+            <SearchableSelect
+              value=""
+              onChange={handleServiceSelect}
+              options={
+                services
                   ?.filter((s: any) => s.type === 'service')
-                  .map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} ({s.duration}m)
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+                  .map((s: any) => ({ label: `${s.name} (${s.duration}m)`, value: s.id })) || []
+              }
+              placeholder="Selecione serviços..."
+            />
             <div className="flex flex-wrap gap-2 pt-2">
               {selectedServices.map((id) => {
                 const s = services?.find((x: any) => x.id === id)
@@ -602,6 +566,14 @@ export function NovoAgendamentoSheet({
           </SheetFooter>
         )}
       </SheetContent>
+      <ClientFormModal
+        open={showNewClientModal}
+        onOpenChange={setShowNewClientModal}
+        onSuccess={(newId: string) => {
+          setClientId(newId)
+          if (onSuccess) onSuccess()
+        }}
+      />
     </Sheet>
   )
 }

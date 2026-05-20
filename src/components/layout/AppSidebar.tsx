@@ -61,6 +61,9 @@ export function AppSidebar() {
     },
     { name: 'Relatórios', href: `/${passkey}/financeiro/relatorios`, icon: FileText, admin: true },
     { name: 'Equipe', href: `/${passkey}/usuarios`, icon: Users, admin: true },
+    { name: 'Tarefas', href: `/${passkey}/tarefas`, icon: FileText },
+    { name: 'Lista de Espera', href: `/${passkey}/lista-espera`, icon: CalendarDays },
+    { name: 'Checklist/Anamnese', href: `/${passkey}/checklist`, icon: FileText, admin: true },
     { name: 'Configurações', href: `/${passkey}/configuracoes`, icon: Settings, admin: true },
   ]
 

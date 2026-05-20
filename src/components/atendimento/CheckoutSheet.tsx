@@ -7,13 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   CheckCircle2,
   QrCode,
   Loader2,
@@ -30,6 +23,7 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
 import { resolveAndScheduleWhatsApp } from '@/lib/whatsapp'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 export function CheckoutSheet({
   open,
@@ -51,9 +45,7 @@ export function CheckoutSheet({
   })
 
   const [method, setMethod] = useState('')
-  // Estado para armazenar o valor do desconto inserido
   const [discount, setDiscount] = useState('0')
-  // Estado para definir se o desconto é em valor fixo (R$) ou percentual (%)
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed')
 
   const [surcharge, setSurcharge] = useState('0')
@@ -93,7 +85,6 @@ export function CheckoutSheet({
 
   const actualClientId = clientId === 'avulso' ? '' : clientId
 
-  // Função para processar o upload da imagem de evidência (Câmera ou Galeria)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -106,7 +97,7 @@ export function CheckoutSheet({
   }
 
   const activeClient = useMemo(
-    () => clients.find((c: any) => c.id === actualClientId),
+    () => clients?.find((c: any) => c.id === actualClientId),
     [actualClientId, clients],
   )
 
@@ -124,19 +115,15 @@ export function CheckoutSheet({
     [items, activeClient],
   )
 
-  // Calcula o valor total bruto dos itens no carrinho
   const total = pricedItems.reduce((acc: any, i: any) => acc + i.finalPrice, 0)
-
   const selectedMethodObj = paymentMethods?.find((m: any) => m.id === method)
 
-  // Calcula o valor real do desconto a ser aplicado
   const discountValue =
     discountType === 'percentage' ? total * (Number(discount || 0) / 100) : Number(discount || 0)
 
   const surchargeValue =
     surchargeType === 'percentage' ? total * (Number(surcharge || 0) / 100) : Number(surcharge || 0)
 
-  // Calcula o total final subtraindo o desconto do valor bruto
   const finalTotal = Math.max(0, total - discountValue + surchargeValue)
 
   const isScheduled = selectedMethodObj?.exige_data === true
@@ -186,14 +173,12 @@ export function CheckoutSheet({
     return d.toISOString().split('T')[0]
   }, [minRecurrence])
 
-  // Preenche a data de recorrência inicialmente com a data sugerida
   useEffect(() => {
     if (suggestedDate && !recurrenceDate) {
       setRecurrenceDate(suggestedDate)
     }
   }, [suggestedDate, recurrenceDate])
 
-  // Função para deduzir o estoque de um produto ou composição
   const deductStock = async (serviceId: string, quantity: number) => {
     const { data: inv } = await supabase
       .from('inventory')
@@ -218,18 +203,33 @@ export function CheckoutSheet({
     }
   }
 
-  // Função responsável por consolidar a transação financeira no banco de dados e dar baixa nos itens
-  const finalizeTransaction = async (methodId: string, isPending: boolean) => {
+  const finalizeTransaction = async (
+    methodId: string,
+    isPending: boolean,
+    keepAppointmentOpen = false,
+  ) => {
     const methodObj = paymentMethods?.find((m: any) => m.id === methodId)
     const methodName = methodObj?.nome || methodId
     const now = new Date().toISOString()
     const isImmediate = methodObj?.baixa_automatica === true
 
+    if (appointmentId) {
+      const { data: existingApp } = await supabase
+        .from('appointments')
+        .select('processado_pdv')
+        .eq('id', appointmentId)
+        .single()
+      if (existingApp?.processado_pdv) {
+        toast.error('Este atendimento já foi faturado.')
+        setStatus('idle')
+        return
+      }
+    }
+
     let titleId = null
 
     if (actualClientId) {
       if (surchargeValue > 0 && pricedItems.length > 0) {
-        // Distribute surcharge proportionally among items to update custom prices
         for (const item of pricedItems) {
           const itemRatio = item.finalPrice / total
           const itemSurcharge = surchargeValue * itemRatio
@@ -245,11 +245,12 @@ export function CheckoutSheet({
               tipo_especial: 'acrescimo',
               valor_ajuste: itemSurcharge,
               tipo_ajuste: 'reais',
+              observacoes: 'Acréscimo automático do PDV',
             },
             { onConflict: 'client_id,service_id' },
           )
         }
-        toast.info(`Preço especial atualizado para o cliente.`)
+        toast.info(`Preço especial atualizado para o cliente devido ao acréscimo.`)
       }
 
       const { data: title } = await supabase
@@ -283,7 +284,7 @@ export function CheckoutSheet({
         scheduleDate.setHours(8, 0, 0, 0)
 
         const contextData = {
-          clientName: activeClient.name,
+          clientName: activeClient.nome_preferido || activeClient.name,
           date: new Date(dueDate).toLocaleDateString(),
           amount: finalTotal.toFixed(2),
           pixKey,
@@ -343,17 +344,20 @@ export function CheckoutSheet({
       .single()
 
     if (appointmentId) {
-      await supabase
-        .from('appointments')
-        .update({
-          status: 'finalizado',
-          service_ids: pricedItems.map((i: any) => i.id),
-        })
-        .eq('id', appointmentId)
+      const appUpdate: any = {
+        service_ids: pricedItems.map((i: any) => i.id),
+      }
 
-      // Post-Service Follow-up
-      if (company?.id && activeClient?.phone) {
-        const contextData = { clientName: activeClient.name }
+      if (!keepAppointmentOpen) {
+        appUpdate.status = 'finalizado'
+        appUpdate.processado_pdv = true
+        appUpdate.data_processamento_pdv = now
+      }
+
+      await supabase.from('appointments').update(appUpdate).eq('id', appointmentId)
+
+      if (!keepAppointmentOpen && company?.id && activeClient?.phone) {
+        const contextData = { clientName: activeClient.nome_preferido || activeClient.name }
         resolveAndScheduleWhatsApp(
           company.id,
           actualClientId,
@@ -379,8 +383,7 @@ export function CheckoutSheet({
     setStatus('success')
   }
 
-  // Função que inicia o processo de finalização do checkout, tratando também pagamentos via PIX integrado
-  const handleFinish = async (forceManual = false) => {
+  const handleFinish = async (forceManual = false, keepAppointmentOpen = false) => {
     const methodObj = paymentMethods?.find((m: any) => m.id === method)
     if (methodObj?.exige_data && !actualClientId) {
       return toast.error('Obrigatório selecionar um cliente para faturamento agendado.')
@@ -397,7 +400,8 @@ export function CheckoutSheet({
           const { data: checkData } = await supabase.functions.invoke('check-pix-status', {
             body: { transactionId: 'test' },
           })
-          if (checkData?.status === 'paid') await finalizeTransaction(method, false)
+          if (checkData?.status === 'paid')
+            await finalizeTransaction(method, false, keepAppointmentOpen)
           else {
             toast.error('PIX não confirmado.')
             setStatus('idle')
@@ -409,15 +413,13 @@ export function CheckoutSheet({
         setStatus('idle')
       }
     } else {
-      await finalizeTransaction(method, isScheduled)
+      await finalizeTransaction(method, isScheduled, keepAppointmentOpen)
     }
   }
 
-  // Função para pré-agendar o retorno (recorrência) com base na data/hora informada
   const handleCreateProvisional = async () => {
     if (!company?.id || !actualClientId || !recurrenceDate) return
 
-    // Estima a duração
     const duration = 60
     const [h, m] = recurrenceTime.split(':').map(Number)
     const endH = Math.floor((h * 60 + m + duration) / 60)
@@ -443,7 +445,6 @@ export function CheckoutSheet({
     toast.success('Retorno provisório pré-agendado!')
     setProvisionalCreated(true)
 
-    // Agendar lembrete via WhatsApp 7 dias antes do retorno
     if (activeClient?.phone) {
       const reminderDt = new Date(recurrenceDate)
       reminderDt.setDate(reminderDt.getDate() - 7)
@@ -453,7 +454,7 @@ export function CheckoutSheet({
       const dtBr = `${parts[2]}/${parts[1]}/${parts[0]}`
 
       const contextData = {
-        clientName: activeClient.name,
+        clientName: activeClient.nome_preferido || activeClient.name,
         date: dtBr,
         dateTime: `${dtBr} às ${recurrenceTime}`,
       }
@@ -554,23 +555,21 @@ export function CheckoutSheet({
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
               <div className="space-y-2">
                 <Label>Cliente Vinculado (Opcional para Caixa)</Label>
-                <Select value={clientId} onValueChange={setClientId}>
-                  <SelectTrigger
-                    className={
-                      isScheduled && clientId === 'avulso' ? 'border-amber-500 ring-amber-500' : ''
-                    }
-                  >
-                    <SelectValue placeholder="Venda Avulsa (Anônimo)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="avulso">-- Venda Avulsa --</SelectItem>
-                    {clients.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={clientId}
+                  onChange={setClientId}
+                  options={[
+                    { label: '-- Venda Avulsa --', value: 'avulso' },
+                    ...(clients?.map((c: any) => ({
+                      label: `${c.nome_preferido || c.name} ${c.phone ? `(${c.phone})` : ''}`,
+                      value: c.id,
+                    })) || []),
+                  ]}
+                  placeholder="Venda Avulsa (Anônimo)"
+                  className={
+                    isScheduled && clientId === 'avulso' ? 'border-amber-500 ring-amber-500' : ''
+                  }
+                />
                 {isScheduled && clientId === 'avulso' && (
                   <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
                     <Info className="w-3 h-3" /> Obrigatório para faturamento agendado
@@ -773,16 +772,31 @@ export function CheckoutSheet({
               )}
             </div>
             <div className="p-4 border-t bg-background shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-              <Button
-                onClick={() => handleFinish(false)}
-                disabled={status === 'waiting' || !canFinish}
-                className="w-full h-12 text-base sm:text-lg rounded-full shadow-elevation"
-              >
-                {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-                {selectedMethodObj?.tipo === 'pix' && selectedMethodObj?.baixa_automatica
-                  ? 'Gerar PIX Automático'
-                  : 'Finalizar Atendimento'}
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => handleFinish(false, false)}
+                  disabled={status === 'waiting' || !canFinish}
+                  className="w-full h-12 text-base sm:text-lg rounded-full shadow-elevation"
+                >
+                  {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+                  {selectedMethodObj?.tipo === 'pix' && selectedMethodObj?.baixa_automatica
+                    ? 'Gerar PIX e Finalizar'
+                    : 'Finalizar Atendimento'}
+                </Button>
+                {appointmentId && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleFinish(false, true)}
+                    disabled={status === 'waiting' || !canFinish}
+                    className="w-full h-10 rounded-full border-primary/50 text-primary hover:bg-primary/5"
+                  >
+                    {status === 'waiting' ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    Apenas Receber Pagamento (Manter Aberto)
+                  </Button>
+                )}
+              </div>
             </div>
           </>
         )}

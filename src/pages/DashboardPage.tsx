@@ -2,7 +2,16 @@ import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { TrendingUp, Calendar, AlertTriangle, History, Clock, XCircle, User } from 'lucide-react'
+import {
+  TrendingUp,
+  Calendar,
+  AlertTriangle,
+  History,
+  Clock,
+  XCircle,
+  TrendingDown,
+  Banknote,
+} from 'lucide-react'
 import {
   Line,
   LineChart,
@@ -13,10 +22,10 @@ import {
   CartesianGrid,
 } from 'recharts'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
 import { translateStatus } from '@/lib/utils'
+import { ClientAvatar } from '@/components/clients/ClientAvatar'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -25,13 +34,32 @@ export default function DashboardPage() {
 
   const isAdminOrRoot = profile?.role === 'admin' || profile?.role === 'root'
   const today = new Date().toISOString().split('T')[0]
+  const yesterday = new Date(new Date().setDate(new Date().getDate() - 1))
+    .toISOString()
+    .split('T')[0]
 
   const { data: transactions } = useQuery<any>('transactions', { select: '*' })
   const { data: titles } = useQuery<any>('financial_titles', { select: '*' })
   const { data: appointments } = useQuery<any>('appointments')
   const { data: clients } = useQuery<any>('clients')
+  const { data: cbHistory } = useQuery<any>('cash_balance_history', { match: { data: yesterday } })
 
   const stats = useMemo(() => {
+    if (!transactions || !titles || !appointments)
+      return {
+        saldo: 0,
+        saldoPendente: 0,
+        contasAPagarVencidas: 0,
+        contasAPagarAVencer: 0,
+        entradasHoje: 0,
+        despesasHoje: 0,
+        saldoAtualDinheiro: 0,
+        overdueReceivables: [],
+        appsHoje: [],
+        totalApps: 0,
+        cancelledApps: 0,
+      }
+
     const saldo = transactions.reduce((acc: number, t: any) => {
       if (t.status !== 'confirmed' || t.tipo_transacao === 'transferencia_interna') return acc
       return t.type === 'inflow' ? acc + t.amount : acc - t.amount
@@ -88,17 +116,32 @@ export default function DashboardPage() {
       return acc
     }, 0)
 
+    const saldoDinheiroOntem = cbHistory?.[0]?.saldo_final || 0
+    const dinheiroHoje = transactions.reduce((acc: number, t: any) => {
+      if (
+        t.status === 'confirmed' &&
+        t.type === 'inflow' &&
+        t.transaction_date === today &&
+        t.payment_method?.toLowerCase() === 'dinheiro' &&
+        t.tipo_transacao !== 'transferencia_interna'
+      ) {
+        return acc + t.amount
+      }
+      return acc
+    }, 0)
+    const saldoAtualDinheiro = saldoDinheiroOntem + dinheiroHoje
+
     const overdueReceivables = titles.filter(
       (t: any) =>
         t.type === 'receivable' && ['open', 'partial'].includes(t.status) && t.due_date < today,
     )
 
-    const appsHoje = appointments.filter(
-      (a: any) =>
-        a.date === today && ['agendado', 'confirmado', 'em_atendimento'].includes(a.status),
+    const allAppsHoje = appointments.filter((a: any) => a.date === today)
+    const appsHoje = allAppsHoje.filter((a: any) =>
+      ['agendado', 'confirmado', 'em_atendimento'].includes(a.status),
     )
-    const totalApps = appsHoje.length
-    const cancelledApps = appsHoje.filter((a: any) => a.status === 'cancelado').length
+    const totalApps = allAppsHoje.length
+    const cancelledApps = allAppsHoje.filter((a: any) => a.status === 'cancelado').length
 
     return {
       saldo,
@@ -107,14 +150,14 @@ export default function DashboardPage() {
       contasAPagarAVencer,
       entradasHoje,
       despesasHoje,
+      saldoAtualDinheiro,
       overdueReceivables,
       appsHoje,
       totalApps,
       cancelledApps,
     }
-  }, [transactions, titles, appointments, today])
+  }, [transactions, titles, appointments, today, cbHistory])
 
-  // Calcula os dados do gráfico de receita da semana atual baseando-se nas transações reais
   const chartData = useMemo(() => {
     const data = [
       { name: 'Seg', total: 0 },
@@ -128,9 +171,8 @@ export default function DashboardPage() {
     if (!transactions) return data
 
     const hoje = new Date()
-    const diaSemana = hoje.getDay() // 0 é Domingo, 1 é Segunda...
+    const diaSemana = hoje.getDay()
 
-    // Encontrar o início da semana (Segunda-feira)
     const inicioSemana = new Date(hoje)
     const diff = diaSemana === 0 ? -6 : 1 - diaSemana
     inicioSemana.setDate(hoje.getDate() + diff)
@@ -144,10 +186,9 @@ export default function DashboardPage() {
         t.tipo_transacao !== 'transferencia_interna'
       ) {
         const txData = new Date(t.transaction_date + 'T12:00:00')
-        // Verifica se a transação está na semana atual
         if (txData >= inicioSemana) {
-          const idxDia = txData.getDay() // 0 = Dom, 1 = Seg ...
-          const idxArray = idxDia === 0 ? 6 : idxDia - 1 // Mapeia Seg=0 até Dom=6
+          const idxDia = txData.getDay()
+          const idxArray = idxDia === 0 ? 6 : idxDia - 1
           data[idxArray].total += t.amount
         }
       }
@@ -179,19 +220,38 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <Card
           className={`shadow-sm transition-colors ${isAdminOrRoot ? 'cursor-pointer hover:bg-muted/50' : ''}`}
           onClick={() => isAdminOrRoot && navigate(`/${passkey}/financeiro/caixa`)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Saldo Atual (Confirmado)</CardTitle>
+            <CardTitle className="text-sm font-medium">Saldo (Geral)</CardTitle>
             <History className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">R$ {stats.saldo.toFixed(2)}</div>
           </CardContent>
         </Card>
+
+        {stats.saldoAtualDinheiro > 0 && isAdminOrRoot && (
+          <Card
+            className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors border-l-4 border-l-emerald-500"
+            onClick={() => navigate(`/${passkey}/financeiro/caixa`)}
+          >
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-emerald-700">
+                Saldo Atual (Dinheiro)
+              </CardTitle>
+              <Banknote className="h-4 w-4 text-emerald-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-700">
+                R$ {stats.saldoAtualDinheiro.toFixed(2)}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card
           className="shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
@@ -366,17 +426,7 @@ export default function DashboardPage() {
                       {app.start_time.substring(0, 5)}
                     </div>
                     <div className="flex-1 min-w-0 flex items-center gap-3">
-                      <Avatar className="w-8 h-8 border shadow-sm">
-                        <AvatarImage
-                          src={
-                            cli?.avatar_url ||
-                            `https://img.usecurling.com/ppl/thumbnail?seed=${cli?.id || 'a'}`
-                          }
-                        />
-                        <AvatarFallback>
-                          <User className="w-4 h-4 text-muted-foreground" />
-                        </AvatarFallback>
-                      </Avatar>
+                      <ClientAvatar client={cli} className="w-8 h-8 border shadow-sm" />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-sm truncate">
                           {cli?.nome_preferido || cli?.name || 'Cliente'}

@@ -209,12 +209,7 @@ export default function ClienteDetailPage() {
             />
           </TabsContent>
           <TabsContent value="historico">
-            <ClientTimeline
-              appointments={appointments || []}
-              transactions={transactions || []}
-              titles={titles || []}
-              waSchedules={waSchedules || []}
-            />
+            <ClientTimeline clientId={id || ''} waSchedules={waSchedules || []} />
           </TabsContent>
 
           <TabsContent value="dados">
