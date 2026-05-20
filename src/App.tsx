@@ -31,6 +31,7 @@ import FornecedoresPage from './pages/FornecedoresPage'
 import RelatoriosPage from './pages/RelatoriosPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
+import ConfiguracoesChecklistsPage from './pages/ConfiguracoesChecklistsPage'
 import AgendaBlockersPage from './pages/AgendaBlockersPage'
 import RootCompaniesPage from './pages/RootCompaniesPage'
 import NotFound from './pages/NotFound'
@@ -162,7 +163,7 @@ const App = () => (
                   path="configuracoes/bloqueios"
                   element={
                     <ProtectedRoute allowedRoles={['admin', 'root']}>
-                      <ConfiguracoesBloqueiosPage />
+                      <AgendaBlockersPage />
                     </ProtectedRoute>
                   }
                 />
