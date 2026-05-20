@@ -1,18 +1,18 @@
 {
   "_versions": {
-    "test-whatsapp": 1,
-    "generate-pix": 2,
-    "check-pix-status": 2,
-    "send-whatsapp": 13,
-    "create-user": 6,
-    "google-calendar-sync": 4,
-    "save-integration-secrets": 4,
-    "delete-user": 1,
-    "test-pix": 1,
-    "whatsapp-generate-qr": 3,
-    "whatsapp-check-status": 4,
+    "test-whatsapp": 2,
+    "generate-pix": 3,
+    "check-pix-status": 3,
+    "send-whatsapp": 14,
+    "create-user": 7,
+    "google-calendar-sync": 5,
+    "save-integration-secrets": 5,
+    "delete-user": 2,
+    "test-pix": 2,
+    "whatsapp-generate-qr": 4,
+    "whatsapp-check-status": 5,
     "functions": 4,
-    "cron-triggers": 4,
-    "update-user": 7
+    "cron-triggers": 5,
+    "update-user": 8
   }
 }
