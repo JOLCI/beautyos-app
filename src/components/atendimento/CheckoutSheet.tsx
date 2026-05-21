@@ -4,21 +4,20 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import {
-  CheckCircle2,
-  QrCode,
-  Loader2,
-  AlertCircle,
-  Camera,
-  Trash2,
-} from 'lucide-react'
+import { CheckCircle2, QrCode, Loader2, AlertCircle, Camera, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useQuery } from '@/hooks/use-query'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { ChecklistExecutionModal } from '@/components/checklists/ChecklistExecutionModal'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export function CheckoutSheet({
   open,
@@ -89,12 +88,16 @@ export function CheckoutSheet({
   const sumPayments = payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0)
   const remaining = finalTotal - sumPayments
 
-  const hasScheduledPayment = payments.some(p => {
-    const m = paymentMethods?.find((x:any) => x.id === p.method_id)
+  const hasScheduledPayment = payments.some((p) => {
+    const m = paymentMethods?.find((x: any) => x.id === p.method_id)
     return m?.exige_data === true
   })
 
-  const canFinish = pricedItems.length > 0 && Math.abs(remaining) < 0.01 && payments.length > 0 && (!hasScheduledPayment || actualClientId)
+  const canFinish =
+    pricedItems.length > 0 &&
+    Math.abs(remaining) < 0.01 &&
+    payments.length > 0 &&
+    (!hasScheduledPayment || actualClientId)
 
   useEffect(() => {
     if (initialClientId && open && clientId === 'avulso') setClientId(initialClientId)
@@ -156,14 +159,16 @@ export function CheckoutSheet({
     let titleId = null
 
     if (actualClientId) {
-      const titleStatus = payments.every(p => {
-         const m = paymentMethods?.find((x:any) => x.id === p.method_id)
-         return m?.baixa_automatica
-      }) ? 'paid' : 'open'
+      const titleStatus = payments.every((p) => {
+        const m = paymentMethods?.find((x: any) => x.id === p.method_id)
+        return m?.baixa_automatica
+      })
+        ? 'paid'
+        : 'open'
 
       const paidAmt = payments.reduce((acc, p) => {
-         const m = paymentMethods?.find((x:any) => x.id === p.method_id)
-         return m?.baixa_automatica ? acc + p.amount : acc
+        const m = paymentMethods?.find((x: any) => x.id === p.method_id)
+        return m?.baixa_automatica ? acc + p.amount : acc
       }, 0)
 
       const { data: title } = await supabase
@@ -186,40 +191,40 @@ export function CheckoutSheet({
       titleId = title?.id
     }
 
-    const txsToInsert = payments.map(p => {
-       const mObj = paymentMethods?.find((m: any) => m.id === p.method_id)
-       const isImmediate = mObj?.baixa_automatica === true
+    const txsToInsert = payments.map((p) => {
+      const mObj = paymentMethods?.find((m: any) => m.id === p.method_id)
+      const isImmediate = mObj?.baixa_automatica === true
 
-       return {
-          company_id: company?.id,
-          type: 'inflow',
-          origin: 'automatic_entry',
-          amount: p.amount,
-          status: isImmediate ? 'confirmed' : 'pending',
-          payment_method: mObj?.nome || p.method_id,
-          client_id: actualClientId || null,
-          financial_title_id: titleId,
-          ref_id: appointmentId || null,
-          confirmed_at: isImmediate ? now : null,
-          ticket_id: uniqueTicket,
-          description: `Pagamento PDV (${mObj?.nome})`,
-          metadata: {
-            items: pricedItems.map((i: any) => ({
-              id: i.id,
-              name: i.name,
-              price: i.finalPrice,
-              quantity: 1,
-            })),
-            photo_evidence: photoData,
-          },
-        }
+      return {
+        company_id: company?.id,
+        type: 'inflow',
+        origin: 'automatic_entry',
+        amount: p.amount,
+        status: isImmediate ? 'confirmed' : 'pending',
+        payment_method: mObj?.nome || p.method_id,
+        client_id: actualClientId || null,
+        financial_title_id: titleId,
+        ref_id: appointmentId || null,
+        confirmed_at: isImmediate ? now : null,
+        ticket_id: uniqueTicket,
+        description: `Pagamento PDV (${mObj?.nome})`,
+        metadata: {
+          items: pricedItems.map((i: any) => ({
+            id: i.id,
+            name: i.name,
+            price: i.finalPrice,
+            quantity: 1,
+          })),
+          photo_evidence: photoData,
+        },
+      }
     })
 
     const { error: txErr } = await supabase.from('transactions').insert(txsToInsert)
-    if(txErr) {
-       toast.error('Erro ao salvar transações')
-       setStatus('idle')
-       return
+    if (txErr) {
+      toast.error('Erro ao salvar transações')
+      setStatus('idle')
+      return
     }
 
     if (appointmentId) {
@@ -249,18 +254,18 @@ export function CheckoutSheet({
 
   const executeFinish = async (forceManual = false, keepAppointmentOpen = false) => {
     setStatus('waiting')
-    
-    const hasPixAuto = payments.some(p => {
+
+    const hasPixAuto = payments.some((p) => {
       const methodObj = paymentMethods?.find((m: any) => m.id === p.methodId)
       return methodObj?.tipo === 'pix' && methodObj?.baixa_automatica
     })
 
     if (hasPixAuto && !forceManual) {
-      const pixPayment = payments.find(p => {
+      const pixPayment = payments.find((p) => {
         const methodObj = paymentMethods?.find((m: any) => m.id === p.methodId)
         return methodObj?.tipo === 'pix' && methodObj?.baixa_automatica
       })
-      
+
       const { data } = await supabase.functions.invoke('generate-pix', {
         body: { amount: pixPayment?.amount || finalTotal },
       })
@@ -270,8 +275,7 @@ export function CheckoutSheet({
           const { data: checkData } = await supabase.functions.invoke('check-pix-status', {
             body: { transactionId: 'test' },
           })
-          if (checkData?.status === 'paid')
-            await finalizeTransaction(keepAppointmentOpen)
+          if (checkData?.status === 'paid') await finalizeTransaction(keepAppointmentOpen)
           else {
             toast.error('PIX não confirmado.')
             setStatus('idle')
@@ -283,9 +287,6 @@ export function CheckoutSheet({
         setStatus('idle')
       }
     } else {
-      await finalizeTransaction(keepAppointmentOpen)
-    }
-  }    } else {
       await finalizeTransaction(keepAppointmentOpen)
     }
   }
@@ -423,20 +424,23 @@ export function CheckoutSheet({
                     <div className="space-y-4 border p-4 rounded-xl">
                       <div className="flex items-center justify-between">
                         <Label className="text-base font-bold">Métodos de Pagamento</Label>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={handleAddPayment}
                           disabled={remaining <= 0}
                         >
                           + Adicionar
                         </Button>
                       </div>
-                      
+
                       {payments.map((p, idx) => (
-                        <div key={idx} className="flex gap-2 items-center bg-muted/20 p-2 rounded-lg">
-                          <Select 
-                            value={p.method_id} 
+                        <div
+                          key={idx}
+                          className="flex gap-2 items-center bg-muted/20 p-2 rounded-lg"
+                        >
+                          <Select
+                            value={p.method_id}
                             onValueChange={(v) => handlePaymentChange(idx, 'method_id', v)}
                           >
                             <SelectTrigger className="flex-1">
@@ -444,23 +448,34 @@ export function CheckoutSheet({
                             </SelectTrigger>
                             <SelectContent>
                               {paymentMethods?.map((m: any) => (
-                                <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                                <SelectItem key={m.id} value={m.id}>
+                                  {m.nome}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           <div className="w-28 relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
-                            <Input 
-                              type="number" 
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                              R$
+                            </span>
+                            <Input
+                              type="number"
                               className="pl-6 text-right font-bold"
-                              value={p.amount} 
-                              onChange={(e) => handlePaymentChange(idx, 'amount', Number(e.target.value))} 
+                              value={p.amount}
+                              onChange={(e) =>
+                                handlePaymentChange(idx, 'amount', Number(e.target.value))
+                              }
                               step="0.01"
                             />
                           </div>
                           {payments.length > 1 && (
-                            <Button variant="ghost" size="icon" className="text-destructive shrink-0" onClick={() => removePayment(idx)}>
-                              <Trash2 className="w-4 h-4"/>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive shrink-0"
+                              onClick={() => removePayment(idx)}
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
                         </div>
@@ -469,13 +484,21 @@ export function CheckoutSheet({
                       {hasScheduledPayment && (
                         <div className="space-y-2 mt-4 pt-4 border-t">
                           <Label>Data de Vencimento (Faturamento Agendado)</Label>
-                          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                          <Input
+                            type="date"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                          />
                         </div>
                       )}
 
                       <div className="flex justify-between text-sm font-bold pt-2 mt-2 border-t">
                         <span>Falta Pagar:</span>
-                        <span className={Math.abs(remaining) < 0.01 ? 'text-green-600' : 'text-destructive'}>
+                        <span
+                          className={
+                            Math.abs(remaining) < 0.01 ? 'text-green-600' : 'text-destructive'
+                          }
+                        >
                           R$ {remaining.toFixed(2)}
                         </span>
                       </div>

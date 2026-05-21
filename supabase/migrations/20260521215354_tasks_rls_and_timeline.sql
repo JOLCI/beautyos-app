@@ -7,6 +7,8 @@ BEGIN
     USING (created_by = auth.uid() OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'root');
 
   -- Recreate view v_cliente_timeline_360 to ensure data_ref is correct and sortable
+  DROP VIEW IF EXISTS public.v_cliente_timeline_360 CASCADE;
+  
   CREATE OR REPLACE VIEW public.v_cliente_timeline_360 AS
    SELECT 
       id,

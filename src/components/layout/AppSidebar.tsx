@@ -27,7 +27,6 @@ import {
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
-import { SidebarFooter } from '@/components/ui/sidebar'
 
 export function AppSidebar() {
   const { passkey } = useParams()
