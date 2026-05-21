@@ -151,7 +151,7 @@ export default function TarefasPage() {
               {/* Pendentes */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-muted-foreground uppercase text-xs tracking-wider">
-                  Pendentes
+                  Pendente
                 </h3>
                 {tasks
                   ?.filter((t: any) => t.status === 'pending')
@@ -257,7 +257,7 @@ export default function TarefasPage() {
               {/* Concluídas */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-green-600 uppercase text-xs tracking-wider">
-                  Concluídas
+                  Concluída
                 </h3>
                 {tasks
                   ?.filter((t: any) => t.status === 'completed')
@@ -373,7 +373,7 @@ export default function TarefasPage() {
               Cancelar
             </Button>
             <Button variant="destructive" disabled={saving} onClick={handleDelete}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Deletar Tarefa
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Deletar
             </Button>
           </DialogFooter>
         </DialogContent>

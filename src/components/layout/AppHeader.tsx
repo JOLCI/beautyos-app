@@ -84,7 +84,7 @@ export function AppHeader() {
               onClick={handleSignOut}
               className="text-destructive font-medium cursor-pointer focus:text-destructive focus:bg-destructive/10"
             >
-              <LogOut className="w-4 h-4 mr-2" /> Sair com Segurança
+              <LogOut className="w-4 h-4 mr-2" /> Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

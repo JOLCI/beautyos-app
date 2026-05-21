@@ -272,7 +272,7 @@ export default function ListaEsperaPage() {
               </div>
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">A partir das</label>
+                  <label className="text-xs font-medium text-muted-foreground">Início</label>
                   <Input
                     type="time"
                     value={form.start_time}
@@ -280,7 +280,7 @@ export default function ListaEsperaPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Até às</label>
+                  <label className="text-xs font-medium text-muted-foreground">Fim</label>
                   <Input
                     type="time"
                     value={form.end_time}
