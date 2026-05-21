@@ -62,6 +62,20 @@ export default function AgendaPage() {
     match: { company_id: company?.id, is_active: true },
   })
 
+  const translateStatusBR = (s: string) => {
+    const map: any = {
+      pending: 'Pendente',
+      agendado: 'Pendente',
+      confirmed: 'Confirmado',
+      completed: 'Finalizado',
+      finalizado: 'Finalizado',
+      cancelled: 'Cancelado',
+      cancelado: 'Cancelado',
+      provisional: 'Provisório',
+    }
+    return map[s?.toLowerCase()] || s
+  }
+
   const openSheet = (app: any = null, timeInfo?: { date: string; time: string }) => {
     setEditingApp(app)
     setSelectedTimeForNew(timeInfo || null)
@@ -288,7 +302,7 @@ export default function AgendaPage() {
                             variant="outline"
                             className={`w-fit text-[8px] px-1 py-0 h-3 uppercase bg-background/50 ${isProvisional ? 'text-primary' : ''}`}
                           >
-                            {translateStatus(a.status)}
+                            {translateStatusBR(a.status)}
                           </Badge>
                           <span className="text-[9px] font-semibold text-primary/80 flex items-center gap-1">
                             <Clock className="w-2.5 h-2.5" /> {a.start_time.slice(0, 5)}
@@ -340,7 +354,7 @@ export default function AgendaPage() {
                 <div className="flex flex-col items-center justify-center w-14 shrink-0 border-r pr-4">
                   <span className="font-bold text-lg">{a.start_time.slice(0, 5)}</span>
                   <Badge variant="outline" className="text-[9px] mt-1 uppercase">
-                    {translateStatus(a.status)}
+                    {translateStatusBR(a.status)}
                   </Badge>
                 </div>
                 <div className="flex-1 min-w-0">

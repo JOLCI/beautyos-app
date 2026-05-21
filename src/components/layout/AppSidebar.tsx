@@ -8,6 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar'
 import {
@@ -26,6 +27,7 @@ import {
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
+import { SidebarFooter } from '@/components/ui/sidebar'
 
 export function AppSidebar() {
   const { passkey } = useParams()
@@ -40,9 +42,9 @@ export function AppSidebar() {
   const navigation = [
     { name: 'Painel', href: `/${passkey}/dashboard`, icon: LayoutDashboard },
     { name: 'Agenda', href: `/${passkey}/agenda`, icon: CalendarDays },
-    { name: 'Finalizar Vendas/Caixa', href: `/${passkey}/atendimento/novo`, icon: Wallet },
+    { name: 'Caixa (PDV)', href: `/${passkey}/atendimento/novo`, icon: Wallet },
     { name: 'Clientes', href: `/${passkey}/clientes`, icon: Users },
-    { name: 'Serviços/Produtos', href: `/${passkey}/servicos`, icon: Scissors },
+    { name: 'Serviços e Produtos', href: `/${passkey}/servicos`, icon: Scissors },
     { name: 'Estoque', href: `/${passkey}/estoque`, icon: Package },
     { name: 'Compras', href: `/${passkey}/compras`, icon: ShoppingCart, admin: true },
     { name: 'Fornecedores', href: `/${passkey}/fornecedores`, icon: Truck, admin: true },
@@ -80,7 +82,7 @@ export function AppSidebar() {
   const items = navigation.filter((item) => !item.admin || isAdmin)
 
   return (
-    <Sidebar variant="inset" className="border-r shadow-sm">
+    <Sidebar variant="inset" className="border-r shadow-sm flex flex-col h-full">
       <SidebarHeader className="p-4 flex flex-row items-center gap-3">
         {company?.logo_url ? (
           <img src={company.logo_url} alt="Logo" className="w-10 h-10 rounded-lg object-cover" />
@@ -94,7 +96,7 @@ export function AppSidebar() {
           <span className="text-xs text-muted-foreground truncate capitalize">{profile?.role}</span>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="flex-1 overflow-y-auto">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -129,6 +131,13 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="border-t p-4 mt-auto">
+        <div className="text-xs text-center text-muted-foreground font-medium flex items-center justify-center gap-1.5">
+          <span>Versão 0.0.138</span>
+          <span className="w-1 h-1 rounded-full bg-border" />
+          <span className="font-mono opacity-60">0e43bdf</span>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   )
 }

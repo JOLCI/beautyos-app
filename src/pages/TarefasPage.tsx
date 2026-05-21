@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +15,7 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { toast } from 'sonner'
-import { Loader2, Trash2 } from 'lucide-react'
+import { Loader2, Trash2, Edit2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -34,7 +34,6 @@ export default function TarefasPage() {
     refetch,
   } = useQuery<any>('tasks', { match: { is_active: true, company_id: company?.id } })
 
-  // Apenas atendentes
   const { data: professionals } = useQuery<any>('profiles', {
     match: { is_attendant: true, is_active: true },
   })
@@ -43,6 +42,8 @@ export default function TarefasPage() {
   const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState<any>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     title: '',
@@ -52,23 +53,50 @@ export default function TarefasPage() {
     due_date: '',
   })
 
+  const openNew = () => {
+    setForm({ title: '', description: '', assigned_to: '', priority: 'medium', due_date: '' })
+    setEditMode(false)
+    setEditingId(null)
+    setOpen(true)
+  }
+
+  const openEdit = (t: any) => {
+    setForm({
+      title: t.title || '',
+      description: t.description || '',
+      assigned_to: t.assigned_to || '',
+      priority: t.priority || 'medium',
+      due_date: t.due_date || '',
+    })
+    setEditMode(true)
+    setEditingId(t.id)
+    setOpen(true)
+  }
+
   const handleSave = async () => {
     if (!form.title) return toast.error('Título é obrigatório')
     setSaving(true)
-    const { error } = await supabase.from('tasks').insert([
-      {
-        ...form,
-        company_id: company?.id,
-        created_by: profile?.id,
-        status: 'pending',
-      },
-    ])
+
+    if (editMode && editingId) {
+      const { error } = await supabase.from('tasks').update(form).eq('id', editingId)
+      if (error) toast.error('Erro ao atualizar: ' + error.message)
+      else toast.success('Tarefa atualizada')
+    } else {
+      const { error } = await supabase.from('tasks').insert([
+        {
+          ...form,
+          company_id: company?.id,
+          created_by: profile?.id,
+          status: 'pending',
+        },
+      ])
+      if (error) toast.error(error.message)
+      else toast.success('Tarefa criada')
+    }
+
     setSaving(false)
-    if (error) return toast.error(error.message)
-    toast.success('Tarefa criada')
     setOpen(false)
     refetch()
-    setForm({ title: '', description: '', assigned_to: '', priority: 'medium', due_date: '' })
   }
 
   const handleStatus = async (id: string, status: string) => {
@@ -96,11 +124,10 @@ export default function TarefasPage() {
       .from('tasks')
       .delete()
       .eq('id', taskToDelete.id)
-      .eq('created_by', profile?.id)
       .neq('status', 'completed')
 
     if (error) {
-      toast.error('Erro ao deletar: ' + error.message)
+      toast.error('Erro ao deletar: (Apenas criadores ou administradores podem deletar)')
     } else {
       await supabase.from('financial_audit_logs').insert([
         {
@@ -130,7 +157,7 @@ export default function TarefasPage() {
           <h1 className="text-3xl font-bold tracking-tight">Tarefas</h1>
           <p className="text-muted-foreground">Gerencie atividades da equipe.</p>
         </div>
-        <Button onClick={() => setOpen(true)}>+ Nova Tarefa</Button>
+        <Button onClick={openNew}>+ Nova Tarefa</Button>
       </div>
 
       <Card>
@@ -162,10 +189,10 @@ export default function TarefasPage() {
                     >
                       <div>
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-semibold text-sm pr-6">{t.title}</h4>
+                          <h4 className="font-semibold text-sm pr-12">{t.title}</h4>
                           <Badge
                             variant={t.priority === 'high' ? 'destructive' : 'secondary'}
-                            className="text-[10px] uppercase"
+                            className="text-[10px] uppercase shrink-0"
                           >
                             {priorityLabels[t.priority] || t.priority}
                           </Badge>
@@ -189,16 +216,26 @@ export default function TarefasPage() {
                           Iniciar
                         </Button>
                       </div>
-                      {t.created_by === profile?.id && (
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-card p-1 rounded-md shadow-sm border">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive h-6 w-6"
-                          onClick={() => confirmDelete(t)}
+                          className="h-6 w-6"
+                          onClick={() => openEdit(t)}
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Edit2 className="w-3 h-3" />
                         </Button>
-                      )}
+                        {t.created_by === profile?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive"
+                            onClick={() => confirmDelete(t)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
@@ -217,7 +254,7 @@ export default function TarefasPage() {
                     >
                       <div>
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-semibold text-sm pr-6">{t.title}</h4>
+                          <h4 className="font-semibold text-sm pr-12">{t.title}</h4>
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">
                           {t.description}
@@ -240,16 +277,26 @@ export default function TarefasPage() {
                           Concluir
                         </Button>
                       </div>
-                      {t.created_by === profile?.id && (
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-50 p-1 rounded-md shadow-sm border border-blue-200">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive h-6 w-6"
-                          onClick={() => confirmDelete(t)}
+                          className="h-6 w-6"
+                          onClick={() => openEdit(t)}
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Edit2 className="w-3 h-3" />
                         </Button>
-                      )}
+                        {t.created_by === profile?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive"
+                            onClick={() => confirmDelete(t)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
@@ -271,10 +318,18 @@ export default function TarefasPage() {
                           <h4 className="font-semibold text-sm line-through">{t.title}</h4>
                         </div>
                       </div>
-                      <div className="pt-2 border-t border-green-100">
+                      <div className="pt-2 border-t border-green-100 flex justify-between items-center">
                         <p className="text-[10px] text-green-700">
                           Concluída em: {new Date(t.completed_at).toLocaleDateString('pt-BR')}
                         </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-[10px]"
+                          onClick={() => handleStatus(t.id, 'pending')}
+                        >
+                          Reabrir
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -287,7 +342,7 @@ export default function TarefasPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova Tarefa</DialogTitle>
+            <DialogTitle>{editMode ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -331,15 +386,16 @@ export default function TarefasPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Atribuir para (Atendentes)</label>
+              <label className="text-sm font-medium">Atribuir para (Membro da Equipe)</label>
               <Select
                 value={form.assigned_to}
                 onValueChange={(v) => setForm({ ...form, assigned_to: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um atendente..." />
+                  <SelectValue placeholder="Selecione um membro..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
                   {professionals?.map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}

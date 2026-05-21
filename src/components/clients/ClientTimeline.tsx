@@ -1,24 +1,28 @@
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Calendar, FileText, Send, Receipt } from 'lucide-react'
 import { translateStatus } from '@/lib/utils'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
 import { NovoAgendamentoSheet } from '@/components/agenda/NovoAgendamentoSheet'
+import { CheckoutSheet } from '@/components/atendimento/CheckoutSheet'
 import { useQuery } from '@/hooks/use-query'
 
 export const formatStatus = (status: string) => {
   const s = status?.toLowerCase() || ''
-  if (['completed', 'finalizado', 'paid', 'pago', 'sent', 'confirmed', 'baixado'].includes(s))
-    return 'Concluído'
+  if (['completed', 'finalizado', 'paid', 'pago', 'baixado'].includes(s)) return 'Finalizado'
+  if (['confirmed', 'confirmado', 'sent'].includes(s)) return 'Confirmado'
   if (['cancelled', 'cancelado', 'failed', 'estornado'].includes(s)) return 'Cancelado'
   if (['pending', 'open', 'agendado', 'partial'].includes(s)) return 'Pendente'
   if (['vencido'].includes(s)) return 'Vencido'
+  if (['provisional', 'provisório'].includes(s)) return 'Provisório'
   return 'Aberto'
 }
 
 const getStatusColor = (statusStr: string) => {
-  if (statusStr === 'Concluído') return 'bg-green-500 text-white border-green-600'
+  if (statusStr === 'Finalizado') return 'bg-green-500 text-white border-green-600'
+  if (statusStr === 'Confirmado') return 'bg-blue-500 text-white border-blue-600'
   if (statusStr === 'Cancelado') return 'bg-gray-400 text-white border-gray-500'
   if (statusStr === 'Vencido') return 'bg-destructive text-white border-destructive'
   return 'bg-amber-500 text-white border-amber-600'
@@ -32,12 +36,21 @@ interface ClientTimelineProps {
 export function ClientTimeline({ clientId, waSchedules }: ClientTimelineProps) {
   const [selectedTx, setSelectedTx] = useState<any>(null)
   const [selectedApp, setSelectedApp] = useState<any>(null)
+  const [checkoutApp, setCheckoutApp] = useState<any>(null)
 
-  const { data: timelineData } = useQuery<any>('v_cliente_timeline_360', {
+  const { data: timelineData, refetch: refetchTimeline } = useQuery<any>('v_cliente_timeline_360', {
     match: { client_id: clientId },
   })
-  const { data: appointments } = useQuery<any>('appointments', { match: { client_id: clientId } })
+  const { data: appointments, refetch: refetchApps } = useQuery<any>('appointments', {
+    match: { client_id: clientId },
+  })
   const { data: transactions } = useQuery<any>('transactions', { match: { client_id: clientId } })
+  const { data: services } = useQuery<any>('services')
+
+  const handleRefetch = () => {
+    refetchTimeline()
+    refetchApps()
+  }
 
   const timeline = useMemo(() => {
     const events: any[] = []
@@ -58,9 +71,11 @@ export function ClientTimeline({ clientId, waSchedules }: ClientTimelineProps) {
         dataObj = appointments?.find((a: any) => a.id === item.id)
       }
 
+      const exactDate = item.data_ref || item.evento_datetime
+
       events.push({
         type: item.tipo_evento.toLowerCase(),
-        date: item.evento_datetime,
+        date: item.data_ref || item.evento_datetime,
         data: dataObj || { ...item, status: item.status_evento },
         itemInfo: item,
         icon,
@@ -77,16 +92,16 @@ export function ClientTimeline({ clientId, waSchedules }: ClientTimelineProps) {
         color: 'text-emerald-500 bg-emerald-50 border-emerald-200',
       }),
     )
-
     return events.sort((a, b) => {
       const timeA = new Date(a.date).getTime()
       const timeB = new Date(b.date).getTime()
       if (timeA !== timeB) return timeB - timeA
 
       const weight = (t: string) => {
-        if (t === 'transação') return 3
-        if (t === 'título') return 2
-        if (t === 'agendamento') return 1
+        if (t === 'transação') return 4
+        if (t === 'título') return 3
+        if (t === 'agendamento') return 2
+        if (t === 'agendamento provisório') return 1
         return 0
       }
 
@@ -146,11 +161,28 @@ export function ClientTimeline({ clientId, waSchedules }: ClientTimelineProps) {
                           <p className="text-[10px] text-muted-foreground mt-0.5">
                             Agendado em {new Date(ev.date).toLocaleDateString('pt-BR')}
                           </p>
-                          <Badge
-                            className={`text-[10px] mt-1 uppercase no-underline ${getStatusColor(formatStatus(ev.data.status))}`}
-                          >
-                            {formatStatus(ev.data.status)}
-                          </Badge>
+                          <div className="flex justify-between items-end mt-1">
+                            <Badge
+                              className={`text-[10px] uppercase no-underline ${getStatusColor(formatStatus(ev.data.status))}`}
+                            >
+                              {formatStatus(ev.data.status)}
+                            </Badge>
+
+                            {formatStatus(ev.data.status) !== 'Finalizado' &&
+                              formatStatus(ev.data.status) !== 'Cancelado' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 text-[10px] px-2 py-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setCheckoutApp(ev.data)
+                                  }}
+                                >
+                                  Finalizar Atendimento
+                                </Button>
+                              )}
+                          </div>
                         </div>
                       )}
 
@@ -218,7 +250,7 @@ export function ClientTimeline({ clientId, waSchedules }: ClientTimelineProps) {
                             "{ev.data.rendered_message}"
                           </p>
                           <Badge variant="secondary" className="text-[10px] mt-2 uppercase">
-                            {translateStatus(ev.data.status)}
+                            {formatStatus(ev.data.status)}
                           </Badge>
                         </div>
                       )}
@@ -239,11 +271,32 @@ export function ClientTimeline({ clientId, waSchedules }: ClientTimelineProps) {
         transaction={selectedTx}
       />
 
-      <NovoAgendamentoSheet
-        open={!!selectedApp}
-        onOpenChange={(o: boolean) => !o && setSelectedApp(null)}
-        appointment={selectedApp}
-      />
+      {selectedApp && (
+        <NovoAgendamentoSheet
+          open={!!selectedApp}
+          onOpenChange={(o: boolean) => !o && setSelectedApp(null)}
+          appointment={selectedApp}
+        />
+      )}
+
+      {checkoutApp && (
+        <CheckoutSheet
+          open={!!checkoutApp}
+          onOpenChange={(o: boolean) => !o && setCheckoutApp(null)}
+          appointmentId={checkoutApp.id}
+          initialClientId={checkoutApp.client_id}
+          items={
+            services?.filter(
+              (s: any) =>
+                checkoutApp.service_ids?.includes(s.id) || s.id === checkoutApp.service_id,
+            ) || []
+          }
+          onComplete={() => {
+            setCheckoutApp(null)
+            handleRefetch()
+          }}
+        />
+      )}
     </>
   )
 }

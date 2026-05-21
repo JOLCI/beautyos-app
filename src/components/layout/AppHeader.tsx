@@ -25,10 +25,7 @@ export function AppHeader() {
     } catch (err) {
       console.error('Error in sign out handler:', err)
     } finally {
-      // Ensure redirect happens even if an unexpected error occurs during sign out
-      // Replace history state to prevent going back
       navigate(`/${passkey}/login`, { replace: true })
-      // Optionally clear extra local storage if needed here
     }
   }
 
@@ -71,7 +68,7 @@ export function AppHeader() {
               onClick={() => navigate(`/${passkey}/configuracoes`)}
               className="cursor-pointer"
             >
-              <Settings className="w-4 h-4 mr-2" /> Minhas Configurações
+              <Settings className="w-4 h-4 mr-2" /> Configurações
             </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer"
