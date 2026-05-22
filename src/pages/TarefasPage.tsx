@@ -121,6 +121,16 @@ export default function TarefasPage() {
 
   const handleDelete = async () => {
     if (!taskToDelete) return
+
+    if (
+      taskToDelete.created_by !== profile?.id &&
+      profile?.role !== 'admin' &&
+      profile?.role !== 'root'
+    ) {
+      toast.error('Você não tem permissão para deletar esta tarefa.')
+      return
+    }
+
     setSaving(true)
 
     const { error } = await supabase
@@ -130,7 +140,7 @@ export default function TarefasPage() {
       .neq('status', 'completed')
 
     if (error) {
-      toast.error('Erro ao excluir: (Apenas criadores ou administradores podem deletar)')
+      toast.error('Erro ao excluir: ' + error.message)
     } else {
       await supabase.from('financial_audit_logs').insert([
         {

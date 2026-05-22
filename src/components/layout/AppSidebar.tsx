@@ -144,7 +144,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
         <div className="text-xs text-center text-muted-foreground font-medium flex items-center justify-center pt-2 border-t">
-          <span>0.0.138 - 0e43bdf</span>
+          <span>0.0.138 - 0e43bdf #202405</span>
         </div>
       </SidebarFooter>
     </Sidebar>

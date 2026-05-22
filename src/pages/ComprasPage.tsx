@@ -86,7 +86,21 @@ export default function ComprasPage() {
   }
 
   const handleDeletePurchase = async (id: string) => {
-    if (confirm('Tem certeza que deseja deletar o registro desta compra?')) {
+    if (
+      confirm(
+        'Tem certeza que deseja deletar o registro desta compra? Todas as parcelas associadas serão excluídas.',
+      )
+    ) {
+      // Clean up orphaned transactions related to the installments of this purchase
+      const { data: titles } = await supabase
+        .from('financial_titles')
+        .select('id')
+        .eq('purchase_id', id)
+      if (titles && titles.length > 0) {
+        const titleIds = titles.map((t: any) => t.id)
+        await supabase.from('transactions').delete().in('financial_title_id', titleIds)
+      }
+
       await supabase.from('purchases').delete().eq('id', id)
       toast.success('Compra deletada com sucesso')
       refetch()

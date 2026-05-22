@@ -48,7 +48,10 @@ export function CheckoutSheet({
     match: { id: appTitleId || 'none' },
   })
 
-  const isTitleOpen = titleData?.[0]?.status === 'open'
+  const hasConfirmedTx = appTxs?.some((t: any) => t.status === 'confirmed')
+  const isTitlePaidOrPartial =
+    titleData?.[0]?.status === 'paid' || titleData?.[0]?.status === 'partial'
+  const canFinalizeApp = hasConfirmedTx || isTitlePaidOrPartial
 
   const [clientId, setClientId] = useState('avulso')
   const { data: paymentMethods } = useQuery<any>('payment_methods', {
@@ -246,12 +249,12 @@ export function CheckoutSheet({
     if (appointmentId) {
       const appUpdate: any = {
         service_ids: pricedItems.map((i: any) => i.id),
+        processado_pdv: true,
+        data_processamento_pdv: now,
       }
 
       if (!keepAppointmentOpen) {
         appUpdate.status = 'finalizado'
-        appUpdate.processado_pdv = true
-        appUpdate.data_processamento_pdv = now
       }
 
       await supabase.from('appointments').update(appUpdate).eq('id', appointmentId)
@@ -272,13 +275,13 @@ export function CheckoutSheet({
     setStatus('waiting')
 
     const hasPixAuto = payments.some((p) => {
-      const methodObj = paymentMethods?.find((m: any) => m.id === p.methodId)
+      const methodObj = paymentMethods?.find((m: any) => m.id === p.method_id)
       return methodObj?.tipo === 'pix' && methodObj?.baixa_automatica
     })
 
     if (hasPixAuto && !forceManual) {
       const pixPayment = payments.find((p) => {
-        const methodObj = paymentMethods?.find((m: any) => m.id === p.methodId)
+        const methodObj = paymentMethods?.find((m: any) => m.id === p.method_id)
         return methodObj?.tipo === 'pix' && methodObj?.baixa_automatica
       })
 
@@ -553,17 +556,17 @@ export function CheckoutSheet({
                   onClick={() => handleFinishPreCheck(false, false)}
                   disabled={
                     status === 'waiting' ||
-                    (!canFinish && !isAlreadyPaid) ||
-                    (isAlreadyPaid && isTitleOpen)
+                    (!isAlreadyPaid && !canFinish) ||
+                    (isAlreadyPaid && !canFinalizeApp)
                   }
                   className="w-full h-12 text-base sm:text-lg rounded-full"
                 >
                   {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
                   {isAlreadyPaid
-                    ? isTitleOpen
-                      ? 'Pagamento Pendente (Bloqueado)'
-                      : 'Finalizar Atendimento (Pago/Parcial)'
-                    : 'Finalizar Atendimento'}
+                    ? canFinalizeApp
+                      ? 'Finalizar Atendimento'
+                      : 'Pagamento Pendente (Bloqueado)'
+                    : 'Registrar e Finalizar'}
                 </Button>
               </div>
             </>

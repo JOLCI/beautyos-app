@@ -67,7 +67,7 @@ export default function AgendaPage() {
       pending: 'Pendente',
       agendado: 'Agendado',
       confirmed: 'Confirmado',
-      completed: 'Finalizado',
+      completed: 'Concluída',
       finalizado: 'Finalizado',
       cancelled: 'Cancelado',
       cancelado: 'Cancelado',
