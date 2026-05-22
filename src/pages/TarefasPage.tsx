@@ -32,7 +32,10 @@ export default function TarefasPage() {
     data: tasks,
     loading,
     refetch,
-  } = useQuery<any>('tasks', { match: { is_active: true, company_id: company?.id } })
+  } = useQuery<any>('tasks', {
+    match: { is_active: true, company_id: company?.id },
+    order: { column: 'created_at', ascending: false },
+  })
 
   const { data: professionals } = useQuery<any>('profiles', {
     match: { is_attendant: true, is_active: true },
@@ -127,7 +130,7 @@ export default function TarefasPage() {
       .neq('status', 'completed')
 
     if (error) {
-      toast.error('Erro ao deletar: (Apenas criadores ou administradores podem deletar)')
+      toast.error('Erro ao excluir: (Apenas criadores ou administradores podem deletar)')
     } else {
       await supabase.from('financial_audit_logs').insert([
         {

@@ -97,15 +97,18 @@ export function ClientTimeline({ clientId, waSchedules }: ClientTimelineProps) {
       const timeB = new Date(b.date).getTime()
       if (timeA !== timeB) return timeB - timeA
 
-      const weight = (t: string) => {
+      const weight = (t: string, status: string) => {
         if (t === 'transação') return 4
         if (t === 'título') return 3
+        if (t === 'agendamento' && (status === 'provisional' || status === 'provisório')) return 1
         if (t === 'agendamento') return 2
-        if (t === 'agendamento provisório') return 1
         return 0
       }
 
-      return weight(b.type) - weight(a.type)
+      return (
+        weight(b.type, b.data?.status?.toLowerCase() || '') -
+        weight(a.type, a.data?.status?.toLowerCase() || '')
+      )
     })
   }, [timelineData, waSchedules, appointments, transactions])
 

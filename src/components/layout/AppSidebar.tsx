@@ -27,12 +27,13 @@ import {
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
+import { LogOut } from 'lucide-react'
 
 export function AppSidebar() {
   const { passkey } = useParams()
   const location = useLocation()
   const { company } = usePasskey()
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
   const { setOpenMobile, isMobile } = useSidebar()
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'root'
@@ -130,8 +131,19 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t p-4 mt-auto">
-        <div className="text-xs text-center text-muted-foreground font-medium flex items-center justify-center gap-1.5">
+      <SidebarFooter className="border-t p-4 mt-auto space-y-4">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => signOut()}
+              className="w-full text-muted-foreground hover:text-foreground font-medium"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              <span>Sair</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <div className="text-xs text-center text-muted-foreground font-medium flex items-center justify-center gap-1.5 pt-2 border-t">
           <span>Versão 0.0.138</span>
           <span className="w-1 h-1 rounded-full bg-border" />
           <span className="font-mono opacity-60">0e43bdf</span>

@@ -555,6 +555,19 @@ export function NovoAgendamentoSheet({
                     <ShoppingCart className="w-4 h-4 mr-2" /> Finalizar Vendas / Caixa
                   </Button>
                   <Button
+                    variant="default"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={!appointment.processado_pdv || saving}
+                    onClick={() => handleSave(false, 'finalizado')}
+                    title={
+                      !appointment.processado_pdv
+                        ? 'Necessário finalizar o pagamento no PDV primeiro'
+                        : ''
+                    }
+                  >
+                    Finalizar Atendimento
+                  </Button>
+                  <Button
                     variant="destructive"
                     onClick={() => setShowCancelConfirm(true)}
                     className="w-full"
