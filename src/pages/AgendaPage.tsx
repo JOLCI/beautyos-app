@@ -65,7 +65,7 @@ export default function AgendaPage() {
   const translateStatusBR = (s: string) => {
     const map: any = {
       pending: 'Pendente',
-      agendado: 'Pendente',
+      agendado: 'Agendado',
       confirmed: 'Confirmado',
       completed: 'Finalizado',
       finalizado: 'Finalizado',

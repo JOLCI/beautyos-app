@@ -34,6 +34,22 @@ export function CheckoutSheet({
   const appointment = appointments?.find((a: any) => a.id === appointmentId)
   const isAlreadyPaid = appointment?.processado_pdv === true
 
+  const { data: appTxs } = useQuery<any>('transactions', {
+    match: { ref_id: appointmentId || 'none' },
+  })
+
+  const appTitleId = useMemo(() => {
+    if (!appointmentId) return null
+    const tx = appTxs?.find((t: any) => t.ref_id === appointmentId && t.financial_title_id)
+    return tx?.financial_title_id
+  }, [appTxs, appointmentId])
+
+  const { data: titleData } = useQuery<any>('financial_titles', {
+    match: { id: appTitleId || 'none' },
+  })
+
+  const isTitleOpen = titleData?.[0]?.status === 'open'
+
   const [clientId, setClientId] = useState('avulso')
   const { data: paymentMethods } = useQuery<any>('payment_methods', {
     match: { ativo: true },
@@ -535,11 +551,19 @@ export function CheckoutSheet({
               <div className="p-4 border-t bg-background shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
                 <Button
                   onClick={() => handleFinishPreCheck(false, false)}
-                  disabled={status === 'waiting' || (!canFinish && !isAlreadyPaid)}
+                  disabled={
+                    status === 'waiting' ||
+                    (!canFinish && !isAlreadyPaid) ||
+                    (isAlreadyPaid && isTitleOpen)
+                  }
                   className="w-full h-12 text-base sm:text-lg rounded-full"
                 >
                   {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-                  {isAlreadyPaid ? 'Finalizar Atendimento (Pago)' : 'Finalizar Atendimento'}
+                  {isAlreadyPaid
+                    ? isTitleOpen
+                      ? 'Pagamento Pendente (Bloqueado)'
+                      : 'Finalizar Atendimento (Pago/Parcial)'
+                    : 'Finalizar Atendimento'}
                 </Button>
               </div>
             </>

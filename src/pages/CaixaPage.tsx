@@ -27,7 +27,7 @@ import { usePasskey } from '@/contexts/PasskeyContext'
 import { useAuth } from '@/hooks/use-auth'
 import { FinancialDescription } from '@/components/financeiro/FinancialDescription'
 import { TransactionTicketDialog } from '@/components/financeiro/TransactionTicketDialog'
-import { translateStatus } from '@/lib/utils'
+import { translateStatusBR } from '@/lib/financial'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import {
@@ -442,7 +442,7 @@ export default function CaixaPage() {
                             : 'text-destructive border-destructive/30'
                         }
                       >
-                        {translateStatus(t.type)}
+                        {translateStatusBR(t.type)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -455,7 +455,7 @@ export default function CaixaPage() {
                               : 'bg-amber-500 text-white'
                         }`}
                       >
-                        {translateStatus(t.status)}
+                        {translateStatusBR(t.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-bold flex items-center justify-end gap-3 h-full pt-3">

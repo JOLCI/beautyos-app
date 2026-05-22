@@ -143,10 +143,8 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="text-xs text-center text-muted-foreground font-medium flex items-center justify-center gap-1.5 pt-2 border-t">
-          <span>Versão 0.0.138</span>
-          <span className="w-1 h-1 rounded-full bg-border" />
-          <span className="font-mono opacity-60">0e43bdf</span>
+        <div className="text-xs text-center text-muted-foreground font-medium flex items-center justify-center pt-2 border-t">
+          <span>0.0.138 - 0e43bdf</span>
         </div>
       </SidebarFooter>
     </Sidebar>

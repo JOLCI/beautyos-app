@@ -31,3 +31,22 @@ export function getOriginLabel(origin: string): string {
   }
   return map[origin] || origin
 }
+
+export function translateStatusBR(s: string): string {
+  if (!s) return ''
+  const map: Record<string, string> = {
+    pending: 'Pendente',
+    confirmed: 'Confirmado',
+    paid: 'Pago',
+    open: 'Aberto',
+    partial: 'Parcial',
+    cancelled: 'Cancelado',
+    completed: 'Finalizado',
+    inflow: 'Entrada',
+    outflow: 'Saída',
+    agendado: 'Agendado',
+    finalizado: 'Finalizado',
+    cancelado: 'Cancelado',
+  }
+  return map[s.toLowerCase()] || s
+}

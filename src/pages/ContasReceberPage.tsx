@@ -28,7 +28,7 @@ import { toast } from 'sonner'
 import { usePasskey } from '@/contexts/PasskeyContext'
 import { TitlePaymentDialog } from '@/components/financeiro/TitlePaymentDialog'
 import { TitleDetailSheet } from '@/components/financeiro/TitleDetailSheet'
-import { translateStatus } from '@/lib/utils'
+import { translateStatusBR } from '@/lib/financial'
 
 export default function ContasReceberPage() {
   const { company } = usePasskey()
@@ -239,15 +239,15 @@ export default function ContasReceberPage() {
                     <TableCell>
                       {t.status === 'paid' ? (
                         <Badge className="bg-green-500 text-white uppercase border-green-600">
-                          {translateStatus(t.status)}
+                          {translateStatusBR(t.status)}
                         </Badge>
                       ) : t.status === 'cancelled' ? (
                         <Badge className="bg-destructive text-white uppercase border-destructive">
-                          {translateStatus(t.status)}
+                          {translateStatusBR(t.status)}
                         </Badge>
                       ) : (
                         <Badge className="bg-amber-500 text-white uppercase border-amber-600">
-                          {translateStatus(t.status)}
+                          {translateStatusBR(t.status)}
                         </Badge>
                       )}
                     </TableCell>

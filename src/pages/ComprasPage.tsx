@@ -141,11 +141,16 @@ export default function ComprasPage() {
       purchase_date: purchaseDate,
     }))
 
-    const { error: purErr } = await supabase.from('purchases').insert(purchaseInserts)
+    const { data: purData, error: purErr } = await supabase
+      .from('purchases')
+      .insert(purchaseInserts)
+      .select()
     if (purErr) {
       setSaving(false)
       return toast.error('Erro ao salvar compras: ' + purErr.message)
     }
+
+    const firstPurchaseId = purData?.[0]?.id
 
     for (const item of items) {
       const { data: inv } = await supabase
@@ -179,8 +184,9 @@ export default function ComprasPage() {
         due_date: ins.due_date,
         description: `Compra de Produtos - Parcela ${idx + 1}/${installments.length} [${ins.method}]`,
         supplier_id: supplierId,
+        purchase_id: firstPurchaseId,
       }))
-      await supabase.from('financial_titles').insert(titleInserts)
+      await supabase.from('financial_titles').insert(titleInserts as any)
     }
 
     setSaving(false)
