@@ -238,7 +238,9 @@ export default function TarefasPage() {
                         >
                           <Edit2 className="w-3 h-3" />
                         </Button>
-                        {t.created_by === profile?.id && (
+                        {(t.created_by === profile?.id ||
+                          profile?.role === 'admin' ||
+                          profile?.role === 'root') && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -299,7 +301,9 @@ export default function TarefasPage() {
                         >
                           <Edit2 className="w-3 h-3" />
                         </Button>
-                        {t.created_by === profile?.id && (
+                        {(t.created_by === profile?.id ||
+                          profile?.role === 'admin' ||
+                          profile?.role === 'root') && (
                           <Button
                             variant="ghost"
                             size="icon"

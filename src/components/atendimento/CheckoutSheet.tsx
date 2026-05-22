@@ -557,15 +557,17 @@ export function CheckoutSheet({
                   disabled={
                     status === 'waiting' ||
                     (!isAlreadyPaid && !canFinish) ||
-                    (isAlreadyPaid && !canFinalizeApp)
+                    (isAlreadyPaid && (!canFinalizeApp || appointment?.status === 'finalizado'))
                   }
                   className="w-full h-12 text-base sm:text-lg rounded-full"
                 >
                   {status === 'waiting' ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
                   {isAlreadyPaid
-                    ? canFinalizeApp
-                      ? 'Finalizar Atendimento'
-                      : 'Pagamento Pendente (Bloqueado)'
+                    ? appointment?.status === 'finalizado'
+                      ? 'Atendimento Finalizado'
+                      : canFinalizeApp
+                        ? 'Finalizar Atendimento'
+                        : 'Pagamento Pendente (Bloqueado)'
                     : 'Registrar e Finalizar'}
                 </Button>
               </div>
