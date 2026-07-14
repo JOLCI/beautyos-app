@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
@@ -30,8 +30,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // checkInactivity needs the current user, but reading it from state would force
+  // `user` into the effect's deps — and the effect also writes to `user`, which
+  // loops forever (getSession returns a fresh object on every call).
+  const userRef = useRef<User | null>(null)
+  userRef.current = user
+
   useEffect(() => {
-    let timeoutId: any
     let lastActivity = Date.now()
 
     const handleActivity = () => {
@@ -39,7 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const checkInactivity = async () => {
-      if (user && Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
+      if (userRef.current && Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
         toast.error('Sessão expirada por inatividade. Faça login novamente.')
         await supabase.auth.signOut()
       }
@@ -50,27 +55,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(data)
     }
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    const applySession = (session: Session | null) => {
       setSession(session)
-      setUser(session?.user ?? null)
+      // Keep the previous object when it is the same user, so consumers that
+      // depend on `user` are not re-run on every session read.
+      setUser((prev) => (prev?.id === session?.user?.id ? prev : (session?.user ?? null)))
       if (session?.user) {
         loadProfile(session.user.id).then(() => setLoading(false))
       } else {
         setProfile(null)
         setLoading(false)
       }
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySession(session)
     })
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        loadProfile(session.user.id).then(() => setLoading(false))
-      } else {
-        setLoading(false)
-      }
+      applySession(session)
     })
 
     // Setup inactivity tracking
@@ -89,7 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       window.removeEventListener('scroll', handleActivity)
       clearInterval(interval)
     }
-  }, [user])
+  }, [])
 
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({

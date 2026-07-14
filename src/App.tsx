@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { useEffect } from 'react'
 import { Toaster as ShadcnToaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -13,7 +12,6 @@ import { PasskeyProvider } from '@/contexts/PasskeyContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { PublicRoute } from '@/components/PublicRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { supabase } from '@/lib/supabase/client'
 
 import LandingPage from '@/pages/LandingPage'
 import LoginPage from '@/pages/LoginPage'
@@ -42,30 +40,7 @@ import NotFound from '@/pages/NotFound'
 const OutletWithContext = () => <Outlet />
 
 const App = () => {
-  useEffect(() => {
-    let timeout: NodeJS.Timeout
-    const resetTimeout = () => {
-      clearTimeout(timeout)
-      // 90 minutes timeout
-      timeout = setTimeout(
-        async () => {
-          await supabase.auth.signOut()
-          window.location.href = '/'
-        },
-        90 * 60 * 1000,
-      )
-    }
-
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart']
-    events.forEach((e) => document.addEventListener(e, resetTimeout))
-    resetTimeout()
-
-    return () => {
-      clearTimeout(timeout)
-      events.forEach((e) => document.removeEventListener(e, resetTimeout))
-    }
-  }, [])
-
+  // Inactivity logout lives in AuthProvider (src/hooks/use-auth.tsx).
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <BrowserRouter>
