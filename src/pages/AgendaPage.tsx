@@ -372,6 +372,49 @@ export default function AgendaPage() {
     )
   }
 
+  const renderMobileWeek = () => {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex gap-1 p-2 overflow-x-auto border-b bg-muted/30 shrink-0">
+          {datesToRender.map((dStr) => {
+            const dayDate = new Date(dStr + 'T12:00:00')
+            const isToday = dStr === todayStr
+            const isSelected = dStr === date
+            const dayApps = appointments?.filter((a: any) => a.date === dStr) || []
+            return (
+              <button
+                key={dStr}
+                onClick={() => setDate(dStr)}
+                className={cn(
+                  'flex flex-col items-center justify-center min-w-[48px] py-2 px-2 rounded-lg transition-colors shrink-0',
+                  isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                )}
+              >
+                <span className="text-[10px] font-medium capitalize">
+                  {dayDate.toLocaleDateString('pt-BR', { weekday: 'short' })}
+                </span>
+                <span className={cn('text-lg font-bold', isToday && !isSelected && 'text-primary')}>
+                  {dayDate.getDate()}
+                </span>
+                {dayApps.length > 0 && (
+                  <span
+                    className={cn(
+                      'text-[9px] mt-0.5',
+                      isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground',
+                    )}
+                  >
+                    {dayApps.length} ag.
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+        {renderMobileList()}
+      </div>
+    )
+  }
+
   const renderMonthGrid = () => {
     const d = new Date(date + 'T12:00:00')
     const year = d.getFullYear()
@@ -396,8 +439,12 @@ export default function AgendaPage() {
       <div className="flex flex-col h-full bg-muted/10">
         <div className="grid grid-cols-7 border-b bg-muted/30 shrink-0">
           {daysOfWeek.map((day) => (
-            <div key={day} className="p-2 text-center text-sm font-semibold">
-              {day.slice(0, 3)}
+            <div
+              key={day}
+              className="p-1.5 md:p-2 text-center text-[10px] md:text-sm font-semibold"
+            >
+              <span className="hidden sm:inline">{day.slice(0, 3)}</span>
+              <span className="sm:hidden">{day.slice(0, 1)}</span>
             </div>
           ))}
         </div>
@@ -405,7 +452,7 @@ export default function AgendaPage() {
           {weeks.map((week, wIdx) => (
             <div
               key={wIdx}
-              className="flex-1 grid grid-cols-7 border-b last:border-b-0 min-h-[100px]"
+              className="flex-1 grid grid-cols-7 border-b last:border-b-0 min-h-[80px] md:min-h-[100px]"
             >
               {week.map((day, dIdx) => {
                 const dayStr = day.toISOString().split('T')[0]
@@ -418,37 +465,40 @@ export default function AgendaPage() {
                 return (
                   <div
                     key={dIdx}
-                    className={`border-r last:border-r-0 p-1 md:p-2 cursor-pointer hover:bg-muted/30 transition-colors flex flex-col ${!isCurrentMonth || !config.open ? 'opacity-40 bg-muted/20' : 'bg-background'}`}
+                    className={`border-r last:border-r-0 p-0.5 md:p-2 cursor-pointer hover:bg-muted/30 transition-colors flex flex-col ${!isCurrentMonth || !config.open ? 'opacity-40 bg-muted/20' : 'bg-background'}`}
                     onClick={() => {
                       setDate(dayStr)
                       setView('day')
                     }}
                   >
-                    <div className="flex justify-between items-center mb-1 md:mb-2">
+                    <div className="flex justify-between items-center mb-0.5 md:mb-2">
                       <span
-                        className={`text-xs md:text-sm font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground' : ''}`}
+                        className={`text-[10px] md:text-sm font-semibold w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground' : ''}`}
                       >
                         {day.getDate()}
                       </span>
                       {dayApps.length > 0 && (
-                        <span className="text-[10px] font-bold text-muted-foreground">
+                        <span className="text-[9px] md:text-[10px] font-bold text-muted-foreground">
                           {dayApps.length}
                         </span>
                       )}
                     </div>
-                    <div className="flex-1 overflow-y-auto space-y-1 pr-1">
-                      {dayApps.slice(0, 4).map((a: any, i: number) => (
+                    <div className="flex-1 overflow-y-auto space-y-0.5 md:space-y-1 pr-0 md:pr-1">
+                      {dayApps.slice(0, 3).map((a: any, i: number) => (
                         <div
                           key={i}
-                          className="text-[9px] md:text-[10px] truncate px-1 py-0.5 rounded bg-primary/10 text-primary font-medium border border-primary/20"
+                          className="text-[8px] md:text-[10px] truncate px-0.5 md:px-1 py-0.5 rounded bg-primary/10 text-primary font-medium border border-primary/20"
                         >
-                          {a.start_time.slice(0, 5)} -{' '}
-                          {clients?.find((c: any) => c.id === a.client_id)?.name?.split(' ')[0]}
+                          <span className="hidden sm:inline">
+                            {a.start_time.slice(0, 5)} -{' '}
+                            {clients?.find((c: any) => c.id === a.client_id)?.name?.split(' ')[0]}
+                          </span>
+                          <span className="sm:hidden">{a.start_time.slice(0, 5)}</span>
                         </div>
                       ))}
-                      {dayApps.length > 4 && (
-                        <div className="text-[9px] text-muted-foreground text-center font-bold">
-                          +{dayApps.length - 4} mais
+                      {dayApps.length > 3 && (
+                        <div className="text-[8px] md:text-[9px] text-muted-foreground text-center font-bold">
+                          +{dayApps.length - 3}
                         </div>
                       )}
                     </div>
@@ -457,7 +507,7 @@ export default function AgendaPage() {
               })}
             </div>
           ))}
-        </div>
+        </div>{' '}
       </div>
     )
   }
@@ -479,11 +529,13 @@ export default function AgendaPage() {
   }, [date, view])
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-100px)] animate-fade-in-up">
+    <div className="space-y-4 md:space-y-6 flex flex-col h-[calc(100vh-120px)] md:h-[calc(100vh-100px)] animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agenda</h1>
-          <p className="text-muted-foreground">Gerencie os atendimentos do salão.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Agenda</h1>
+          <p className="text-sm md:text-base text-muted-foreground hidden sm:block">
+            Gerencie os atendimentos do salão.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
           {view !== 'month' && !isMobile && (
@@ -594,7 +646,9 @@ export default function AgendaPage() {
           </div>
         ) : view === 'month' ? (
           renderMonthGrid()
-        ) : isMobile && view !== 'fullWeek' ? (
+        ) : isMobile && view === 'fullWeek' ? (
+          renderMobileWeek()
+        ) : isMobile ? (
           renderMobileList()
         ) : (
           <div className="flex-1 overflow-auto bg-muted/5 relative">
