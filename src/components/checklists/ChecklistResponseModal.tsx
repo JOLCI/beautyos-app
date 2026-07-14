@@ -181,7 +181,7 @@ export function ChecklistResponseModal({
             </div>
           </RadioGroup>
         )
-      case 'dropdown':
+      case 'dropdown': {
         let options: any[] = []
         if (item.dropdown_origem === 'manual' && item.lista_manual) {
           options = item.lista_manual
@@ -204,6 +204,7 @@ export function ChecklistResponseModal({
             </SelectContent>
           </Select>
         )
+      }
       default:
         return null
     }
