@@ -1,17 +1,11 @@
 // AVOID UPDATING THIS FILE DIRECTLY. It is automatically generated.
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: '14.4'
   }
   public: {
     Tables: {
@@ -63,18 +57,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "agenda_blockers_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'agenda_blockers_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "agenda_blockers_professional_id_fkey"
-            columns: ["professional_id"]
+            foreignKeyName: 'agenda_blockers_professional_id_fkey'
+            columns: ['professional_id']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -135,39 +129,39 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: 'appointments_client_id_fkey'
+            columns: ['client_id']
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "appointments_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'appointments_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "appointments_professional_id_fkey"
-            columns: ["professional_id"]
+            foreignKeyName: 'appointments_professional_id_fkey'
+            columns: ['professional_id']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "appointments_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'appointments_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
+            referencedRelation: 'services'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "appointments_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'appointments_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "v_client_service_intervals"
-            referencedColumns: ["service_id"]
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['service_id']
           },
         ]
       }
@@ -219,25 +213,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "cash_balance_history_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'cash_balance_history_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "cash_balance_history_fechado_por_fkey"
-            columns: ["fechado_por"]
+            foreignKeyName: 'cash_balance_history_fechado_por_fkey'
+            columns: ['fechado_por']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "cash_balance_history_id_transacao_transferencia_fkey"
-            columns: ["id_transacao_transferencia"]
+            foreignKeyName: 'cash_balance_history_id_transacao_transferencia_fkey'
+            columns: ['id_transacao_transferencia']
             isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            referencedRelation: 'transactions'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -271,11 +265,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "cash_closures_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'cash_closures_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -288,7 +282,7 @@ export type Database = {
           posicao_x: number | null
           posicao_y: number | null
           tipo_alteracao: string | null
-          tipo_corpo: Database["public"]["Enums"]["checklist_body_type_enum"]
+          tipo_corpo: Database['public']['Enums']['checklist_body_type_enum']
           ungueal_numero: number | null
         }
         Insert: {
@@ -299,7 +293,7 @@ export type Database = {
           posicao_x?: number | null
           posicao_y?: number | null
           tipo_alteracao?: string | null
-          tipo_corpo: Database["public"]["Enums"]["checklist_body_type_enum"]
+          tipo_corpo: Database['public']['Enums']['checklist_body_type_enum']
           ungueal_numero?: number | null
         }
         Update: {
@@ -310,16 +304,16 @@ export type Database = {
           posicao_x?: number | null
           posicao_y?: number | null
           tipo_alteracao?: string | null
-          tipo_corpo?: Database["public"]["Enums"]["checklist_body_type_enum"]
+          tipo_corpo?: Database['public']['Enums']['checklist_body_type_enum']
           ungueal_numero?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "checklist_body_map_checklist_response_id_fkey"
-            columns: ["checklist_response_id"]
+            foreignKeyName: 'checklist_body_map_checklist_response_id_fkey'
+            columns: ['checklist_response_id']
             isOneToOne: false
-            referencedRelation: "checklist_responses"
-            referencedColumns: ["id"]
+            referencedRelation: 'checklist_responses'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -330,7 +324,7 @@ export type Database = {
           id: string
           obrigatoria: boolean | null
           pergunta: string
-          tipo_resposta: Database["public"]["Enums"]["checklist_item_type_enum"]
+          tipo_resposta: Database['public']['Enums']['checklist_item_type_enum']
         }
         Insert: {
           checklist_id?: string | null
@@ -338,7 +332,7 @@ export type Database = {
           id?: string
           obrigatoria?: boolean | null
           pergunta: string
-          tipo_resposta?: Database["public"]["Enums"]["checklist_item_type_enum"]
+          tipo_resposta?: Database['public']['Enums']['checklist_item_type_enum']
         }
         Update: {
           checklist_id?: string | null
@@ -346,15 +340,15 @@ export type Database = {
           id?: string
           obrigatoria?: boolean | null
           pergunta?: string
-          tipo_resposta?: Database["public"]["Enums"]["checklist_item_type_enum"]
+          tipo_resposta?: Database['public']['Enums']['checklist_item_type_enum']
         }
         Relationships: [
           {
-            foreignKeyName: "checklist_items_checklist_id_fkey"
-            columns: ["checklist_id"]
+            foreignKeyName: 'checklist_items_checklist_id_fkey'
+            columns: ['checklist_id']
             isOneToOne: false
-            referencedRelation: "checklists"
-            referencedColumns: ["id"]
+            referencedRelation: 'checklists'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -388,39 +382,39 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "checklist_responses_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'checklist_responses_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "checklist_responses_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'checklist_responses_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "v_client_service_intervals"
-            referencedColumns: ["appointment_id"]
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['appointment_id']
           },
           {
-            foreignKeyName: "checklist_responses_checklist_id_fkey"
-            columns: ["checklist_id"]
+            foreignKeyName: 'checklist_responses_checklist_id_fkey'
+            columns: ['checklist_id']
             isOneToOne: false
-            referencedRelation: "checklists"
-            referencedColumns: ["id"]
+            referencedRelation: 'checklists'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "checklist_responses_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: 'checklist_responses_cliente_id_fkey'
+            columns: ['cliente_id']
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "checklist_responses_respondido_por_fkey"
-            columns: ["respondido_por"]
+            foreignKeyName: 'checklist_responses_respondido_por_fkey'
+            columns: ['respondido_por']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -431,7 +425,7 @@ export type Database = {
           criado_em: string | null
           id: string
           nome: string
-          tipo: Database["public"]["Enums"]["checklist_type_enum"]
+          tipo: Database['public']['Enums']['checklist_type_enum']
         }
         Insert: {
           ativo?: boolean | null
@@ -439,7 +433,7 @@ export type Database = {
           criado_em?: string | null
           id?: string
           nome: string
-          tipo?: Database["public"]["Enums"]["checklist_type_enum"]
+          tipo?: Database['public']['Enums']['checklist_type_enum']
         }
         Update: {
           ativo?: boolean | null
@@ -447,15 +441,15 @@ export type Database = {
           criado_em?: string | null
           id?: string
           nome?: string
-          tipo?: Database["public"]["Enums"]["checklist_type_enum"]
+          tipo?: Database['public']['Enums']['checklist_type_enum']
         }
         Relationships: [
           {
-            foreignKeyName: "checklists_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'checklists_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -469,12 +463,8 @@ export type Database = {
           preco_padrao_original: number | null
           price: number
           service_id: string | null
-          tipo_ajuste:
-            | Database["public"]["Enums"]["special_price_adj_enum"]
-            | null
-          tipo_especial:
-            | Database["public"]["Enums"]["special_price_type_enum"]
-            | null
+          tipo_ajuste: Database['public']['Enums']['special_price_adj_enum'] | null
+          tipo_especial: Database['public']['Enums']['special_price_type_enum'] | null
           valor_ajuste: number | null
         }
         Insert: {
@@ -486,12 +476,8 @@ export type Database = {
           preco_padrao_original?: number | null
           price: number
           service_id?: string | null
-          tipo_ajuste?:
-            | Database["public"]["Enums"]["special_price_adj_enum"]
-            | null
-          tipo_especial?:
-            | Database["public"]["Enums"]["special_price_type_enum"]
-            | null
+          tipo_ajuste?: Database['public']['Enums']['special_price_adj_enum'] | null
+          tipo_especial?: Database['public']['Enums']['special_price_type_enum'] | null
           valor_ajuste?: number | null
         }
         Update: {
@@ -503,42 +489,38 @@ export type Database = {
           preco_padrao_original?: number | null
           price?: number
           service_id?: string | null
-          tipo_ajuste?:
-            | Database["public"]["Enums"]["special_price_adj_enum"]
-            | null
-          tipo_especial?:
-            | Database["public"]["Enums"]["special_price_type_enum"]
-            | null
+          tipo_ajuste?: Database['public']['Enums']['special_price_adj_enum'] | null
+          tipo_especial?: Database['public']['Enums']['special_price_type_enum'] | null
           valor_ajuste?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "client_custom_prices_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: 'client_custom_prices_client_id_fkey'
+            columns: ['client_id']
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "client_custom_prices_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'client_custom_prices_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "client_custom_prices_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'client_custom_prices_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
+            referencedRelation: 'services'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "client_custom_prices_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'client_custom_prices_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "v_client_service_intervals"
-            referencedColumns: ["service_id"]
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['service_id']
           },
         ]
       }
@@ -599,11 +581,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "clients_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'clients_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -637,32 +619,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "commission_rules_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'commission_rules_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "commission_rules_professional_id_fkey"
-            columns: ["professional_id"]
+            foreignKeyName: 'commission_rules_professional_id_fkey'
+            columns: ['professional_id']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "commission_rules_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'commission_rules_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
+            referencedRelation: 'services'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "commission_rules_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'commission_rules_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "v_client_service_intervals"
-            referencedColumns: ["service_id"]
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['service_id']
           },
         ]
       }
@@ -696,32 +678,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "commissions_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'commissions_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "commissions_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'commissions_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "v_client_service_intervals"
-            referencedColumns: ["appointment_id"]
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['appointment_id']
           },
           {
-            foreignKeyName: "commissions_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'commissions_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "commissions_professional_id_fkey"
-            columns: ["professional_id"]
+            foreignKeyName: 'commissions_professional_id_fkey'
+            columns: ['professional_id']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -794,11 +776,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "financial_audit_logs_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'financial_audit_logs_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -859,32 +841,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "financial_titles_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: 'financial_titles_client_id_fkey'
+            columns: ['client_id']
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "financial_titles_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'financial_titles_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "financial_titles_purchase_id_fkey"
-            columns: ["purchase_id"]
+            foreignKeyName: 'financial_titles_purchase_id_fkey'
+            columns: ['purchase_id']
             isOneToOne: false
-            referencedRelation: "purchases"
-            referencedColumns: ["id"]
+            referencedRelation: 'purchases'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "financial_titles_supplier_id_fkey"
-            columns: ["supplier_id"]
+            foreignKeyName: 'financial_titles_supplier_id_fkey'
+            columns: ['supplier_id']
             isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -915,25 +897,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "inventory_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'inventory_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "inventory_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'inventory_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
+            referencedRelation: 'services'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "inventory_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'inventory_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "v_client_service_intervals"
-            referencedColumns: ["service_id"]
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['service_id']
           },
         ]
       }
@@ -970,25 +952,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "inventory_movements_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'inventory_movements_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "inventory_movements_inventory_id_fkey"
-            columns: ["inventory_id"]
+            foreignKeyName: 'inventory_movements_inventory_id_fkey'
+            columns: ['inventory_id']
             isOneToOne: false
-            referencedRelation: "inventory"
-            referencedColumns: ["id"]
+            referencedRelation: 'inventory'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "inventory_movements_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: 'inventory_movements_user_id_fkey'
+            columns: ['user_id']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1004,7 +986,7 @@ export type Database = {
           exige_data: boolean | null
           id: string
           nome: string
-          tipo: Database["public"]["Enums"]["payment_method_type_enum"]
+          tipo: Database['public']['Enums']['payment_method_type_enum']
         }
         Insert: {
           ativo?: boolean | null
@@ -1017,7 +999,7 @@ export type Database = {
           exige_data?: boolean | null
           id?: string
           nome: string
-          tipo?: Database["public"]["Enums"]["payment_method_type_enum"]
+          tipo?: Database['public']['Enums']['payment_method_type_enum']
         }
         Update: {
           ativo?: boolean | null
@@ -1030,15 +1012,15 @@ export type Database = {
           exige_data?: boolean | null
           id?: string
           nome?: string
-          tipo?: Database["public"]["Enums"]["payment_method_type_enum"]
+          tipo?: Database['public']['Enums']['payment_method_type_enum']
         }
         Relationships: [
           {
-            foreignKeyName: "payment_methods_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'payment_methods_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1081,11 +1063,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "pix_gateways_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'pix_gateways_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1128,11 +1110,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'profiles_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1175,32 +1157,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "purchases_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'purchases_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "purchases_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'purchases_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
+            referencedRelation: 'services'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "purchases_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'purchases_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "v_client_service_intervals"
-            referencedColumns: ["service_id"]
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['service_id']
           },
           {
-            foreignKeyName: "purchases_supplier_id_fkey"
-            columns: ["supplier_id"]
+            foreignKeyName: 'purchases_supplier_id_fkey'
+            columns: ['supplier_id']
             isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1261,11 +1243,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "services_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'services_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1305,11 +1287,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "suppliers_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'suppliers_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1361,18 +1343,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "tasks_assigned_to_fkey"
-            columns: ["assigned_to"]
+            foreignKeyName: 'tasks_assigned_to_fkey'
+            columns: ['assigned_to']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "tasks_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'tasks_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1396,9 +1378,7 @@ export type Database = {
           status: string
           supplier_id: string | null
           ticket_id: string
-          tipo_transacao:
-            | Database["public"]["Enums"]["transaction_type_enum"]
-            | null
+          tipo_transacao: Database['public']['Enums']['transaction_type_enum'] | null
           transaction_date: string
           type: string
           updated_at: string
@@ -1423,9 +1403,7 @@ export type Database = {
           status?: string
           supplier_id?: string | null
           ticket_id?: string
-          tipo_transacao?:
-            | Database["public"]["Enums"]["transaction_type_enum"]
-            | null
+          tipo_transacao?: Database['public']['Enums']['transaction_type_enum'] | null
           transaction_date?: string
           type: string
           updated_at?: string
@@ -1450,9 +1428,7 @@ export type Database = {
           status?: string
           supplier_id?: string | null
           ticket_id?: string
-          tipo_transacao?:
-            | Database["public"]["Enums"]["transaction_type_enum"]
-            | null
+          tipo_transacao?: Database['public']['Enums']['transaction_type_enum'] | null
           transaction_date?: string
           type?: string
           updated_at?: string
@@ -1460,32 +1436,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "transactions_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: 'transactions_client_id_fkey'
+            columns: ['client_id']
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "transactions_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'transactions_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "transactions_financial_title_id_fkey"
-            columns: ["financial_title_id"]
+            foreignKeyName: 'transactions_financial_title_id_fkey'
+            columns: ['financial_title_id']
             isOneToOne: false
-            referencedRelation: "financial_titles"
-            referencedColumns: ["id"]
+            referencedRelation: 'financial_titles'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "transactions_supplier_id_fkey"
-            columns: ["supplier_id"]
+            foreignKeyName: 'transactions_supplier_id_fkey'
+            columns: ['supplier_id']
             isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1534,39 +1510,39 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "waitlist_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: 'waitlist_client_id_fkey'
+            columns: ['client_id']
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "waitlist_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'waitlist_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "waitlist_professional_id_fkey"
-            columns: ["professional_id"]
+            foreignKeyName: 'waitlist_professional_id_fkey'
+            columns: ['professional_id']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "waitlist_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'waitlist_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
+            referencedRelation: 'services'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "waitlist_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'waitlist_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "v_client_service_intervals"
-            referencedColumns: ["service_id"]
+            referencedRelation: 'v_client_service_intervals'
+            referencedColumns: ['service_id']
           },
         ]
       }
@@ -1612,32 +1588,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "whatsapp_message_schedules_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: 'whatsapp_message_schedules_client_id_fkey'
+            columns: ['client_id']
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "whatsapp_message_schedules_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'whatsapp_message_schedules_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "whatsapp_message_schedules_related_title_id_fkey"
-            columns: ["related_title_id"]
+            foreignKeyName: 'whatsapp_message_schedules_related_title_id_fkey'
+            columns: ['related_title_id']
             isOneToOne: false
-            referencedRelation: "financial_titles"
-            referencedColumns: ["id"]
+            referencedRelation: 'financial_titles'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "whatsapp_message_schedules_related_transaction_id_fkey"
-            columns: ["related_transaction_id"]
+            foreignKeyName: 'whatsapp_message_schedules_related_transaction_id_fkey'
+            columns: ['related_transaction_id']
             isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            referencedRelation: 'transactions'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1674,11 +1650,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "whatsapp_tags_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'whatsapp_tags_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1712,11 +1688,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "whatsapp_templates_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'whatsapp_templates_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1738,18 +1714,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: 'appointments_client_id_fkey'
+            columns: ['client_id']
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "appointments_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: 'appointments_company_id_fkey'
+            columns: ['company_id']
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
+            referencedRelation: 'companies'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1795,32 +1771,19 @@ export type Database = {
       }
     }
     Enums: {
-      checklist_body_type_enum:
-        | "mao_esquerda"
-        | "mao_direita"
-        | "pe_esquerdo"
-        | "pe_direito"
-      checklist_item_type_enum:
-        | "texto"
-        | "numero"
-        | "data"
-        | "sim_nao"
-        | "produto"
-      checklist_type_enum: "cliente" | "servico"
+      checklist_body_type_enum: 'mao_esquerda' | 'mao_direita' | 'pe_esquerdo' | 'pe_direito'
+      checklist_item_type_enum: 'texto' | 'numero' | 'data' | 'sim_nao' | 'produto'
+      checklist_type_enum: 'cliente' | 'servico'
       payment_method_type_enum:
-        | "dinheiro"
-        | "cartao_credito"
-        | "cartao_debito"
-        | "pix"
-        | "convenio"
-        | "cheque"
-      special_price_adj_enum: "reais" | "percentual"
-      special_price_type_enum: "acrescimo" | "desconto" | "promocao" | "manual"
-      transaction_type_enum:
-        | "receita"
-        | "despesa"
-        | "transferencia_interna"
-        | "ajuste_caixa"
+        | 'dinheiro'
+        | 'cartao_credito'
+        | 'cartao_debito'
+        | 'pix'
+        | 'convenio'
+        | 'cheque'
+      special_price_adj_enum: 'reais' | 'percentual'
+      special_price_type_enum: 'acrescimo' | 'desconto' | 'promocao' | 'manual'
+      transaction_type_enum: 'receita' | 'despesa' | 'transferencia_interna' | 'ajuste_caixa'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1828,33 +1791,31 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -1863,23 +1824,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+    | keyof DefaultSchema['Tables']
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -1888,23 +1849,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+    | keyof DefaultSchema['Tables']
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -1913,72 +1874,55 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
+    | keyof DefaultSchema['Enums']
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
+    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
+    | keyof DefaultSchema['CompositeTypes']
     | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
+    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
   public: {
     Enums: {
-      checklist_body_type_enum: [
-        "mao_esquerda",
-        "mao_direita",
-        "pe_esquerdo",
-        "pe_direito",
-      ],
-      checklist_item_type_enum: [
-        "texto",
-        "numero",
-        "data",
-        "sim_nao",
-        "produto",
-      ],
-      checklist_type_enum: ["cliente", "servico"],
+      checklist_body_type_enum: ['mao_esquerda', 'mao_direita', 'pe_esquerdo', 'pe_direito'],
+      checklist_item_type_enum: ['texto', 'numero', 'data', 'sim_nao', 'produto'],
+      checklist_type_enum: ['cliente', 'servico'],
       payment_method_type_enum: [
-        "dinheiro",
-        "cartao_credito",
-        "cartao_debito",
-        "pix",
-        "convenio",
-        "cheque",
+        'dinheiro',
+        'cartao_credito',
+        'cartao_debito',
+        'pix',
+        'convenio',
+        'cheque',
       ],
-      special_price_adj_enum: ["reais", "percentual"],
-      special_price_type_enum: ["acrescimo", "desconto", "promocao", "manual"],
-      transaction_type_enum: [
-        "receita",
-        "despesa",
-        "transferencia_interna",
-        "ajuste_caixa",
-      ],
+      special_price_adj_enum: ['reais', 'percentual'],
+      special_price_type_enum: ['acrescimo', 'desconto', 'promocao', 'manual'],
+      transaction_type_enum: ['receita', 'despesa', 'transferencia_interna', 'ajuste_caixa'],
     },
   },
 } as const
-
